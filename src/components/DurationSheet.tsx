@@ -1,174 +1,225 @@
-import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AI_UNLOCK_SESSIONS, MOCK_AI_SUGGESTION_MIN } from '@/data/mock';
-import { colors, em, fonts, onDark, palette, screenPadding } from '@/theme';
+import { Button } from '@/components/Button';
+import { TactileCircle } from '@/components/TactileCircle';
+import { minutesPhrase, parseCustomMinutes, PRESET_MINUTES } from '@/data/copy';
+import { useTheme } from '@/theme';
 
 type Props = {
   visible: boolean;
   current: number;
-  sessionCount: number;
-  onSelect: (minutes: number) => void;
+  onUse: (minutes: number) => void;
   onClose: () => void;
 };
 
-const PRESETS = [5, 10, 15, 20];
+const ITEM = 44;
 
-/** Bottom sheet for picking session length (presets, custom, locked AI suggestion). */
-export function DurationSheet({ visible, current, sessionCount, onSelect, onClose }: Props) {
+/** Duration sheet: 5/10/15/20 wheel, or a custom value from 3 to 30 minutes. */
+export function DurationSheet({ visible, current, onUse, onClose }: Props) {
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const [showCustom, setShowCustom] = useState(false);
+  const initial = (PRESET_MINUTES as readonly number[]).includes(current) ? current : 10;
+  const [picked, setPicked] = useState(initial);
+  const [customOpen, setCustomOpen] = useState(false);
   const [custom, setCustom] = useState('');
-  const aiUnlocked = sessionCount >= AI_UNLOCK_SESSIONS;
+  const scroller = useRef<ScrollView>(null);
+  const lastIndex = useRef(PRESET_MINUTES.indexOf(initial as (typeof PRESET_MINUTES)[number]));
 
-  const close = () => {
-    setShowCustom(false);
+  useEffect(() => {
+    if (!visible) return;
+    const next = (PRESET_MINUTES as readonly number[]).includes(current) ? current : 10;
+    setPicked(next);
+    setCustomOpen(false);
     setCustom('');
-    onClose();
+    const index = PRESET_MINUTES.indexOf(next as (typeof PRESET_MINUTES)[number]);
+    lastIndex.current = index;
+    requestAnimationFrame(() => scroller.current?.scrollTo({ y: index * ITEM, animated: false }));
+  }, [visible, current]);
+
+  const snapTo = (offsetY: number) => {
+    const index = Math.min(PRESET_MINUTES.length - 1, Math.max(0, Math.round(offsetY / ITEM)));
+    if (index !== lastIndex.current) {
+      lastIndex.current = index;
+      setPicked(PRESET_MINUTES[index]);
+      Haptics.selectionAsync();
+    } else {
+      setPicked(PRESET_MINUTES[index]);
+    }
   };
-  const select = (m: number) => {
-    setShowCustom(false);
-    setCustom('');
-    onSelect(m);
+
+  const step = (direction: 1 | -1) => {
+    const index = PRESET_MINUTES.indexOf(picked as (typeof PRESET_MINUTES)[number]);
+    const next = Math.min(PRESET_MINUTES.length - 1, Math.max(0, index + direction));
+    if (next === index) return;
+    lastIndex.current = next;
+    setPicked(PRESET_MINUTES[next]);
+    scroller.current?.scrollTo({ y: next * ITEM, animated: true });
+    Haptics.selectionAsync();
+  };
+
+  const customMinutes = parseCustomMinutes(custom);
+  const canUse = customOpen ? customMinutes != null : true;
+
+  const confirm = () => {
+    if (customOpen) {
+      if (customMinutes == null) return;
+      onUse(customMinutes);
+      return;
+    }
+    onUse(picked);
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.wrap}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={close}>
-          <View style={styles.backdrop} />
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.wrap}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={onClose}
+          accessibilityLabel="Lukk"
+          accessibilityRole="button"
+        >
+          <View style={[styles.backdrop, { backgroundColor: theme.color.bg.overlay }]} />
         </Pressable>
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
-          <View style={styles.handleRow}>
-            <View style={styles.handle} />
-          </View>
-          <View style={{ paddingHorizontal: screenPadding, paddingTop: 8 }}>
-            <Text style={styles.title}>Velg varighet</Text>
-            <Text style={styles.sub}>Hvor lang tid har du i dag?</Text>
+        <View
+          accessibilityViewIsModal
+          accessibilityActions={[{ name: 'close', label: 'Lukk' }]}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === 'close') onClose();
+          }}
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: theme.color.surface.sheet,
+              paddingBottom: Math.max(insets.bottom, theme.space['6']),
+              borderTopLeftRadius: theme.radius.large,
+              borderTopRightRadius: theme.radius.large,
+            },
+          ]}
+        >
+          <Pressable
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel="Lukk"
+            style={styles.handleHit}
+          >
+            <View style={[styles.handle, { backgroundColor: theme.color.control.off }]} />
+          </Pressable>
 
-            <View style={styles.grid}>
-              {PRESETS.map((p) => {
-                const active = current === p;
+          <View style={styles.body}>
+            <TactileCircle accessibilityLabel={minutesPhrase(customOpen && customMinutes ? customMinutes : picked)}>
+              <Text style={[theme.text.monoHero, { color: theme.color.object.content }]}>
+                {customOpen && customMinutes ? customMinutes : picked}
+              </Text>
+            </TactileCircle>
+
+            <View
+              style={[styles.wheelWindow, { height: ITEM * 3 }]}
+              accessibilityRole="adjustable"
+              accessibilityLabel="Varighet"
+              accessibilityValue={{ text: `Varighet, ${minutesPhrase(picked)}` }}
+              accessibilityActions={[
+                { name: 'increment', label: 'Øk' },
+                { name: 'decrement', label: 'Senk' },
+              ]}
+              onAccessibilityAction={(event) => {
+                if (event.nativeEvent.actionName === 'increment') step(1);
+                if (event.nativeEvent.actionName === 'decrement') step(-1);
+              }}
+            >
+              <ScrollView
+                ref={scroller}
+                snapToInterval={ITEM}
+                decelerationRate="fast"
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingVertical: ITEM }}
+                onLayout={() => scroller.current?.scrollTo({ y: lastIndex.current * ITEM, animated: false })}
+                onMomentumScrollEnd={(event) => snapTo(event.nativeEvent.contentOffset.y)}
+                onScrollEndDrag={(event) => {
+                  const velocity = event.nativeEvent.velocity?.y ?? 0;
+                  if (Math.abs(velocity) < 0.05) snapTo(event.nativeEvent.contentOffset.y);
+                }}
+                style={{ height: ITEM * 3 }}
+              >
+                {PRESET_MINUTES.map((minutes) => (
+                  <View key={minutes} style={styles.wheelItem}>
+                    <Text style={[theme.text.monoMeta, { color: theme.color.text.secondary }]}>{minutes}</Text>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+
+            <View
+              accessible
+              accessibilityLabel={`Trinn ${PRESET_MINUTES.indexOf(picked as (typeof PRESET_MINUTES)[number]) + 1} av ${PRESET_MINUTES.length}`}
+              style={styles.detents}
+            >
+              {PRESET_MINUTES.map((minutes, index) => {
+                const selected = minutes === picked;
                 return (
-                  <Pressable
-                    key={p}
-                    onPress={() => select(p)}
-                    style={[styles.preset, active && styles.presetActive]}
-                  >
-                    <Text style={[styles.presetText, active && { color: onDark.fg }]}>
-                      {p} <Text style={styles.presetUnit}>min</Text>
-                    </Text>
-                  </Pressable>
+                  <View
+                    key={minutes}
+                    importantForAccessibility="no"
+                    style={{
+                      width: selected ? 24 : 6,
+                      height: 6,
+                      borderRadius: 3,
+                      backgroundColor: selected ? theme.color.ink.default : theme.color.control.off,
+                      marginLeft: index === 0 ? 0 : 6,
+                    }}
+                  />
                 );
               })}
             </View>
 
-            {!showCustom ? (
-              <Pressable onPress={() => setShowCustom(true)} style={styles.customBtn}>
-                <Text style={styles.customText}>+ Egendefinert tid</Text>
-              </Pressable>
+            {customOpen ? (
+              <TextInput
+                autoFocus
+                keyboardType="number-pad"
+                placeholder="3–30 minutter"
+                placeholderTextColor={theme.color.text.tertiary}
+                value={custom}
+                onChangeText={(value) => setCustom(value.replace(/[^0-9]/g, '').slice(0, 2))}
+                accessibilityLabel="Annen lengde"
+                style={[
+                  styles.input,
+                  theme.text.body,
+                  {
+                    color: theme.color.text.primary,
+                    borderColor: theme.color.border.strong,
+                    borderRadius: theme.radius.medium,
+                  },
+                ]}
+              />
             ) : (
-              <View style={styles.customRow}>
-                <TextInput
-                  autoFocus
-                  keyboardType="number-pad"
-                  placeholder="Antall minutter"
-                  placeholderTextColor={colors.fgPlaceholder}
-                  value={custom}
-                  onChangeText={(t) => setCustom(t.replace(/[^0-9]/g, '').slice(0, 3))}
-                  style={styles.customInput}
-                />
-                <Text style={{ fontSize: 13, color: colors.fgTertiary, fontFamily: fonts.sans }}>min</Text>
-                <Pressable
-                  onPress={() => {
-                    const n = parseInt(custom, 10);
-                    if (n > 0 && n <= 120) select(n);
-                  }}
-                  style={styles.okBtn}
-                >
-                  <Text style={styles.okText}>OK</Text>
-                </Pressable>
-              </View>
+              <Button title="Annen lengde" variant="tertiary" size="compact" onPress={() => setCustomOpen(true)} />
             )}
 
-            {/* TODO: AI suggestion is mocked; no model call */}
-            <View style={[styles.ai, aiUnlocked ? { backgroundColor: colors.fg } : { opacity: 0.7 }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.aiTitle, aiUnlocked && { color: onDark.fg }]}>
-                  AI-forslag{!aiUnlocked && ' — låst'}
-                </Text>
-                <Text style={[styles.aiSub, aiUnlocked && { color: 'rgba(248,246,242,0.5)' }]}>
-                  {aiUnlocked
-                    ? `Basert på ${AI_UNLOCK_SESSIONS}+ sesjoner: ${MOCK_AI_SUGGESTION_MIN} min passer deg nå.`
-                    : `Tilgjengelig etter ${AI_UNLOCK_SESSIONS} sesjoner. ${Math.max(0, AI_UNLOCK_SESSIONS - sessionCount)} gjenstår.`}
-                </Text>
-              </View>
-              {aiUnlocked && (
-                <Pressable onPress={() => select(MOCK_AI_SUGGESTION_MIN)} style={styles.aiBtn}>
-                  <Text style={styles.okText}>Bruk</Text>
-                </Pressable>
-              )}
-            </View>
+            <Button title="Bruk" size="regular" disabled={!canUse} onPress={confirm} style={{ marginTop: theme.space['3'] }} />
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { flex: 1, backgroundColor: colors.bgOverlay },
-  sheet: {
-    backgroundColor: colors.bg,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.14,
-    shadowRadius: 32,
-    shadowOffset: { width: 0, height: -4 },
-  },
-  handleRow: { alignItems: 'center', paddingTop: 12, paddingBottom: 8 },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: palette.mono400 },
-  title: { fontFamily: fonts.sansMedium, fontSize: 18, letterSpacing: em(18, -0.02), color: colors.fg, marginBottom: 6 },
-  sub: { fontFamily: fonts.sansLight, fontSize: 13, color: colors.fgTertiary, marginBottom: 24 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  preset: {
-    width: '48.5%',
-    flexGrow: 1,
-    paddingVertical: 18,
-    alignItems: 'center',
+  backdrop: { flex: 1 },
+  sheet: {},
+  handleHit: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  handle: { width: 36, height: 4, borderRadius: 2 },
+  body: { alignItems: 'center', paddingHorizontal: 28, gap: 16 },
+  wheelWindow: { width: '100%', overflow: 'hidden' },
+  wheelItem: { height: ITEM, alignItems: 'center', justifyContent: 'center' },
+  detents: { flexDirection: 'row', alignItems: 'center', minHeight: 44, justifyContent: 'center' },
+  input: {
+    width: '100%',
+    minHeight: 44,
     borderWidth: 1,
-    borderColor: 'rgba(17,17,16,0.16)',
-  },
-  presetActive: { backgroundColor: colors.fg, borderColor: colors.fg },
-  presetText: { fontFamily: fonts.sansMedium, fontSize: 17, letterSpacing: em(17, -0.02), color: colors.fg },
-  presetUnit: { fontFamily: fonts.sansLight, fontSize: 13, opacity: 0.6 },
-  customBtn: {
-    paddingVertical: 15,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.borderStrong,
-    marginBottom: 12,
-  },
-  customText: { fontFamily: fonts.sans, fontSize: 14, color: colors.fgTertiary },
-  customRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: colors.fg,
-    paddingVertical: 10,
     paddingHorizontal: 16,
-    marginBottom: 12,
+    textAlign: 'center',
   },
-  customInput: { flex: 1, fontFamily: fonts.sansLight, fontSize: 18, color: colors.fg, paddingVertical: 2 },
-  okBtn: { backgroundColor: colors.fg, paddingVertical: 8, paddingHorizontal: 16 },
-  okText: { fontFamily: fonts.sansMedium, fontSize: 13, color: onDark.fg },
-  ai: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: palette.mono200 },
-  aiTitle: { fontFamily: fonts.sansMedium, fontSize: 13, color: colors.fgTertiary, marginBottom: 2 },
-  aiSub: { fontFamily: fonts.sansLight, fontSize: 11, lineHeight: 16, color: palette.mono500 },
-  aiBtn: { backgroundColor: 'rgba(255,255,255,0.15)', paddingVertical: 8, paddingHorizontal: 14 },
 });

@@ -2,26 +2,27 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { ONBOARDING_STEPS } from '@/data/mock';
-import { colors, type } from '@/theme';
+import { useTheme } from '@/theme';
 import { Icon } from './Icon';
 import { ProgressDots } from './ProgressDots';
 
-/** Back chevron + progress dots + "n av 7" eyebrow, title and subtitle. */
+/** Back control, progress, step count, title and subtitle. */
 export function OnboardingHeader({ step, title, sub }: { step: number; title: string; sub: string }) {
+  const { theme } = useTheme();
   return (
     <View>
       <View style={styles.bar}>
-        <Pressable hitSlop={12} onPress={() => router.back()} accessibilityLabel="Tilbake">
-          <Icon name="chevronLeft" size={18} color={colors.fgTertiary} />
+        <Pressable hitSlop={12} onPress={() => router.back()} accessibilityLabel="Tilbake" style={styles.back}>
+          <Icon name="chevronLeft" size={18} color={theme.color.text.tertiary} />
         </Pressable>
         <ProgressDots total={ONBOARDING_STEPS} current={step} />
-        <View style={{ width: 22 }} />
+        <View style={styles.back} />
       </View>
-      <Text style={[type.eyebrow, { marginBottom: 10 }]}>
+      <Text style={[theme.text.eyebrow, { color: theme.color.text.tertiary, marginBottom: 10 }]}>
         {step + 1} av {ONBOARDING_STEPS}
       </Text>
-      <Text style={[type.display(28), { marginBottom: 8 }]}>{title}</Text>
-      <Text style={[type.caption, { marginBottom: 32 }]}>{sub}</Text>
+      <Text style={[theme.text.headline, { color: theme.color.text.primary, marginBottom: 8 }]}>{title}</Text>
+      <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginBottom: 32 }]}>{sub}</Text>
     </View>
   );
 }
@@ -34,4 +35,5 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 32,
   },
+  back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
 });

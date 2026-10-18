@@ -5,9 +5,12 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSUserNotificationsUsageDescription": "bored. varsler når økta er ferdig."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -31,6 +34,13 @@
           "backgroundColor": "#111110",
           "image": "./assets/splash-icon.png",
           "imageWidth": 120
+        }
+      ],
+      "expo-sqlite",
+      [
+        "expo-notifications",
+        {
+          "enableBackgroundRemoteNotifications": false
         }
       ]
     ],

@@ -3,36 +3,37 @@ import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 're
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-import { colors, screenPadding } from '@/theme';
+import { useTheme } from '@/theme';
 
 type Props = {
   children: ReactNode;
-  dark?: boolean;
+  /** Active session and the dark summary. Ignores the chosen theme. */
+  session?: boolean;
   scroll?: boolean;
   edges?: Edge[];
   contentStyle?: StyleProp<ViewStyle>;
   background?: string;
+  statusBar?: 'light' | 'dark';
 };
 
-/**
- * Screen template from the design system:
- * status bar → content with 28px horizontal padding → (tab bar, handled by the tabs layout).
- */
-export function Screen({ children, dark, scroll, edges = ['top', 'bottom'], contentStyle, background }: Props) {
-  const bg = background ?? (dark ? colors.bgSession : colors.bg);
+/** Screen shell: status bar, then content with the 28pt horizontal margin. */
+export function Screen({ children, session, scroll, edges = ['top', 'bottom'], contentStyle, background, statusBar }: Props) {
+  const { theme } = useTheme();
+  const bg = background ?? (session ? theme.color.bg.session : theme.color.bg.default);
+  const bar = statusBar ?? (session ? 'light' : theme.statusBar);
   return (
     <SafeAreaView edges={edges} style={[styles.root, { backgroundColor: bg }]}>
-      <StatusBar style={dark ? 'light' : 'dark'} />
+      <StatusBar style={bar} />
       {scroll ? (
         <ScrollView
-          contentContainerStyle={[styles.content, contentStyle]}
+          contentContainerStyle={[styles.content, { paddingHorizontal: theme.space['7'] }, contentStyle]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {children}
         </ScrollView>
       ) : (
-        <View style={[styles.content, { flex: 1 }, contentStyle]}>{children}</View>
+        <View style={[styles.content, { flex: 1, paddingHorizontal: theme.space['7'] }, contentStyle]}>{children}</View>
       )}
     </SafeAreaView>
   );
@@ -40,5 +41,5 @@ export function Screen({ children, dark, scroll, edges = ['top', 'bottom'], cont
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  content: { paddingHorizontal: screenPadding },
+  content: {},
 });

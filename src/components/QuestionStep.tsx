@@ -13,7 +13,9 @@ import { Screen } from './Screen';
 export function QuestionStep({ questionKey }: { questionKey: QuestionKey }) {
   const q = QUESTIONS[questionKey];
   const { user, updateUser } = useAppState();
-  const [selected, setSelected] = useState<string | undefined>(user[questionKey]);
+  const [selected, setSelected] = useState<string | undefined>(
+    user[questionKey] ?? (questionKey === 'duration' ? '10' : undefined),
+  );
 
   return (
     <Screen scroll contentStyle={{ paddingBottom: 32 }}>

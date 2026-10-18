@@ -1,36 +1,41 @@
 import { Text, type TextStyle } from 'react-native';
 
-import { colors, em, fonts, onDark } from '@/theme';
+import { useTheme } from '@/theme';
 
 type Props = {
   size?: number;
-  dark?: boolean;
-  /** Serif italic variant used on the splash screen. */
+  /** Serif italic, used on the splash screen. */
   variant?: 'sans' | 'serif';
+  color?: string;
+  /** Defaults to sand. Pass another color when the mark must stay quiet. */
   dotColor?: string;
   style?: TextStyle;
 };
 
 /**
- * The wordmark: lowercase "bored" with the period in warm sand.
- * Rendered as text (like assets/logo.svg) so it uses the loaded DM fonts.
+ * Wordmark. Sand is used only for the full stop.
+ * The accessibility label is the word, so the stop is not read aloud.
  */
-export function Logo({ size = 22, dark, variant = 'sans', dotColor, style }: Props) {
+export function Logo({ size = 22, variant = 'sans', color, dotColor, style }: Props) {
+  const { theme } = useTheme();
   const serif = variant === 'serif';
   return (
     <Text
+      accessibilityRole="text"
+      accessibilityLabel="bored"
       style={[
         {
-          fontFamily: serif ? fonts.serifItalic : fonts.sansLight,
+          fontFamily: serif ? theme.fonts.serifItalic : theme.fonts.sansLight,
           fontSize: size,
-          letterSpacing: em(size, serif ? -0.03 : -0.01),
-          color: dark ? onDark.fg : colors.fg,
+          color: color ?? theme.color.text.primary,
         },
         style,
       ]}
     >
       bored
-      <Text style={{ color: dotColor ?? colors.accent, fontFamily: serif ? fonts.serifItalic : fonts.sans }}>.</Text>
+      <Text style={{ color: dotColor ?? theme.color.accent.default, fontFamily: serif ? theme.fonts.serifItalic : theme.fonts.sans }}>
+        .
+      </Text>
     </Text>
   );
 }

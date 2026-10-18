@@ -6,9 +6,10 @@ import { Button } from '@/components/Button';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Screen } from '@/components/Screen';
 import { useAppState } from '@/state/AppState';
-import { colors, em, fonts } from '@/theme';
+import { useTheme } from '@/theme';
 
 export default function NameStep() {
+  const { theme } = useTheme();
   const { user, updateUser } = useAppState();
   const [name, setName] = useState(user.name ?? '');
 
@@ -26,11 +27,16 @@ export default function NameStep() {
         autoCorrect={false}
         returnKeyType="next"
         placeholder="Navn"
-        placeholderTextColor={colors.fgPlaceholder}
+        placeholderTextColor={theme.color.text.tertiary}
+        accessibilityLabel="Navn"
         value={name}
         onChangeText={setName}
         onSubmitEditing={() => name.trim() && next(name.trim())}
-        style={styles.input}
+        style={[
+          styles.input,
+          theme.text.bodyLarge,
+          { color: theme.color.text.primary, borderBottomColor: theme.color.border.strong },
+        ]}
       />
       <View style={{ flex: 1 }} />
       <Button title="Fortsett" disabled={!name.trim()} onPress={() => next(name.trim())} />
@@ -41,12 +47,9 @@ export default function NameStep() {
 
 const styles = StyleSheet.create({
   input: {
-    fontFamily: fonts.sansLight,
     fontSize: 22,
-    letterSpacing: em(22, -0.01),
-    color: colors.fg,
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(17,17,16,0.18)',
+    minHeight: 44,
   },
 });

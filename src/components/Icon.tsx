@@ -1,12 +1,13 @@
+import type { ReactNode } from 'react';
 import Svg, { Circle, Line, Path, Polygon, Polyline, Rect } from 'react-native-svg';
 
-import { colors } from '@/theme';
+import { useTheme } from '@/theme';
 
-/** Lucide-style outline icons (1.5 stroke), copied from the design prototype. */
+/** Outline icons, 1.5 stroke. */
 export type IconName =
   | 'timer'
   | 'moon'
-  | 'chart'
+  | 'list'
   | 'user'
   | 'play'
   | 'pause'
@@ -22,15 +23,17 @@ export type IconName =
 
 type Props = { name: IconName; size?: number; color?: string; strokeWidth?: number };
 
-export function Icon({ name, size = 20, color = colors.fg, strokeWidth = 1.5 }: Props) {
+export function Icon({ name, size = 20, color, strokeWidth = 1.5 }: Props) {
+  const { theme } = useTheme();
+  const stroke = color ?? theme.color.text.primary;
   const filled = name === 'play' || name === 'pause';
   return (
     <Svg
       width={size}
       height={size}
       viewBox="0 0 24 24"
-      fill={filled ? color : 'none'}
-      stroke={filled ? 'none' : color}
+      fill={filled ? stroke : 'none'}
+      stroke={filled ? 'none' : stroke}
       strokeWidth={strokeWidth}
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -40,7 +43,7 @@ export function Icon({ name, size = 20, color = colors.fg, strokeWidth = 1.5 }: 
   );
 }
 
-const paths: Record<IconName, React.ReactNode> = {
+const paths: Record<IconName, ReactNode> = {
   timer: (
     <>
       <Circle cx="12" cy="13" r="8" />
@@ -50,10 +53,14 @@ const paths: Record<IconName, React.ReactNode> = {
     </>
   ),
   moon: <Path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />,
-  chart: (
+  list: (
     <>
-      <Path d="M3 3v18h18" />
-      <Path d="M18 9l-5 5-4-4-4 4" />
+      <Line x1="8" y1="6" x2="21" y2="6" />
+      <Line x1="8" y1="12" x2="21" y2="12" />
+      <Line x1="8" y1="18" x2="21" y2="18" />
+      <Circle cx="4" cy="6" r="1" />
+      <Circle cx="4" cy="12" r="1" />
+      <Circle cx="4" cy="18" r="1" />
     </>
   ),
   user: (
@@ -85,9 +92,7 @@ const paths: Record<IconName, React.ReactNode> = {
       <Line x1="6" y1="6" x2="18" y2="18" />
     </>
   ),
-  wind: (
-    <Path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" />
-  ),
+  wind: <Path d="M9.59 4.59A2 2 0 1 1 11 8H2m10.59 11.41A2 2 0 1 0 14 16H2m15.73-8.27A2.5 2.5 0 1 1 19.5 12H2" />,
   feather: (
     <>
       <Path d="M20.24 12.24a6 6 0 0 0-8.49-8.49L5 10.5V19h8.5z" />
