@@ -47,3 +47,6 @@ yarn-error.*
 
 # logs
 *.log
+
+# macOS AppleDouble files (from copying via external drives / zip)
+._*
