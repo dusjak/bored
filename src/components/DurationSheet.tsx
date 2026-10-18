@@ -17,7 +17,7 @@ type Props = {
 
 const ITEM = 44;
 
-/** Duration sheet: 5/10/15/20 wheel, or a custom value from 3 to 30 minutes. */
+/** Duration sheet: 5/10/15/20 wheel, or a custom value from 5 to 20 minutes. */
 export function DurationSheet({ visible, current, onUse, onClose }: Props) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -178,7 +178,7 @@ export function DurationSheet({ visible, current, onUse, onClose }: Props) {
               <TextInput
                 autoFocus
                 keyboardType="number-pad"
-                placeholder="3–30 minutter"
+                placeholder="5–20 minutter"
                 placeholderTextColor={theme.color.text.tertiary}
                 value={custom}
                 onChangeText={(value) => setCustom(value.replace(/[^0-9]/g, '').slice(0, 2))}

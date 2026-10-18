@@ -1,8 +1,8 @@
 import type { OnboardingProfile } from '@/data/types';
 
 export const PRESET_MINUTES = [5, 10, 15, 20] as const;
-export const MIN_CUSTOM_MINUTES = 3;
-export const MAX_CUSTOM_MINUTES = 30;
+export const MIN_CUSTOM_MINUTES = 5;
+export const MAX_CUSTOM_MINUTES = 20;
 export const DEFAULT_DURATION_MINUTES = 10;
 export const HOLD_TO_END_MS = 1000;
 
@@ -33,7 +33,7 @@ export function abortedPhrase(actualDurationSeconds: number): string {
   return `Avsluttet etter ${Math.floor(seconds / 60)} min`;
 }
 
-/** Accept a custom duration only inside 3–30 minutes, 1 minute steps. */
+/** Accept a custom duration only inside 5–20 minutes, whole minutes. */
 export function parseCustomMinutes(raw: string): number | null {
   if (!/^\d+$/.test(raw.trim())) return null;
   const n = parseInt(raw, 10);
@@ -57,6 +57,14 @@ export function formatSessionDate(date: Date, now = new Date()): string {
 
 export function chosenMinutes(chosenDurationSeconds: number): number {
   return Math.round(chosenDurationSeconds / 60);
+}
+
+/** Keeps a stored length inside the custom range. Anything outside falls back to 10. */
+export function clampDurationMinutes(minutes: number): number {
+  if (!Number.isFinite(minutes)) return DEFAULT_DURATION_MINUTES;
+  const n = Math.round(minutes);
+  if (n < MIN_CUSTOM_MINUTES || n > MAX_CUSTOM_MINUTES) return DEFAULT_DURATION_MINUTES;
+  return n;
 }
 
 export function emptyProfile(): OnboardingProfile {

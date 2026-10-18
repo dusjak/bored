@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import {
   abortedPhrase,
+  clampDurationMinutes,
   completionSentence,
   minutesPhrase,
   parseCustomMinutes,
@@ -32,12 +33,21 @@ describe('copy', () => {
     assert.equal(abortedPhrase(120), 'Avsluttet etter 2 min');
   });
 
-  it('accepts a custom duration only from 3 to 30', () => {
-    assert.equal(parseCustomMinutes('2'), null);
-    assert.equal(parseCustomMinutes('3'), 3);
-    assert.equal(parseCustomMinutes('30'), 30);
-    assert.equal(parseCustomMinutes('31'), null);
+  it('accepts a custom duration only from 5 to 20 in whole minutes', () => {
+    assert.equal(parseCustomMinutes('4'), null);
+    assert.equal(parseCustomMinutes('5'), 5);
+    assert.equal(parseCustomMinutes('10'), 10);
+    assert.equal(parseCustomMinutes('20'), 20);
+    assert.equal(parseCustomMinutes('21'), null);
+    assert.equal(parseCustomMinutes('30'), null);
     assert.equal(parseCustomMinutes('10.5'), null);
     assert.equal(parseCustomMinutes(''), null);
+  });
+
+  it('resets a stored length outside 5–20 to the default', () => {
+    assert.equal(clampDurationMinutes(3), 10);
+    assert.equal(clampDurationMinutes(30), 10);
+    assert.equal(clampDurationMinutes(7), 7);
+    assert.equal(clampDurationMinutes(10), 10);
   });
 });

@@ -58,13 +58,36 @@ export default function Session() {
     if (!session && !leaving.current) router.replace('/home');
   }, [session]);
 
+  const away = useRef(false);
+
   const openReflection = useCallback((id: string) => {
     router.replace({ pathname: '/reflection', params: { sessionId: id } });
   }, []);
 
+  const finishExpired = useCallback(async () => {
+    if (finished.current) return;
+    finished.current = true;
+    leaving.current = true;
+    setRemaining(0);
+    try {
+      const id = await completeActiveSession();
+      if (!id) {
+        setError('fikk ikke lagret. prøv igjen.');
+        return;
+      }
+      openReflection(id);
+    } catch {
+      setError('fikk ikke lagret. prøv igjen.');
+    }
+  }, [completeActiveSession, openReflection]);
+
   const playCompletion = useCallback(
     async () => {
       if (finished.current) return;
+      if (away.current || AppState.currentState !== 'active') {
+        await finishExpired();
+        return;
+      }
       finished.current = true;
       leaving.current = true;
       setRemaining(0);
@@ -93,7 +116,7 @@ export default function Session() {
         setError('fikk ikke lagret. prøv igjen.');
       }
     },
-    [completeActiveSession, morph, openReflection, reduceMotion, theme.motion, theme.name],
+    [completeActiveSession, finishExpired, morph, openReflection, reduceMotion, theme.motion, theme.name],
   );
 
   const playAbort = useCallback(async () => {
@@ -127,7 +150,7 @@ export default function Session() {
     const tick = () => {
       const left = Math.max(0, Math.round((endsAtMs - Date.now()) / 1000));
       setRemaining(left);
-      if (left <= 0) playCompletion();
+      if (left <= 0 && !away.current && AppState.currentState === 'active') playCompletion();
     };
     tick();
     const timer = setInterval(tick, 250);
@@ -138,6 +161,7 @@ export default function Session() {
     if (!session) return;
     const sub = AppState.addEventListener('change', (next) => {
       if (next === 'background') {
+        away.current = true;
         noteBackground().catch(() => undefined);
         return;
       }
@@ -146,17 +170,16 @@ export default function Session() {
         nowMs: Date.now(),
         startedAtMs,
         chosenDurationSeconds: chosenSeconds,
-        backgroundedAtMs: null,
-        returnKind: 'foreground-return',
       });
       if (decision.kind === 'completed') {
-        playCompletion();
+        finishExpired();
         return;
       }
+      away.current = false;
       noteForeground().catch(() => undefined);
     });
     return () => sub.remove();
-  }, [session, startedAtMs, chosenSeconds, noteBackground, noteForeground, playCompletion]);
+  }, [session, startedAtMs, chosenSeconds, noteBackground, noteForeground, finishExpired]);
 
   const brightenHint = () => {
     hint.setValue(1);

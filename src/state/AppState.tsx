@@ -1,14 +1,15 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import { DEFAULT_DURATION_MINUTES } from '@/data/copy';
+import { clampDurationMinutes, DEFAULT_DURATION_MINUTES } from '@/data/copy';
 import {
   cancelSessionNotification,
-  ensureSessionNotificationPermission,
+  dismissSessionNotification,
   scheduleSessionEndNotification,
 } from '@/data/notifications';
 import {
   clearBackgrounded,
   deleteJournal,
+  deleteSession as deleteStoredSession,
   DURATION_KEY,
   finishSession,
   getActiveSession,
@@ -49,6 +50,8 @@ type AppStateValue = {
   noteForeground: () => Promise<void>;
   saveReflection: (sessionId: string, mood: MoodId | null, note: string) => Promise<void>;
   removeReflection: (sessionId: string) => Promise<void>;
+  /** Deletes the session and its note, then refreshes the log totals. */
+  deleteSession: (sessionId: string) => Promise<void>;
 };
 
 const Ctx = createContext<AppStateValue | null>(null);
@@ -90,10 +93,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         setOnboarded(isOnboarded);
         const parsedDuration = durationRaw ? parseInt(durationRaw, 10) : DEFAULT_DURATION_MINUTES;
         const fromProfile = profile.duration ? parseInt(profile.duration, 10) : NaN;
-        const initialDuration = Number.isFinite(parsedDuration) && parsedDuration > 0
-          ? parsedDuration
-          : Number.isFinite(fromProfile) && fromProfile > 0
-            ? fromProfile
+        const initialDuration = Number.isFinite(parsedDuration)
+          ? clampDurationMinutes(parsedDuration)
+          : Number.isFinite(fromProfile)
+            ? clampDurationMinutes(fromProfile)
             : DEFAULT_DURATION_MINUTES;
         setDurationState(initialDuration);
         setSessions(finished);
@@ -103,12 +106,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             nowMs: Date.now(),
             startedAtMs: Date.parse(active.startedAt),
             chosenDurationSeconds: active.chosenDurationSeconds,
-            backgroundedAtMs: active.backgroundedAt ? Date.parse(active.backgroundedAt) : null,
-            returnKind: 'cold-start',
           });
-          if (decision.kind === 'aborted') {
+          if (decision.kind === 'completed') {
             await cancelSessionNotification(active.notificationId);
-            await finishSession(active.id, 'aborted', decision.actualDurationSeconds, new Date(decision.endedAtMs));
+            await finishSession(active.id, 'completed', decision.actualDurationSeconds, new Date(decision.endedAtMs));
             if (cancelled) return;
             setActiveSession(null);
             setReflectionSessionId(active.id);
@@ -137,8 +138,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setDurationMinutes = useCallback(async (minutes: number) => {
-    setDurationState(minutes);
-    await setSetting(DURATION_KEY, String(minutes));
+    const next = clampDurationMinutes(minutes);
+    setDurationState(next);
+    await setSetting(DURATION_KEY, String(next));
   }, []);
 
   const completeOnboarding = useCallback(async () => {
@@ -146,22 +148,23 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     await saveProfile(profile);
     await setSetting(ONBOARDED_KEY, '1');
     const chosen = parseInt(profile.duration ?? '', 10);
-    if (Number.isFinite(chosen) && chosen > 0) {
-      setDurationState(chosen);
-      await setSetting(DURATION_KEY, String(chosen));
+    if (Number.isFinite(chosen)) {
+      const next = clampDurationMinutes(chosen);
+      setDurationState(next);
+      await setSetting(DURATION_KEY, String(next));
     }
     setOnboarded(true);
   }, []);
 
   const beginSession = useCallback(async (minutes: number) => {
-    await setDurationMinutes(minutes);
+    const next = clampDurationMinutes(minutes);
+    await setDurationMinutes(next);
     const existing = await getActiveSession();
     if (existing) {
       setActiveSession(existing);
       return;
     }
-    await ensureSessionNotificationPermission();
-    const session = await insertActiveSession(minutes);
+    const session = await insertActiveSession(next);
     const endsAt = new Date(Date.parse(session.startedAt) + session.chosenDurationSeconds * 1000);
     const notificationId = await scheduleSessionEndNotification(endsAt);
     if (notificationId) {
@@ -186,6 +189,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const session = activeRef.current;
     if (!session) return null;
     await cancelSessionNotification(session.notificationId);
+    await dismissSessionNotification(session.notificationId);
     const actual = elapsedSeconds(Date.parse(session.startedAt), Date.now(), session.chosenDurationSeconds);
     await finishSession(session.id, 'aborted', actual, new Date());
     setActiveSession(null);
@@ -215,6 +219,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     await refreshSessions();
   }, [refreshSessions]);
 
+  const deleteSession = useCallback(async (sessionId: string) => {
+    const active = activeRef.current;
+    if (active?.id === sessionId) {
+      await cancelSessionNotification(active.notificationId);
+      await dismissSessionNotification(active.notificationId);
+      setActiveSession(null);
+    }
+    await deleteStoredSession(sessionId);
+    await refreshSessions();
+  }, [refreshSessions]);
+
   const value = useMemo<AppStateValue>(
     () => ({
       ready,
@@ -236,6 +251,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       noteForeground,
       saveReflection,
       removeReflection,
+      deleteSession,
     }),
     [
       ready,
@@ -257,6 +273,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       noteForeground,
       saveReflection,
       removeReflection,
+      deleteSession,
     ],
   );
 

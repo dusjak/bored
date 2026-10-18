@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { abortedPhrase, chosenMinutes, formatSessionDate, minutesPhrase } from '@/data/copy';
+import { sessionTotals } from '@/data/sessionQueries';
 import { MOODS, type MoodId, type SessionWithJournal } from '@/data/types';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
@@ -20,9 +21,7 @@ export default function Log() {
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const completed = sessions.filter((session) => session.status === 'completed').length;
-  const aborted = sessions.filter((session) => session.status === 'aborted').length;
-  const total = sessions.length;
+  const { total, completed, aborted } = sessionTotals(sessions);
 
   const open = (session: SessionWithJournal) => {
     setOpenId((current) => (current === session.id ? null : session.id));

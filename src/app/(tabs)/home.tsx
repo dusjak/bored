@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 
 import { Button } from '@/components/Button';
 import { DurationSheet } from '@/components/DurationSheet';
@@ -23,7 +22,6 @@ export default function Home() {
     if (starting) return;
     setStarting(true);
     setError(null);
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
     try {
       await beginSession(durationMinutes);
       router.push('/session');

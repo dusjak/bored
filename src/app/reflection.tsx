@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -6,7 +6,8 @@ import * as Haptics from 'expo-haptics';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { abortedPhrase } from '@/data/copy';
-import { MOODS, type MoodId } from '@/data/types';
+import { getSession } from '@/data/repository';
+import { MOODS, type MoodId, type SessionWithJournal } from '@/data/types';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
@@ -16,16 +17,35 @@ export default function Reflection() {
   const params = useLocalSearchParams<{ sessionId?: string }>();
   const sessionId = typeof params.sessionId === 'string' ? params.sessionId : '';
   const { sessions, saveReflection } = useAppState();
-  const session = sessions.find((item) => item.id === sessionId);
+  const listed = sessions.find((item) => item.id === sessionId) ?? null;
+  const [fetched, setFetched] = useState<SessionWithJournal | null>(null);
+  const session = listed ?? fetched;
   const [mood, setMood] = useState<MoodId | null>(null);
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => {
+    if (!sessionId || listed) return;
+    let cancelled = false;
+    getSession(sessionId)
+      .then((row) => {
+        if (!cancelled) setFetched(row);
+      })
+      .catch(() => {
+        if (!cancelled) setError('noe gikk galt. prøv igjen.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, listed]);
+
   const aborted = session?.status === 'aborted';
-  const heading = aborted
-    ? abortedPhrase(session?.actualDurationSeconds ?? 0)
-    : 'Det var det.';
+  const heading = !session
+    ? ''
+    : aborted
+      ? abortedPhrase(session.actualDurationSeconds)
+      : 'Det var det.';
 
   const leave = () => router.replace('/home');
 
