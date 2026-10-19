@@ -1,7 +1,7 @@
 /**
  * «Sluket» timeline. Pure so the motion can be tested.
- * Not imported on launch while features.sluketAnimation is false.
- * Crash notes live on src/components/SluketPlay.tsx. Do not mount that component.
+ * Functions called from SluketPlay's UI-thread worklets are marked 'worklet'.
+ * While features.sluketAnimation is false this module is not imported.
  */
 
 export const SPLASH_MS = 2000;
@@ -56,6 +56,13 @@ export type Stimulus = {
   r1: number;
   /** Badge diameter, or the squircle side, in px. Pills are 28×10. */
   size: number;
+  /** Same colour as `color`, stored once so the frame loop never builds a string. */
+  hex: string;
+  /** spiralAngle(drift), stored once so the frame loop does not recompute it. */
+  spiral: number;
+  boxWidth: number;
+  boxHeight: number;
+  boxRadius: number;
 };
 
 export type StimulusPose = {
@@ -72,14 +79,14 @@ export function parseHex(hex: string): Rgb {
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
 }
 
+/** JS only. The frame loop uses the precomputed `hex` string and interpolateColor. */
 export function rgbToHex(color: Rgb): string {
-  'worklet';
   const channel = (n: number) => Math.max(0, Math.min(255, Math.round(n))).toString(16).padStart(2, '0');
   return `#${channel(color[0])}${channel(color[1])}${channel(color[2])}`;
 }
 
+/** JS only. Tests rebuild the blended colour; the UI thread never calls this. */
 export function mixRgb(from: Rgb, to: Rgb, t: number): Rgb {
-  'worklet';
   return [from[0] + (to[0] - from[0]) * t, from[1] + (to[1] - from[1]) * t, from[2] + (to[2] - from[2]) * t];
 }
 
@@ -151,12 +158,9 @@ function mulberry32(seed: number) {
   };
 }
 
-/**
- * Extra spiral angle. Three times the drift, and the whole trip stays within one turn.
- * This is a plain function. sampleStimulus calls it from a worklet once t >= 600.
- * See the crash note on SluketPlay.
- */
+/** Extra spiral angle. Three times the drift, and the whole trip stays within one turn. */
 export function spiralAngle(drift: number) {
+  'worklet';
   return Math.min(drift * 3, Math.PI * 2 - drift);
 }
 
@@ -165,35 +169,54 @@ export function createStimuli(seed = SPLASH_SEED): Stimulus[] {
   const stimuli: Stimulus[] = [];
   for (let i = 0; i < STIMULUS_COUNT; i += 1) {
     const kind: StimulusKind = i < 36 ? 'badge' : i < 54 ? 'pill' : 'squircle';
+    const delay = rand() * 300;
+    const angle = rand() * Math.PI * 2;
+    const spin = rand() < 0.5 ? -1 : 1;
+    const drift = (0.35 + rand() * 0.65) * MAX_DRIFT;
+    const r0 = 0.6 + rand() * 0.2;
+    const r1 = 0.16 + rand() * 0.12;
+    const size = kind === 'badge' ? 6 + rand() * 8 : 14;
     stimuli.push({
       kind,
       color: NOISE_RGB[i % NOISE_RGB.length]!,
-      delay: rand() * 300,
-      angle: rand() * Math.PI * 2,
-      spin: rand() < 0.5 ? -1 : 1,
-      drift: (0.35 + rand() * 0.65) * MAX_DRIFT,
-      r0: 0.6 + rand() * 0.2,
-      r1: 0.16 + rand() * 0.12,
-      size: kind === 'badge' ? 6 + rand() * 8 : 14,
+      hex: NOISE_HEX[i % NOISE_HEX.length]!,
+      delay,
+      angle,
+      spin,
+      drift,
+      spiral: spiralAngle(drift),
+      r0,
+      r1,
+      size,
+      boxWidth: kind === 'pill' ? 28 : size,
+      boxHeight: kind === 'pill' ? 10 : size,
+      boxRadius: kind === 'pill' ? 5 : kind === 'squircle' ? 3 : size / 2,
     });
   }
   return stimuli;
 }
 
 /**
- * Pose of one stimulus, or null once it has been swallowed.
- * The last 30% of the spiral blends toward `hole` so the noise disappears into the period.
+ * Motion for one stimulus. Seven plain numbers, no colour object:
+ * [visible, x, y, rotation, scale, stretch, mix].
+ * Hidden frames use the same slots: visible 0, off-screen translation, scale 0, mix 0.
+ * `spiral` is precomputed. Colour blend amount is `mix` (0–1); the view interpolates it.
  */
-export function sampleStimulus(
-  stimulus: Stimulus,
+export function sampleMotion(
+  delay: number,
+  angle0: number,
+  spin: number,
+  drift: number,
+  spiral: number,
+  r0: number,
+  r1: number,
   tMs: number,
   width: number,
   height: number,
-  hole: Rgb,
-): StimulusPose | null {
+): readonly [number, number, number, number, number, number, number] {
   'worklet';
-  const start = DRIFT_START + stimulus.delay;
-  if (tMs < start || tMs >= SPIRAL_END) return null;
+  const start = DRIFT_START + delay;
+  if (tMs < start || tMs >= SPIRAL_END) return [0, -1000, -1000, 0, 0, 1, 0];
   const diagonal = Math.hypot(width, height);
   let radius: number;
   let turned: number;
@@ -202,24 +225,59 @@ export function sampleStimulus(
   let mix = 0;
   if (tMs < DRIFT_END) {
     const eased = cubicBezierY(0.25, 0.1, 0.25, 1, clamp01((tMs - start) / Math.max(1, DRIFT_END - start)));
-    radius = lerp(stimulus.r0 * diagonal, stimulus.r1 * diagonal, eased);
-    turned = stimulus.drift * eased;
+    radius = lerp(r0 * diagonal, r1 * diagonal, eased);
+    turned = drift * eased;
   } else {
     const eased = cubicBezierY(0.55, 0, 1, 0.45, clamp01((tMs - DRIFT_END) / (SPIRAL_END - DRIFT_END)));
-    radius = lerp(stimulus.r1 * diagonal, HOLE_RADIUS, eased);
-    turned = stimulus.drift + spiralAngle(stimulus.drift) * eased;
+    radius = lerp(r1 * diagonal, HOLE_RADIUS, eased);
+    turned = drift + spiral * eased;
     scale = lerp(1, 0.1, eased);
     stretch = lerp(1, 2.5, eased);
     if (eased > 0.7) mix = (eased - 0.7) / 0.3;
   }
-  const angle = stimulus.angle + stimulus.spin * turned;
-  return {
-    x: width / 2 + Math.cos(angle) * radius,
-    y: height / 2 + Math.sin(angle) * radius,
-    rotation: angle + stimulus.spin * (Math.PI / 2),
+  const angle = angle0 + spin * turned;
+  return [
+    1,
+    width / 2 + Math.cos(angle) * radius,
+    height / 2 + Math.sin(angle) * radius,
+    angle + spin * (Math.PI / 2),
     scale,
     stretch,
-    color: mixRgb(stimulus.color, hole, mix),
+    mix,
+  ];
+}
+
+/**
+ * Pose of one stimulus, or null once it has been swallowed.
+ * JS helper for tests. The UI thread calls sampleMotion and interpolateColor instead.
+ */
+export function sampleStimulus(
+  stimulus: Stimulus,
+  tMs: number,
+  width: number,
+  height: number,
+  hole: Rgb,
+): StimulusPose | null {
+  const motion = sampleMotion(
+    stimulus.delay,
+    stimulus.angle,
+    stimulus.spin,
+    stimulus.drift,
+    stimulus.spiral,
+    stimulus.r0,
+    stimulus.r1,
+    tMs,
+    width,
+    height,
+  );
+  if (motion[0] === 0) return null;
+  return {
+    x: motion[1],
+    y: motion[2],
+    rotation: motion[3],
+    scale: motion[4],
+    stretch: motion[5],
+    color: mixRgb(stimulus.color, hole, motion[6]),
   };
 }
 

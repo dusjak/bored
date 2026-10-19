@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import Animated, {
   cancelAnimation,
   Easing,
+  interpolateColor,
   runOnJS,
   runOnUI,
   useAnimatedStyle,
@@ -17,11 +18,9 @@ import {
   createStimuli,
   HANDOVER_AT,
   HANDOVER_MS,
-  parseHex,
   periodScale,
   REDUCE_FADE_MS,
-  rgbToHex,
-  sampleStimulus,
+  sampleMotion,
   SPLASH_MS,
   wordReveal,
   type Stimulus,
@@ -30,37 +29,19 @@ import { useTheme } from '@/theme';
 
 const DOT = 10;
 const WORD_SIZE = 52;
+const MIX_STOPS = [0, 1];
 
 /**
- * DO NOT MOUNT. features.sluketAnimation is false, and SluketSplash must not import this file.
- *
- * BOR-26 diagnosis (fe61f09 still killed Expo Go, no JS redbox, the moment the coloured
- * stimuli appeared). Skia is gone, and `npx expo install --check` was clean
- * (reanimated 4.5.1, worklets 0.10.1), so this is the Reanimated UI runtime.
- * A React error boundary cannot catch it.
- *
- * Leading cause: each of the 60 StimulusView worklets returns a different style shape
- * across frames. While sampleStimulus is null the style is { opacity, transform: 3 ops }.
- * On the frame the pill appears it becomes { opacity, backgroundColor, transform: 5 ops }
- * with a fresh hex string. iOS aborts when a Reanimated view's transform length or colour
- * prop appears mid-flight. That matches the recording: beige field, then coloured pills,
- * then Expo Go is killed within a fraction of a second. No redbox, because the throw is
- * on the UI thread.
- *
- * Second cause, even if the style shape were stable: sampleStimulus is a worklet and calls
- * spiralAngle, which has no 'worklet' directive. That call starts at t = 600, after the
- * pills are already on screen. Calling a plain JS function from the UI thread is a native
- * abort in this runtime, not a catchable JS error.
- *
- * Also unsafe here: rgbToHex runs inside the worklet and assigns backgroundColor every frame.
- * parseHex itself runs on the JS thread (the hole colour is captured); it is not the call
- * that crashes. There is no useFrameCallback. The captured stimulus objects are small.
+ * «Sluket» spiral. Loaded only when features.sluketAnimation is true.
+ * Every stimulus frame returns the same style shape:
+ * { opacity, backgroundColor, transform: [translateX, translateY, rotate, scaleX, scaleY] }.
+ * Colour moves with interpolateColor between two strings captured on the JS thread.
  */
 export function SluketPlay({ fading, onHandoff, onDismiss }: SplashProps) {
   const { theme } = useTheme();
   const { width, height } = useWindowDimensions();
   const stimuli = useMemo(() => createStimuli(), []);
-  const hole = useMemo(() => parseHex(theme.color.text.primary), [theme.color.text.primary]);
+  const holeHex = theme.color.text.primary;
   const clock = useSharedValue(0);
   const opacity = useSharedValue(1);
   const ended = useSharedValue(0);
@@ -128,7 +109,7 @@ export function SluketPlay({ fading, onHandoff, onDismiss }: SplashProps) {
             clock={clock}
             width={width}
             height={height}
-            hole={hole}
+            holeHex={holeHex}
           />
         ))}
       </View>
@@ -145,43 +126,39 @@ export function SluketPlay({ fading, onHandoff, onDismiss }: SplashProps) {
   );
 }
 
-function stimulusBox(stimulus: Stimulus) {
-  if (stimulus.kind === 'pill') return { width: 28, height: 10, radius: 5 };
-  if (stimulus.kind === 'squircle') return { width: stimulus.size, height: stimulus.size, radius: 3 };
-  return { width: stimulus.size, height: stimulus.size, radius: stimulus.size / 2 };
-}
-
 function StimulusView({
   stimulus,
   clock,
   width,
   height,
-  hole,
+  holeHex,
 }: {
   stimulus: Stimulus;
   clock: SharedValue<number>;
   width: number;
   height: number;
-  hole: readonly [number, number, number];
+  holeHex: string;
 }) {
-  const box = stimulusBox(stimulus);
+  const delay = stimulus.delay;
+  const angle0 = stimulus.angle;
+  const spin = stimulus.spin;
+  const drift = stimulus.drift;
+  const spiral = stimulus.spiral;
+  const r0 = stimulus.r0;
+  const r1 = stimulus.r1;
+  const hex = stimulus.hex;
+  const colors = useMemo(() => [hex, holeHex], [hex, holeHex]);
   const style = useAnimatedStyle(() => {
-    const pose = sampleStimulus(stimulus, clock.value, width, height, hole);
-    if (!pose) {
-      return {
-        opacity: 0,
-        transform: [{ translateX: -1000 }, { translateY: -1000 }, { scale: 0 }],
-      };
-    }
+    const motion = sampleMotion(delay, angle0, spin, drift, spiral, r0, r1, clock.value, width, height);
     return {
-      opacity: 1,
-      backgroundColor: rgbToHex(pose.color),
+      opacity: motion[0],
+      backgroundColor: interpolateColor(motion[6], MIX_STOPS, colors),
       transform: [
-        { translateX: pose.x },
-        { translateY: pose.y },
-        { rotate: `${pose.rotation}rad` },
-        { scaleX: pose.scale * pose.stretch },
-        { scaleY: pose.scale },
+        { translateX: motion[1] },
+        { translateY: motion[2] },
+        { rotate: `${motion[3]}rad` },
+        { scaleX: motion[4] * motion[5] },
+        { scaleY: motion[4] },
       ],
     };
   });
@@ -191,11 +168,11 @@ function StimulusView({
       style={[
         {
           position: 'absolute',
-          left: -box.width / 2,
-          top: -box.height / 2,
-          width: box.width,
-          height: box.height,
-          borderRadius: box.radius,
+          left: -stimulus.boxWidth / 2,
+          top: -stimulus.boxHeight / 2,
+          width: stimulus.boxWidth,
+          height: stimulus.boxHeight,
+          borderRadius: stimulus.boxRadius,
         },
         style,
       ]}

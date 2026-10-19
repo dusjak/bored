@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { features } from './features.ts';
 
 describe('features', () => {
-  it('keeps the Sluket animation off', () => {
-    assert.equal(features.sluketAnimation, false);
+  it('plays the Sluket animation unless the kill switch is flipped', () => {
+    assert.equal(features.sluketAnimation, true);
   });
 });
