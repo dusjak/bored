@@ -5,6 +5,7 @@ import { router, type Href } from 'expo-router';
 import { QUESTIONS, type QuestionKey } from '@/data/mock';
 import { useAppState } from '@/state/AppState';
 import { Button } from './Button';
+import { cardSlideDelay, cardSlideOffset, ForwardSlide } from './ForwardSlide';
 import { OnboardingHeader } from './OnboardingHeader';
 import { OptionCard } from './OptionCard';
 import { Screen } from './Screen';
@@ -19,16 +20,17 @@ export function QuestionStep({ questionKey }: { questionKey: QuestionKey }) {
 
   return (
     <Screen scroll contentStyle={{ paddingBottom: 32 }}>
-      <OnboardingHeader step={q.step} title={q.title} sub={q.sub} />
-      {q.options.map((o) => (
-        <OptionCard
-          key={o.id}
-          label={o.label}
-          sub={o.sub}
-          icon={q.withIcons ? o.icon : undefined}
-          selected={selected === o.id}
-          onPress={() => setSelected(o.id)}
-        />
+      <OnboardingHeader slideSub step={q.step} title={q.title} sub={q.sub} />
+      {q.options.map((o, i) => (
+        <ForwardSlide key={o.id} offset={cardSlideOffset(i)} delay={cardSlideDelay(i)}>
+          <OptionCard
+            label={o.label}
+            sub={o.sub}
+            icon={q.withIcons ? o.icon : undefined}
+            selected={selected === o.id}
+            onPress={() => setSelected(o.id)}
+          />
+        </ForwardSlide>
       ))}
       <View style={{ height: 24 }} />
       <Button

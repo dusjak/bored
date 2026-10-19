@@ -43,7 +43,8 @@ function ReadyGate() {
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: 'fade',
+        // Replaces (splash, Ready, reset) are a hard cut. A fade between light and dark leaves a grey frame.
+        animation: 'none',
         contentStyle: { backgroundColor: theme.color.bg.default },
       }}
     >
@@ -54,7 +55,6 @@ function ReadyGate() {
         name="session"
         options={{
           presentation: 'fullScreenModal',
-          animation: 'fade',
           gestureEnabled: false,
           contentStyle: { backgroundColor: theme.color.bg.session },
         }}

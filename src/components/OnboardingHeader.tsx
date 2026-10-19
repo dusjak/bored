@@ -3,12 +3,27 @@ import { router } from 'expo-router';
 
 import { ONBOARDING_STEPS } from '@/data/mock';
 import { useTheme } from '@/theme';
+import { ForwardSlide, SUBTITLE_SLIDE_OFFSET } from './ForwardSlide';
 import { Icon } from './Icon';
 import { ProgressDots } from './ProgressDots';
 
 /** Back control, progress, step count, title and subtitle. */
-export function OnboardingHeader({ step, title, sub }: { step: number; title: string; sub: string }) {
+export function OnboardingHeader({
+  step,
+  title,
+  sub,
+  slideSub = false,
+}: {
+  step: number;
+  title: string;
+  sub: string;
+  /** Question steps only. The subtitle catches up after the push. */
+  slideSub?: boolean;
+}) {
   const { theme } = useTheme();
+  const subtitle = (
+    <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginBottom: 32 }]}>{sub}</Text>
+  );
   return (
     <View>
       <View style={styles.bar}>
@@ -22,7 +37,13 @@ export function OnboardingHeader({ step, title, sub }: { step: number; title: st
         {step + 1} av {ONBOARDING_STEPS}
       </Text>
       <Text style={[theme.text.headline, { color: theme.color.text.primary, marginBottom: 8 }]}>{title}</Text>
-      <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginBottom: 32 }]}>{sub}</Text>
+      {slideSub ? (
+        <ForwardSlide offset={SUBTITLE_SLIDE_OFFSET} delay={0}>
+          {subtitle}
+        </ForwardSlide>
+      ) : (
+        subtitle
+      )}
     </View>
   );
 }
