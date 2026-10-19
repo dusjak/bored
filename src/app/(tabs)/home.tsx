@@ -6,52 +6,69 @@ import { Button } from '@/components/Button';
 import { DurationSheet } from '@/components/DurationSheet';
 import { Logo } from '@/components/Logo';
 import { Screen } from '@/components/Screen';
-import { HOME_ROUTINE } from '@/data/mock';
+import { TactileCircle } from '@/components/TactileCircle';
+import { minutesPhrase } from '@/data/copy';
 import { useAppState } from '@/state/AppState';
-import { colors, fonts, type } from '@/theme';
+import { useTheme } from '@/theme';
 
 export default function Home() {
-  const { user, activeDuration, setActiveDuration, stats } = useAppState();
+  const { theme } = useTheme();
+  const { durationMinutes, setDurationMinutes, beginSession } = useAppState();
   const [pickerOpen, setPickerOpen] = useState(false);
-  const routine = (user.time && HOME_ROUTINE[user.time]) || 'din rytme';
+  const [error, setError] = useState<string | null>(null);
+  const [starting, setStarting] = useState(false);
+
+  const start = async () => {
+    if (starting) return;
+    setStarting(true);
+    setError(null);
+    try {
+      await beginSession(durationMinutes);
+      router.push('/session');
+    } catch {
+      setError('fikk ikke lagret. prøv igjen.');
+    } finally {
+      setStarting(false);
+    }
+  };
 
   return (
-    <Screen edges={['top']}>
+    <Screen edges={['top']} contentStyle={styles.content}>
       <View style={styles.top}>
         <Logo />
-        <View style={styles.streak}>
-          <View style={styles.streakDot} />
-          <Text style={styles.streakText}>{stats.streakDays} dager på rad</Text>
-        </View>
       </View>
 
       <View style={styles.hero}>
-        {/* TODO: "Dagens forslag" is the preferred duration; replace with personalised suggestion */}
-        <Text style={[type.eyebrow, { marginBottom: 14 }]}>Dagens forslag</Text>
-        <Text style={[type.display(80, 0.95), { marginBottom: 12 }]} adjustsFontSizeToFit numberOfLines={1}>
-          {activeDuration} min
-        </Text>
-        <Text style={[type.caption, { marginBottom: 32 }]}>Basert på {routine}. Vanligvis rundt nå.</Text>
-        <Button
-          title="Start økt"
-          style={{ marginBottom: 10, paddingVertical: 20 }}
-          textStyle={{ fontSize: 17 }}
-          onPress={() => router.push({ pathname: '/session', params: { minutes: String(activeDuration) } })}
-        />
-        <Button
-          title="Velg en annen varighet"
-          variant="ghost"
-          textStyle={{ color: colors.fgSecondary }}
+        <TactileCircle
           onPress={() => setPickerOpen(true)}
-        />
+          accessibilityLabel={minutesPhrase(durationMinutes)}
+          accessibilityHint="Endre lengde"
+        >
+          <Text style={[theme.text.monoHero, { color: theme.color.object.content }]}>{durationMinutes}</Text>
+          <Text style={[theme.text.caption, { color: theme.color.object.content }]}>minutter</Text>
+        </TactileCircle>
+        <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginTop: theme.space['6'] }]}>
+          Trykk for å endre lengde
+        </Text>
       </View>
+
+      {error ? (
+        <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginBottom: theme.space['3'] }]}>{error}</Text>
+      ) : null}
+      <Button
+        title="Start"
+        size="comfort"
+        accessibilityLabel="Start økt"
+        disabled={starting}
+        onPress={start}
+        style={{ marginBottom: theme.space['4'] }}
+      />
 
       <DurationSheet
         visible={pickerOpen}
-        current={activeDuration}
-        sessionCount={stats.totalSessions}
-        onSelect={(m) => {
-          setActiveDuration(m);
+        current={durationMinutes}
+        onUse={(minutes) => {
+          setDurationMinutes(minutes).catch(() => setError('fikk ikke lagret. prøv igjen.'));
           setPickerOpen(false);
         }}
         onClose={() => setPickerOpen(false)}
@@ -61,9 +78,7 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingTop: 4 },
-  streak: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  streakDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent },
-  streakText: { fontFamily: fonts.sans, fontSize: 12, color: colors.fgTertiary },
-  hero: { flex: 1, justifyContent: 'center', paddingBottom: 24 },
+  content: { paddingBottom: 120 },
+  top: {},
+  hero: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

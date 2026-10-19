@@ -45,6 +45,10 @@ yarn-error.*
 .env*
 !.env.example
 
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/
+
 # logs
 *.log
 

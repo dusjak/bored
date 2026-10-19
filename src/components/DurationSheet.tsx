@@ -1,174 +1,261 @@
-import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Modal, PanResponder, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AI_UNLOCK_SESSIONS, MOCK_AI_SUGGESTION_MIN } from '@/data/mock';
-import { colors, em, fonts, onDark, palette, screenPadding } from '@/theme';
+import { Button } from '@/components/Button';
+import { TactileCircle } from '@/components/TactileCircle';
+import { minutesPhrase, parseCustomMinutes, PRESET_MINUTES } from '@/data/copy';
+import { useTheme } from '@/theme';
 
 type Props = {
   visible: boolean;
   current: number;
-  sessionCount: number;
-  onSelect: (minutes: number) => void;
+  onUse: (minutes: number) => void;
   onClose: () => void;
 };
 
-const PRESETS = [5, 10, 15, 20];
+const SIZE = 280;
+const CENTER = SIZE / 2;
+const KNOB_RADIUS = 88;
+const LABEL_RADIUS = 118;
 
-/** Bottom sheet for picking session length (presets, custom, locked AI suggestion). */
-export function DurationSheet({ visible, current, sessionCount, onSelect, onClose }: Props) {
-  const insets = useSafeAreaInsets();
-  const [showCustom, setShowCustom] = useState(false);
-  const [custom, setCustom] = useState('');
-  const aiUnlocked = sessionCount >= AI_UNLOCK_SESSIONS;
+function stopAngle(index: number): number {
+  return -Math.PI / 2 + index * (Math.PI / 2);
+}
 
-  const close = () => {
-    setShowCustom(false);
-    setCustom('');
-    onClose();
+function pointOn(radius: number, index: number): { left: number; top: number } {
+  const angle = stopAngle(index);
+  return {
+    left: CENTER + Math.cos(angle) * radius,
+    top: CENTER + Math.sin(angle) * radius,
   };
-  const select = (m: number) => {
-    setShowCustom(false);
+}
+
+function nearestStop(x: number, y: number): number {
+  const angle = Math.atan2(y - CENTER, x - CENTER);
+  let best = 0;
+  let bestDistance = Infinity;
+  PRESET_MINUTES.forEach((_, index) => {
+    let distance = Math.abs(angle - stopAngle(index));
+    if (distance > Math.PI) distance = Math.PI * 2 - distance;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = index;
+    }
+  });
+  return best;
+}
+
+/** Duration modal: a circle dial for 5/10/15/20, or a custom value from 5 to 20 minutes. */
+export function DurationSheet({ visible, current, onUse, onClose }: Props) {
+  const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const presetIndex = (value: number) => {
+    const index = (PRESET_MINUTES as readonly number[]).indexOf(value);
+    return index >= 0 ? index : 1;
+  };
+  const [picked, setPicked] = useState(presetIndex(current));
+  const [customOpen, setCustomOpen] = useState(false);
+  const [custom, setCustom] = useState('');
+  const pickedRef = useRef(picked);
+  const customOpenRef = useRef(false);
+  pickedRef.current = picked;
+
+  const chooseRef = useRef<(index: number) => void>(() => undefined);
+  chooseRef.current = (index: number) => {
+    if (index === pickedRef.current && !customOpenRef.current) return;
+    pickedRef.current = index;
+    customOpenRef.current = false;
+    setPicked(index);
+    setCustomOpen(false);
     setCustom('');
-    onSelect(m);
+    Haptics.selectionAsync();
+  };
+  const choose = (index: number) => chooseRef.current(index);
+
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (event) => {
+        chooseRef.current(nearestStop(event.nativeEvent.locationX, event.nativeEvent.locationY));
+      },
+      onPanResponderMove: (event) => {
+        chooseRef.current(nearestStop(event.nativeEvent.locationX, event.nativeEvent.locationY));
+      },
+    }),
+  ).current;
+
+  useEffect(() => {
+    if (!visible) return;
+    const index = presetIndex(current);
+    pickedRef.current = index;
+    customOpenRef.current = false;
+    setPicked(index);
+    setCustomOpen(false);
+    setCustom('');
+  }, [visible, current]);
+
+  const step = (direction: 1 | -1) => {
+    choose(Math.min(PRESET_MINUTES.length - 1, Math.max(0, pickedRef.current + direction)));
+  };
+
+  const customMinutes = parseCustomMinutes(custom);
+  const shown = customOpen ? (customMinutes ?? pickedMinutes(picked)) : PRESET_MINUTES[picked];
+  const canUse = customOpen ? customMinutes != null : true;
+  const knob = pointOn(KNOB_RADIUS, picked);
+
+  const confirm = () => {
+    if (customOpen) {
+      if (customMinutes == null) return;
+      onUse(customMinutes);
+      return;
+    }
+    onUse(PRESET_MINUTES[picked]);
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={close}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.wrap}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={close}>
-          <View style={styles.backdrop} />
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.wrap}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Lukk" accessibilityRole="button">
+          <View style={[styles.backdrop, { backgroundColor: theme.color.bg.overlay }]} />
         </Pressable>
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
-          <View style={styles.handleRow}>
-            <View style={styles.handle} />
-          </View>
-          <View style={{ paddingHorizontal: screenPadding, paddingTop: 8 }}>
-            <Text style={styles.title}>Velg varighet</Text>
-            <Text style={styles.sub}>Hvor lang tid har du i dag?</Text>
+        <View
+          accessibilityViewIsModal
+          accessibilityActions={[{ name: 'close', label: 'Lukk' }]}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === 'close') onClose();
+          }}
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: theme.color.surface.sheet,
+              paddingBottom: Math.max(insets.bottom, theme.space['6']),
+              borderTopLeftRadius: theme.radius.large,
+              borderTopRightRadius: theme.radius.large,
+            },
+          ]}
+        >
+          <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Lukk" style={styles.handleHit}>
+            <View style={[styles.handle, { backgroundColor: theme.color.control.off }]} />
+          </Pressable>
 
-            <View style={styles.grid}>
-              {PRESETS.map((p) => {
-                const active = current === p;
+          <View style={styles.body}>
+            <Text accessibilityRole="header" style={[theme.text.headline, { color: theme.color.text.primary }]}>
+              Velg varighet
+            </Text>
+
+            <View
+              style={styles.dial}
+              accessibilityRole="adjustable"
+              accessibilityLabel={`Trinn ${picked + 1} av ${PRESET_MINUTES.length}`}
+              accessibilityValue={{ text: `Varighet, ${minutesPhrase(shown)}` }}
+              accessibilityActions={[
+                { name: 'increment', label: 'Øk' },
+                { name: 'decrement', label: 'Senk' },
+              ]}
+              onAccessibilityAction={(event) => {
+                if (event.nativeEvent.actionName === 'increment') step(1);
+                if (event.nativeEvent.actionName === 'decrement') step(-1);
+              }}
+              {...pan.panHandlers}
+            >
+              <View pointerEvents="none" style={styles.circleSlot}>
+                <TactileCircle>
+                  <Text style={[theme.text.monoHero, { color: theme.color.object.content }]}>{shown}</Text>
+                  <Text style={[theme.text.caption, { color: theme.color.object.content }]}>minutter</Text>
+                </TactileCircle>
+              </View>
+              {!customOpen ? (
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.knob,
+                    {
+                      left: knob.left - 11,
+                      top: knob.top - 11,
+                      backgroundColor: theme.color.ink.default,
+                    },
+                  ]}
+                />
+              ) : null}
+              {PRESET_MINUTES.map((minutes, index) => {
+                const at = pointOn(LABEL_RADIUS, index);
                 return (
                   <Pressable
-                    key={p}
-                    onPress={() => select(p)}
-                    style={[styles.preset, active && styles.presetActive]}
+                    key={minutes}
+                    accessible={false}
+                    importantForAccessibility="no"
+                    accessibilityElementsHidden
+                    onPress={() => choose(index)}
+                    style={[styles.labelHit, { left: at.left - 22, top: at.top - 22 }]}
                   >
-                    <Text style={[styles.presetText, active && { color: onDark.fg }]}>
-                      {p} <Text style={styles.presetUnit}>min</Text>
-                    </Text>
+                    <Text style={[theme.text.monoMeta, { color: theme.color.text.secondary }]}>{minutes}</Text>
                   </Pressable>
                 );
               })}
             </View>
 
-            {!showCustom ? (
-              <Pressable onPress={() => setShowCustom(true)} style={styles.customBtn}>
-                <Text style={styles.customText}>+ Egendefinert tid</Text>
-              </Pressable>
+            {customOpen ? (
+              <TextInput
+                autoFocus
+                keyboardType="number-pad"
+                placeholder="5–20 minutter"
+                placeholderTextColor={theme.color.text.tertiary}
+                value={custom}
+                onChangeText={(value) => setCustom(value.replace(/[^0-9]/g, '').slice(0, 2))}
+                accessibilityLabel="Annen lengde"
+                style={[
+                  styles.input,
+                  theme.text.body,
+                  {
+                    color: theme.color.text.primary,
+                    borderColor: theme.color.border.strong,
+                    borderRadius: theme.radius.medium,
+                  },
+                ]}
+              />
             ) : (
-              <View style={styles.customRow}>
-                <TextInput
-                  autoFocus
-                  keyboardType="number-pad"
-                  placeholder="Antall minutter"
-                  placeholderTextColor={colors.fgPlaceholder}
-                  value={custom}
-                  onChangeText={(t) => setCustom(t.replace(/[^0-9]/g, '').slice(0, 3))}
-                  style={styles.customInput}
-                />
-                <Text style={{ fontSize: 13, color: colors.fgTertiary, fontFamily: fonts.sans }}>min</Text>
-                <Pressable
-                  onPress={() => {
-                    const n = parseInt(custom, 10);
-                    if (n > 0 && n <= 120) select(n);
-                  }}
-                  style={styles.okBtn}
-                >
-                  <Text style={styles.okText}>OK</Text>
-                </Pressable>
-              </View>
+              <Button
+                title="Annen lengde"
+                variant="tertiary"
+                size="compact"
+                onPress={() => {
+                  customOpenRef.current = true;
+                  setCustomOpen(true);
+                }}
+              />
             )}
 
-            {/* TODO: AI suggestion is mocked; no model call */}
-            <View style={[styles.ai, aiUnlocked ? { backgroundColor: colors.fg } : { opacity: 0.7 }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.aiTitle, aiUnlocked && { color: onDark.fg }]}>
-                  AI-forslag{!aiUnlocked && ' — låst'}
-                </Text>
-                <Text style={[styles.aiSub, aiUnlocked && { color: 'rgba(248,246,242,0.5)' }]}>
-                  {aiUnlocked
-                    ? `Basert på ${AI_UNLOCK_SESSIONS}+ sesjoner: ${MOCK_AI_SUGGESTION_MIN} min passer deg nå.`
-                    : `Tilgjengelig etter ${AI_UNLOCK_SESSIONS} sesjoner. ${Math.max(0, AI_UNLOCK_SESSIONS - sessionCount)} gjenstår.`}
-                </Text>
-              </View>
-              {aiUnlocked && (
-                <Pressable onPress={() => select(MOCK_AI_SUGGESTION_MIN)} style={styles.aiBtn}>
-                  <Text style={styles.okText}>Bruk</Text>
-                </Pressable>
-              )}
-            </View>
+            <Button title="Bruk" size="regular" disabled={!canUse} onPress={confirm} style={{ alignSelf: 'stretch' }} />
           </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
 
+function pickedMinutes(index: number): number {
+  return PRESET_MINUTES[index] ?? 10;
+}
+
 const styles = StyleSheet.create({
   wrap: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { flex: 1, backgroundColor: colors.bgOverlay },
-  sheet: {
-    backgroundColor: colors.bg,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.14,
-    shadowRadius: 32,
-    shadowOffset: { width: 0, height: -4 },
-  },
-  handleRow: { alignItems: 'center', paddingTop: 12, paddingBottom: 8 },
-  handle: { width: 36, height: 4, borderRadius: 2, backgroundColor: palette.mono400 },
-  title: { fontFamily: fonts.sansMedium, fontSize: 18, letterSpacing: em(18, -0.02), color: colors.fg, marginBottom: 6 },
-  sub: { fontFamily: fonts.sansLight, fontSize: 13, color: colors.fgTertiary, marginBottom: 24 },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
-  preset: {
-    width: '48.5%',
-    flexGrow: 1,
-    paddingVertical: 18,
-    alignItems: 'center',
+  backdrop: { flex: 1 },
+  sheet: {},
+  handleHit: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  handle: { width: 36, height: 4, borderRadius: 2 },
+  body: { alignItems: 'center', paddingHorizontal: 30, gap: 16 },
+  dial: { width: SIZE, height: SIZE },
+  circleSlot: { position: 'absolute', left: CENTER - 88, top: CENTER - 88 },
+  knob: { position: 'absolute', width: 22, height: 22, borderRadius: 11 },
+  labelHit: { position: 'absolute', width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  input: {
+    alignSelf: 'stretch',
+    minHeight: 44,
     borderWidth: 1,
-    borderColor: 'rgba(17,17,16,0.16)',
-  },
-  presetActive: { backgroundColor: colors.fg, borderColor: colors.fg },
-  presetText: { fontFamily: fonts.sansMedium, fontSize: 17, letterSpacing: em(17, -0.02), color: colors.fg },
-  presetUnit: { fontFamily: fonts.sansLight, fontSize: 13, opacity: 0.6 },
-  customBtn: {
-    paddingVertical: 15,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors.borderStrong,
-    marginBottom: 12,
-  },
-  customText: { fontFamily: fonts.sans, fontSize: 14, color: colors.fgTertiary },
-  customRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1,
-    borderColor: colors.fg,
-    paddingVertical: 10,
     paddingHorizontal: 16,
-    marginBottom: 12,
+    textAlign: 'center',
   },
-  customInput: { flex: 1, fontFamily: fonts.sansLight, fontSize: 18, color: colors.fg, paddingVertical: 2 },
-  okBtn: { backgroundColor: colors.fg, paddingVertical: 8, paddingHorizontal: 16 },
-  okText: { fontFamily: fonts.sansMedium, fontSize: 13, color: onDark.fg },
-  ai: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 16, backgroundColor: palette.mono200 },
-  aiTitle: { fontFamily: fonts.sansMedium, fontSize: 13, color: colors.fgTertiary, marginBottom: 2 },
-  aiSub: { fontFamily: fonts.sansLight, fontSize: 11, lineHeight: 16, color: palette.mono500 },
-  aiBtn: { backgroundColor: 'rgba(255,255,255,0.15)', paddingVertical: 8, paddingHorizontal: 14 },
 });

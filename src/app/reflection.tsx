@@ -1,98 +1,145 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
-import { MOOD_COLORS, MOODS, type Mood } from '@/data/mock';
+import { abortedPhrase } from '@/data/copy';
+import { getSession } from '@/data/repository';
+import { MOODS, type MoodId, type SessionWithJournal } from '@/data/types';
 import { useAppState } from '@/state/AppState';
-import { colors, fonts, palette, type } from '@/theme';
+import { useTheme } from '@/theme';
 
-/** Post-session reflection: mood + free-text journal entry. */
+/** Optional note after a session. The session itself is already stored. */
 export default function Reflection() {
-  const params = useLocalSearchParams<{ minutes?: string }>();
-  const minutes = Math.max(1, parseInt(params.minutes ?? '10', 10) || 10);
-  const { addSession } = useAppState();
-  const [mood, setMood] = useState<Mood | null>(null);
-  const [text, setText] = useState('');
+  const { theme } = useTheme();
+  const params = useLocalSearchParams<{ sessionId?: string }>();
+  const sessionId = typeof params.sessionId === 'string' ? params.sessionId : '';
+  const { sessions, saveReflection } = useAppState();
+  const listed = sessions.find((item) => item.id === sessionId) ?? null;
+  const [fetched, setFetched] = useState<SessionWithJournal | null>(null);
+  const session = listed ?? fetched;
+  const [mood, setMood] = useState<MoodId | null>(null);
+  const [note, setNote] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
-  const done = (save: boolean) => {
-    // TODO: store in persistent journal; AI insights would be generated from these entries later
-    addSession({ minutes, mood: save ? mood : null, note: save ? text.trim() : '' });
-    if (save) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.dismissTo('/home');
+  useEffect(() => {
+    if (!sessionId || listed) return;
+    let cancelled = false;
+    getSession(sessionId)
+      .then((row) => {
+        if (!cancelled) setFetched(row);
+      })
+      .catch(() => {
+        if (!cancelled) setError('noe gikk galt. prøv igjen.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionId, listed]);
+
+  const aborted = session?.status === 'aborted';
+  const heading = !session
+    ? ''
+    : aborted
+      ? abortedPhrase(session.actualDurationSeconds)
+      : 'Det var det.';
+
+  const leave = () => router.replace('/home');
+
+  const save = async () => {
+    if (!sessionId || saving) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await saveReflection(sessionId, mood, note.trim());
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      leave();
+    } catch {
+      setError('fikk ikke lagret. prøv igjen.');
+      setSaving(false);
+    }
   };
 
   return (
-    <Screen scroll contentStyle={{ paddingTop: 24, paddingBottom: 40 }}>
-      <View style={{ marginBottom: 40 }}>
-        <Text style={[type.eyebrow, { marginBottom: 10 }]}>Økt fullført</Text>
-        <Text style={[type.display(44, 1.05), { marginBottom: 8 }]}>{`${minutes} minutter\nmed ingenting.`}</Text>
-        <Text style={type.caption}>Du klarte det.</Text>
+    <Screen scroll contentStyle={styles.content}>
+      <View style={{ marginBottom: theme.space['8'] }}>
+        <Text style={[theme.text.headline, { color: theme.color.text.primary }]}>{heading}</Text>
       </View>
 
-      <View style={{ marginBottom: 32 }}>
-        <Text style={styles.label}>Hvordan kjentes det?</Text>
-        <View style={styles.moods}>
-          {MOODS.map((m) => {
-            const active = mood === m;
-            return (
-              <Pressable
-                key={m}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setMood(active ? null : m);
-                }}
+      <Text style={[theme.text.label, { color: theme.color.text.primary, marginBottom: theme.space['3'] }]}>
+        Hvordan kjentes det?
+      </Text>
+      <View style={styles.moods}>
+        {MOODS.map((item) => {
+          const selected = mood === item.id;
+          return (
+            <Pressable
+              key={item.id}
+              accessibilityRole="button"
+              accessibilityState={{ selected }}
+              accessibilityLabel={item.label}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setMood(selected ? null : item.id);
+              }}
+              style={[
+                styles.pill,
+                {
+                  minHeight: theme.size['hit-min'],
+                  borderRadius: theme.radius.pill,
+                  backgroundColor: selected ? theme.color.button['primary-bg'] : theme.color.button['tertiary-bg'],
+                },
+              ]}
+            >
+              <Text
                 style={[
-                  styles.pill,
-                  active
-                    ? { backgroundColor: MOOD_COLORS[m], borderColor: MOOD_COLORS[m] }
-                    : { borderColor: 'rgba(17,17,16,0.18)' },
+                  theme.text.labelSmall,
+                  { color: selected ? theme.color.button['primary-text'] : theme.color.button['tertiary-text'] },
                 ]}
               >
-                <Text style={[styles.pillText, { color: active ? colors.fgInverse : colors.fgSecondary }]}>{m}</Text>
-              </Pressable>
-            );
-          })}
-        </View>
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
 
-      <View style={{ marginBottom: 40 }}>
-        <Text style={[styles.label, { marginBottom: 10 }]}>Hva dukket opp?</Text>
-        <TextInput
-          multiline
-          placeholder="Hva som helst — en tanke, en idé, ingenting spesielt."
-          placeholderTextColor={colors.fgPlaceholder}
-          value={text}
-          onChangeText={setText}
-          style={styles.input}
-        />
-        <Text style={styles.hint}>Valgfritt. Privat. Deles aldri.</Text>
-      </View>
+      <Text style={[theme.text.label, { color: theme.color.text.primary, marginTop: theme.space['8'], marginBottom: theme.space['2'] }]}>
+        Hva dukket opp?
+      </Text>
+      <TextInput
+        multiline
+        value={note}
+        onChangeText={setNote}
+        placeholder="Hva som helst. En tanke, en idé, ingenting spesielt."
+        placeholderTextColor={theme.color.text.tertiary}
+        accessibilityLabel="Notat"
+        style={[
+          theme.text.body,
+          styles.input,
+          { color: theme.color.text.primary, borderBottomColor: theme.color.border.strong },
+        ]}
+      />
+      <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginTop: theme.space['2'] }]}>
+        Valgfritt. Privat. Deles aldri.
+      </Text>
 
-      <Button title="Lagre og avslutt" onPress={() => done(true)} style={{ marginBottom: 8 }} />
-      <Button title="Hopp over" variant="ghost" onPress={() => done(false)} />
+      {error ? (
+        <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginTop: theme.space['4'] }]}>{error}</Text>
+      ) : null}
+
+      <Button title="Lagre" disabled={saving || !sessionId} onPress={save} style={{ marginTop: theme.space['8'] }} />
+      <Button title="Hopp over" variant="ghost" onPress={leave} style={{ marginTop: theme.space['2'] }} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  label: { fontFamily: fonts.sansMedium, fontSize: 13, color: colors.fg, marginBottom: 14 },
+  content: { paddingBottom: 40 },
   moods: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  pill: { paddingVertical: 8, paddingHorizontal: 14, borderWidth: 1, borderRadius: 999 },
-  pillText: { fontFamily: fonts.sans, fontSize: 13 },
-  input: {
-    fontFamily: fonts.sansLight,
-    fontSize: 16,
-    lineHeight: 26,
-    color: colors.fg,
-    minHeight: 110,
-    paddingTop: 12,
-    paddingBottom: 10,
-    textAlignVertical: 'top',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(17,17,16,0.18)',
-  },
-  hint: { fontFamily: fonts.sansLight, fontSize: 11, color: palette.mono500, marginTop: 6 },
+  pill: { paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
+  input: { minHeight: 110, paddingTop: 12, textAlignVertical: 'top', borderBottomWidth: 1 },
 });

@@ -8,11 +8,12 @@ import { Screen } from '@/components/Screen';
 import { Toggle } from '@/components/Toggle';
 import { NOTIF_TIME_LABELS } from '@/data/mock';
 import { useAppState } from '@/state/AppState';
-import { colors, fonts } from '@/theme';
+import { useTheme } from '@/theme';
 
 export default function NotificationsStep() {
+  const { theme } = useTheme();
   const { user, updateUser } = useAppState();
-  const [enabled, setEnabled] = useState(user.notifications ?? true);
+  const [enabled, setEnabled] = useState(user.notifications ?? false);
   const timeLabel = (user.time && NOTIF_TIME_LABELS[user.time]) || 'Daglig';
 
   return (
@@ -23,35 +24,35 @@ export default function NotificationsStep() {
         sub="Ingen lyder. Ingen merker. Bare en enkel melding. Du bestemmer selv om du svarer."
       />
 
-      {/* Notification preview */}
-      <View style={[styles.preview, { opacity: enabled ? 1 : 0.4 }]}>
+      <View style={[styles.preview, { backgroundColor: theme.color.surface.default }]}>
         <View style={styles.previewHead}>
-          <View style={styles.appIcon}>
-            <Text style={styles.appIconText}>b.</Text>
+          <View style={[styles.appIcon, { backgroundColor: theme.color.ink.default }]}>
+            <Text style={[theme.text.labelSmall, { color: theme.color.text['on-ink'] }]}>b.</Text>
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.appName}>bored.</Text>
-            <Text style={styles.time}>{timeLabel}</Text>
+            <Text style={[theme.text.labelSmall, { color: theme.color.text.primary }]}>bored.</Text>
+            <Text style={[theme.text.caption, { color: theme.color.text.tertiary }]}>{timeLabel}</Text>
           </View>
         </View>
-        <Text style={styles.message}>
+        <Text style={[theme.text.bodySmall, { color: theme.color.text.primary }]}>
           {user.name ? `${user.name}, ` : ''}Ti minutter. Ingenting skjer her. Det er poenget.
         </Text>
       </View>
 
-      <View style={styles.toggleRow}>
-        <View>
-          <Text style={styles.toggleLabel}>Skru på varsler</Text>
-          <Text style={styles.toggleSub}>Kan skrus av når som helst</Text>
+      <View style={[styles.toggleRow, { borderColor: theme.color.border.default }]}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <Text style={[theme.text.label, { color: theme.color.text.primary }]}>Skru på varsler</Text>
+          <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginTop: 2 }]}>
+            Kan skrus av når som helst
+          </Text>
         </View>
-        <Toggle value={enabled} onChange={setEnabled} />
+        <Toggle value={enabled} onChange={setEnabled} accessibilityLabel="Skru på varsler" />
       </View>
 
       <View style={{ flex: 1 }} />
       <Button
         title="Se din oppsummering"
         onPress={() => {
-          // TODO: request notification permission + schedule daily nudge (expo-notifications)
           updateUser({ notifications: enabled });
           router.push('/onboarding/ready');
         }}
@@ -62,38 +63,26 @@ export default function NotificationsStep() {
 
 const styles = StyleSheet.create({
   preview: {
-    backgroundColor: '#fff',
     borderRadius: 14,
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginBottom: 32,
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 2 },
   },
   previewHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
   appIcon: {
     width: 28,
     height: 28,
     borderRadius: 7,
-    backgroundColor: colors.fg,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  appIconText: { color: colors.accent, fontSize: 14, fontFamily: fonts.sansLight },
-  appName: { fontFamily: fonts.sansSemiBold, fontSize: 13, color: colors.fg },
-  time: { fontFamily: fonts.sansLight, fontSize: 12, color: colors.fgTertiary },
-  message: { fontFamily: fonts.sansLight, fontSize: 14, lineHeight: 21, color: colors.fg },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderBottomWidth: 1,
-    borderColor: 'rgba(17,17,16,0.08)',
+    minHeight: 44,
   },
-  toggleLabel: { fontFamily: fonts.sansMedium, fontSize: 15, color: colors.fg },
-  toggleSub: { fontFamily: fonts.sansLight, fontSize: 12, color: colors.fgTertiary, marginTop: 2 },
 });
