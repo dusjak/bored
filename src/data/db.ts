@@ -1,6 +1,8 @@
 import * as SQLite from 'expo-sqlite';
 
+import { migrateLegacyIds } from '@/data/migrateIds';
 import { SCHEMA_SQL } from '@/data/schema';
+import type { AppDatabase } from '@/data/sessionQueries';
 
 const DATABASE_NAME = 'bored.db';
 
@@ -18,6 +20,7 @@ export function openDatabase(): Promise<SQLite.SQLiteDatabase> {
         PRAGMA foreign_keys = ON;
         ${SCHEMA_SQL}
       `);
+      await migrateLegacyIds(db as unknown as AppDatabase);
       return db;
     });
   }

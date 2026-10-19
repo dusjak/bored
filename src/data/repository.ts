@@ -1,7 +1,9 @@
+import { features } from '@/config/features';
 import { openDatabase } from '@/data/db';
 import type { AppDatabase } from '@/data/sessionQueries';
 import * as queries from '@/data/sessionQueries';
 import type { MoodId, OnboardingProfile, SessionRecord, SessionWithJournal } from '@/data/types';
+import { rememberDeletedSession } from '@/sync/tombstones';
 
 export const THEME_PREFERENCE_KEY = 'bored.themePreference';
 export const DURATION_KEY = 'bored.defaultDurationMinutes';
@@ -87,12 +89,22 @@ export async function deleteJournal(sessionId: string): Promise<void> {
   await queries.deleteJournal(connection(await openDatabase()), sessionId);
 }
 
-/** Deletes the session row and its note. */
+/** Deletes the session row and its note. With sync off, that is the whole operation. */
 export async function deleteSession(id: string): Promise<void> {
-  await queries.deleteSession(connection(await openDatabase()), id);
+  const db = connection(await openDatabase());
+  if (!features.backendSync) {
+    await queries.deleteSession(db, id);
+    return;
+  }
+  const existing = await queries.getSession(db, id);
+  await queries.deleteSession(db, id);
+  if (existing) await rememberDeletedSession(db, existing);
 }
 
-/** Deletes every session, note, and setting. Does not touch the OS notification permission. */
+/**
+ * Deletes every session, note, setting, and local sync bookmark.
+ * Does not touch the OS notification permission, and does not delete a cloud backup.
+ */
 export async function clearAllLocalData(): Promise<void> {
   await queries.clearAllLocalData(connection(await openDatabase()));
 }

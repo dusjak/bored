@@ -8,6 +8,7 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSUserNotificationsUsageDescription": "bored. varsler når økta er ferdig."
       }
@@ -40,7 +41,8 @@
         {
           "enableBackgroundRemoteNotifications": false
         }
-      ]
+      ],
+      "expo-secure-store"
     ],
     "scheme": "bored",
     "experiments": {

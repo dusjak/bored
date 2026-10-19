@@ -214,10 +214,15 @@ export async function upsertJournal(db: AppDatabase, sessionId: string, mood: Mo
     now,
     now,
   );
+  // The cloud row carries the note on the session, so a note edit has to move
+  // the session stamp or an older cloud copy would overwrite the cleared note.
+  await db.runAsync('UPDATE sessions SET updated_at = ? WHERE id = ?', now, sessionId);
 }
 
 export async function deleteJournal(db: AppDatabase, sessionId: string): Promise<void> {
+  const now = nowIso();
   await db.runAsync('DELETE FROM journal_entries WHERE session_id = ?', sessionId);
+  await db.runAsync('UPDATE sessions SET updated_at = ? WHERE id = ?', now, sessionId);
 }
 
 /** Deletes the session and its note. Other sessions are left alone. */
@@ -226,11 +231,16 @@ export async function deleteSession(db: AppDatabase, id: string): Promise<void> 
   await db.runAsync('DELETE FROM sessions WHERE id = ?', id);
 }
 
-/** Wipes sessions, notes, and settings. The next launch looks newly installed. */
+/**
+ * Wipes sessions, notes, settings, and local sync bookkeeping.
+ * Does not talk to a server. A cloud copy is left untouched on purpose.
+ */
 export async function clearAllLocalData(db: AppDatabase): Promise<void> {
   await db.runAsync('DELETE FROM journal_entries');
   await db.runAsync('DELETE FROM sessions');
   await db.runAsync('DELETE FROM settings');
+  await db.runAsync('DELETE FROM sync_tombstones');
+  await db.runAsync('DELETE FROM sync_state');
 }
 
 /** Oldest first, one mark per finished session. Aborted marks use the muted stroke. */

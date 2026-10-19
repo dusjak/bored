@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import { SCHEMA_SQL } from './schema.ts';
 import {
   clearAllLocalData,
+  deleteJournal,
   deleteSession,
   finishSession,
   getSession,
@@ -98,6 +99,11 @@ describe('session notes and delete', () => {
     await upsertJournal(db, session.id, 'calm', 'en tanke');
     await setSetting(db, 'bored.themePreference', 'dark');
     await setSetting(db, 'bored.onboarded', '1');
+    await db.runAsync(
+      `INSERT INTO sync_tombstones (entity, entity_id, updated_at, deleted_at, payload)
+       VALUES ('session', 'gone', '2026-10-18T12:00:00.000Z', '2026-10-18T12:00:00.000Z', '{}')`,
+    );
+    await db.runAsync(`INSERT INTO sync_state (key, value) VALUES ('bound_user_id', 'user')`);
     await clearAllLocalData(db);
     assert.equal(await getSession(db, session.id), null);
     assert.deepEqual(sessionTotals(await listFinishedSessions(db)), { total: 0, completed: 0, aborted: 0 });
@@ -105,5 +111,27 @@ describe('session notes and delete', () => {
     assert.equal(Number(settings?.n), 0);
     const notes = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM journal_entries');
     assert.equal(Number(notes?.n), 0);
+    const tombs = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM sync_tombstones');
+    assert.equal(Number(tombs?.n), 0);
+    const state = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM sync_state');
+    assert.equal(Number(state?.n), 0);
+  });
+
+  it('moves the session stamp when the note changes or is removed', async () => {
+    const db = openMemoryDatabase();
+    const session = await insertActiveSession(db, 10);
+    await finishSession(db, session.id, 'completed', 600, new Date('2026-10-18T12:10:00.000Z'));
+    await db.runAsync(`UPDATE sessions SET updated_at = ? WHERE id = ?`, '2000-01-01T00:00:00.000Z', session.id);
+    await upsertJournal(db, session.id, 'calm', 'en tanke');
+    const withNote = await getSession(db, session.id);
+    assert.ok(withNote?.journal);
+    assert.equal(withNote.updatedAt, withNote.journal.updatedAt);
+    assert.ok(Date.parse(withNote.updatedAt) > Date.parse('2000-01-01T00:00:00.000Z'));
+    await db.runAsync(`UPDATE sessions SET updated_at = ? WHERE id = ?`, '2000-01-01T00:00:00.000Z', session.id);
+    await deleteJournal(db, session.id);
+    const cleared = await getSession(db, session.id);
+    assert.equal(cleared?.journal, null);
+    assert.ok(cleared);
+    assert.ok(Date.parse(cleared.updatedAt) > Date.parse('2000-01-01T00:00:00.000Z'));
   });
 });

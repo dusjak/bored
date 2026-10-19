@@ -27,4 +27,16 @@ CREATE TABLE IF NOT EXISTS settings (
   value TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS sync_tombstones (
+  entity TEXT NOT NULL,
+  entity_id TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  deleted_at TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  PRIMARY KEY (entity, entity_id)
+);
+CREATE TABLE IF NOT EXISTS sync_state (
+  key TEXT PRIMARY KEY NOT NULL,
+  value TEXT NOT NULL
+);
 `;
