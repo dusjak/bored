@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { REDUCE_FADE_MS as STILL_FADE_MS, REDUCE_HOLD_MS as STILL_HOLD_MS } from './splashTiming.ts';
 import {
   createStimuli,
   cubicBezierY,
   NOISE_RGB,
   periodScale,
+  REDUCE_FADE_MS,
+  REDUCE_HOLD_MS,
   sampleStimulus,
   spiralAngle,
   STIMULUS_COUNT,
@@ -17,6 +20,13 @@ const LIGHT_HOLE: Rgb = [0x11, 0x11, 0x10];
 const DARK_HOLE: Rgb = [0xf8, 0xf6, 0xf2];
 
 describe('sluket', () => {
+  it('shares the still-splash timings with the launch path', () => {
+    assert.equal(REDUCE_HOLD_MS, STILL_HOLD_MS);
+    assert.equal(REDUCE_FADE_MS, STILL_FADE_MS);
+    assert.equal(STILL_HOLD_MS, 600);
+    assert.equal(STILL_FADE_MS, 200);
+  });
+
   it('builds 60 stimuli with the shape split and a stable seed', () => {
     const stimuli = createStimuli();
     assert.equal(stimuli.length, STIMULUS_COUNT);

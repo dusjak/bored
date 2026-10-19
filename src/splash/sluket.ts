@@ -1,8 +1,13 @@
-/** «Sluket» timeline. Pure so the motion can be tested, and drawn with Views. */
+/**
+ * «Sluket» timeline. Pure so the motion can be tested.
+ * Not imported on launch while features.sluketAnimation is false.
+ * Crash notes live on src/components/SluketPlay.tsx. Do not mount that component.
+ */
 
 export const SPLASH_MS = 2000;
 export const HANDOVER_AT = 1850;
 export const HANDOVER_MS = 150;
+/** Keep in step with src/splash/splashTiming.ts. That file is what the still splash imports. */
 export const REDUCE_HOLD_MS = 600;
 export const REDUCE_FADE_MS = 200;
 
@@ -146,7 +151,11 @@ function mulberry32(seed: number) {
   };
 }
 
-/** Extra spiral angle. Three times the drift, and the whole trip stays within one turn. */
+/**
+ * Extra spiral angle. Three times the drift, and the whole trip stays within one turn.
+ * This is a plain function. sampleStimulus calls it from a worklet once t >= 600.
+ * See the crash note on SluketPlay.
+ */
 export function spiralAngle(drift: number) {
   return Math.min(drift * 3, Math.PI * 2 - drift);
 }
