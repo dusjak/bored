@@ -52,12 +52,12 @@ export default function Profile() {
 
   const confirmReset = () => {
     Alert.alert(
-      'Slette alt?',
-      'Alle økter, notater og innstillinger på denne telefonen slettes, og appen starter fra begynnelsen. Dette kan ikke angres.',
+      'Nullstille alt?',
+      'Appen blir som ny på denne telefonen. Alle økter, notater og innstillinger slettes. Dette kan ikke angres.',
       [
         { text: 'Avbryt', style: 'cancel' },
         {
-          text: 'Slett alt',
+          text: 'Nullstill',
           style: 'destructive',
           onPress: () => {
             void (async () => {
@@ -185,11 +185,11 @@ export default function Profile() {
 
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Slett alt"
+        accessibilityLabel="Nullstill"
         onPress={confirmReset}
         style={[styles.reset, { marginTop: theme.space['10'] }]}
       >
-        <Text style={[theme.text.label, { color: destructive }]}>Slett alt</Text>
+        <Text style={[theme.text.label, { color: destructive }]}>Nullstill</Text>
       </Pressable>
 
       <DurationSheet
