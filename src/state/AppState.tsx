@@ -125,9 +125,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         setDurationState(initialDuration);
         setShowCountdownState(countdownRaw !== '0');
         setSessions(finished);
-        if (profile.notifications === true && (await hasNotificationPermission())) {
-          const clock = reminderSchedule(profile.time);
-          await scheduleDailyReminder(clock.hour, clock.minute);
+        try {
+          if (profile.notifications === true && (await hasNotificationPermission())) {
+            const clock = reminderSchedule(profile.time);
+            await scheduleDailyReminder(clock.hour, clock.minute);
+          }
+        } catch {
+          // A reminder failure must not block the first screen.
         }
 
         if (active) {

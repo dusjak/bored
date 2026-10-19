@@ -9,8 +9,6 @@ import { SluketSplash } from '@/components/SluketSplash';
 import { AppStateProvider, useAppState } from '@/state/AppState';
 import { fontAssets, ThemeProvider, useTheme } from '@/theme';
 
-import '@/data/notifications';
-
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {

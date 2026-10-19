@@ -1,6 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { Canvas, Circle, Group, RoundedRect } from '@shopify/react-native-skia';
 import { StatusBar } from 'expo-status-bar';
 import Animated, {
   cancelAnimation,
@@ -8,7 +7,6 @@ import Animated, {
   runOnJS,
   runOnUI,
   useAnimatedStyle,
-  useDerivedValue,
   useReducedMotion,
   useSharedValue,
   withTiming,
@@ -45,9 +43,98 @@ type Props = {
 
 /**
  * «Sluket». Noise spirals into the period, then «bored» comes out of it.
- * Atlas can't stretch one axis, so each stimulus is its own transformed shape.
+ * Drawn with Views. If that animation throws, a solid wordmark is held for
+ * two seconds and then fades, the same handover as Reduce Motion.
  */
-export function SluketSplash({ fading, onHandoff, onDismiss }: Props) {
+export function SluketSplash(props: Props) {
+  return (
+    <SplashBoundary {...props}>
+      <SluketPlay {...props} />
+    </SplashBoundary>
+  );
+}
+
+class SplashBoundary extends Component<Props & { children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+
+  static getDerivedStateFromError(): { failed: boolean } {
+    return { failed: true };
+  }
+
+  componentDidCatch(error: unknown): void {
+    console.warn('Sluket could not run; showing the static wordmark.', error);
+  }
+
+  render() {
+    if (this.state.failed) return <StaticFallback {...this.props} />;
+    return this.props.children;
+  }
+}
+
+/** Solid «bored.» — the period is the same colour as the word. No motion system. */
+function StaticFallback({ fading, onHandoff, onDismiss }: Props) {
+  const { theme } = useTheme();
+  const [opacity, setOpacity] = useState(1);
+  const handed = useRef(false);
+  const onHandoffRef = useRef(onHandoff);
+  const onDismissRef = useRef(onDismiss);
+  onHandoffRef.current = onHandoff;
+  onDismissRef.current = onDismiss;
+
+  const handoff = useCallback(() => {
+    if (handed.current) return;
+    handed.current = true;
+    onHandoffRef.current('fade');
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(handoff, SPLASH_MS);
+    return () => clearTimeout(timer);
+  }, [handoff]);
+
+  useEffect(() => {
+    if (!fading) return;
+    const start = Date.now();
+    let frame = 0;
+    const tick = () => {
+      const t = Math.min(1, (Date.now() - start) / REDUCE_FADE_MS);
+      setOpacity(1 - t);
+      if (t < 1) {
+        frame = requestAnimationFrame(tick);
+        return;
+      }
+      onDismissRef.current();
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [fading]);
+
+  return (
+    <View
+      accessibilityViewIsModal
+      style={[styles.layer, { opacity, backgroundColor: theme.color.bg.default }]}
+    >
+      <StatusBar style={theme.statusBar} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="bored"
+        accessibilityHint="Trykk for å hoppe over"
+        onPress={handoff}
+        style={styles.press}
+      >
+        <SolidWordmark color={theme.color.text.primary} fontFamily={theme.fonts.serifItalic} />
+      </Pressable>
+    </View>
+  );
+}
+
+function SolidWordmark({ color, fontFamily }: { color: string; fontFamily: string }) {
+  return (
+    <Text style={{ fontFamily, fontSize: WORD_SIZE, color, lineHeight: WORD_SIZE + 8 }}>bored.</Text>
+  );
+}
+
+function SluketPlay({ fading, onHandoff, onDismiss }: Props) {
   const { theme } = useTheme();
   const reduceMotion = useReducedMotion();
   const { width, height } = useWindowDimensions();
@@ -121,11 +208,18 @@ export function SluketSplash({ fading, onHandoff, onDismiss }: Props) {
     >
       <StatusBar style={theme.statusBar} />
       {reduceMotion ? null : (
-        <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
+        <View style={styles.field} pointerEvents="none">
           {stimuli.map((stimulus, index) => (
-            <Stimulus key={index} stimulus={stimulus} clock={clock} width={width} height={height} hole={hole} />
+            <StimulusView
+              key={index}
+              stimulus={stimulus}
+              clock={clock}
+              width={width}
+              height={height}
+              hole={hole}
+            />
           ))}
-        </Canvas>
+        </View>
       )}
       <Pressable
         accessibilityRole="button"
@@ -135,15 +229,7 @@ export function SluketSplash({ fading, onHandoff, onDismiss }: Props) {
         style={styles.press}
       >
         {reduceMotion ? (
-          <Text
-            style={{
-              fontFamily: theme.fonts.serifItalic,
-              fontSize: WORD_SIZE,
-              color: theme.color.text.primary,
-            }}
-          >
-            bored.
-          </Text>
+          <SolidWordmark color={theme.color.text.primary} fontFamily={theme.fonts.serifItalic} />
         ) : (
           <Wordmark clock={clock} color={theme.color.text.primary} fontFamily={theme.fonts.serifItalic} />
         )}
@@ -152,7 +238,13 @@ export function SluketSplash({ fading, onHandoff, onDismiss }: Props) {
   );
 }
 
-function Stimulus({
+function stimulusBox(stimulus: Stimulus) {
+  if (stimulus.kind === 'pill') return { width: 28, height: 10, radius: 5 };
+  if (stimulus.kind === 'squircle') return { width: stimulus.size, height: stimulus.size, radius: 3 };
+  return { width: stimulus.size, height: stimulus.size, radius: stimulus.size / 2 };
+}
+
+function StimulusView({
   stimulus,
   clock,
   width,
@@ -165,40 +257,42 @@ function Stimulus({
   height: number;
   hole: readonly [number, number, number];
 }) {
-  const transform = useDerivedValue(() => {
+  const box = stimulusBox(stimulus);
+  const style = useAnimatedStyle(() => {
     const pose = sampleStimulus(stimulus, clock.value, width, height, hole);
-    if (!pose) return [{ translateX: -200 }, { translateY: -200 }, { scale: 0 }];
-    return [
-      { translateX: pose.x },
-      { translateY: pose.y },
-      { rotate: pose.rotation },
-      { scaleX: pose.scale * pose.stretch },
-      { scaleY: pose.scale },
-    ];
-  });
-  const color = useDerivedValue(() => {
-    const pose = sampleStimulus(stimulus, clock.value, width, height, hole);
-    return rgbToHex(pose ? pose.color : stimulus.color);
+    if (!pose) {
+      return {
+        opacity: 0,
+        transform: [{ translateX: -1000 }, { translateY: -1000 }, { scale: 0 }],
+      };
+    }
+    return {
+      opacity: 1,
+      backgroundColor: rgbToHex(pose.color),
+      transform: [
+        { translateX: pose.x },
+        { translateY: pose.y },
+        { rotate: `${pose.rotation}rad` },
+        { scaleX: pose.scale * pose.stretch },
+        { scaleY: pose.scale },
+      ],
+    };
   });
 
-  if (stimulus.kind === 'badge') {
-    return (
-      <Group transform={transform}>
-        <Circle cx={0} cy={0} r={stimulus.size / 2} color={color} />
-      </Group>
-    );
-  }
-  if (stimulus.kind === 'pill') {
-    return (
-      <Group transform={transform}>
-        <RoundedRect x={-14} y={-5} width={28} height={10} r={5} color={color} />
-      </Group>
-    );
-  }
   return (
-    <Group transform={transform}>
-      <RoundedRect x={-7} y={-7} width={14} height={14} r={3} color={color} />
-    </Group>
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          left: -box.width / 2,
+          top: -box.height / 2,
+          width: box.width,
+          height: box.height,
+          borderRadius: box.radius,
+        },
+        style,
+      ]}
+    />
   );
 }
 
@@ -237,10 +331,18 @@ function Wordmark({ clock, color, fontFamily }: { clock: SharedValue<number>; co
 
 const styles = StyleSheet.create({
   layer: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 20 },
+  field: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, overflow: 'hidden' },
   press: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   wordSlot: { height: WORD_SIZE + 8, alignItems: 'center', justifyContent: 'center' },
   measure: { position: 'absolute', opacity: 0 },
   mask: { position: 'absolute', right: DOT, top: 0, bottom: 0, overflow: 'hidden' },
   letters: { position: 'absolute', right: 0, top: 0 },
-  dot: { position: 'absolute', right: 0, top: (WORD_SIZE + 8 - DOT) / 2, width: DOT, height: DOT, borderRadius: DOT / 2 },
+  dot: {
+    position: 'absolute',
+    right: 0,
+    top: (WORD_SIZE + 8 - DOT) / 2,
+    width: DOT,
+    height: DOT,
+    borderRadius: DOT / 2,
+  },
 });

@@ -1,4 +1,4 @@
-/** «Sluket» timeline. Pure so the motion can be tested without Skia. */
+/** «Sluket» timeline. Pure so the motion can be tested, and drawn with Views. */
 
 export const SPLASH_MS = 2000;
 export const HANDOVER_AT = 1850;
