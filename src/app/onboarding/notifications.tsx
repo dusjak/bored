@@ -27,7 +27,7 @@ export default function NotificationsStep() {
       <View style={[styles.preview, { backgroundColor: theme.color.surface.default }]}>
         <View style={styles.previewHead}>
           <View style={[styles.appIcon, { backgroundColor: theme.color.ink.default }]}>
-            <Text style={[theme.text.labelSmall, { color: theme.color.accent.default }]}>b.</Text>
+            <Text style={[theme.text.labelSmall, { color: theme.color.text['on-ink'] }]}>b.</Text>
           </View>
           <View style={{ flex: 1 }}>
             <Text style={[theme.text.labelSmall, { color: theme.color.text.primary }]}>bored.</Text>

@@ -306,11 +306,7 @@ export default function Session() {
                 importantForAccessibility="no-hide-descendants"
                 accessibilityElementsHidden
               >
-                <Logo
-                  size={22}
-                  color={theme.color.session.decorative}
-                  dotColor={theme.color.session.decorative}
-                />
+                <Logo size={22} color={theme.color.session.decorative} />
               </Animated.View>
               <Animated.View pointerEvents="none" style={[styles.circleLayer, { opacity: doneOpacity }]}>
                 <View

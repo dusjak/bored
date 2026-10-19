@@ -6,19 +6,19 @@ type Props = {
   size?: number;
   /** Serif italic, used on the splash screen. */
   variant?: 'sans' | 'serif';
+  /** Word and period. Defaults to `color.text.primary`. */
   color?: string;
-  /** Defaults to sand. Pass another color when the mark must stay quiet. */
-  dotColor?: string;
   style?: TextStyle;
 };
 
 /**
- * Wordmark. Sand is used only for the full stop.
+ * Wordmark. The period uses the same color as the word.
  * The accessibility label is the word, so the stop is not read aloud.
  */
-export function Logo({ size = 22, variant = 'sans', color, dotColor, style }: Props) {
+export function Logo({ size = 22, variant = 'sans', color, style }: Props) {
   const { theme } = useTheme();
   const serif = variant === 'serif';
+  const markColor = color ?? theme.color.text.primary;
   return (
     <Text
       accessibilityRole="text"
@@ -27,15 +27,13 @@ export function Logo({ size = 22, variant = 'sans', color, dotColor, style }: Pr
         {
           fontFamily: serif ? theme.fonts.serifItalic : theme.fonts.sansLight,
           fontSize: size,
-          color: color ?? theme.color.text.primary,
+          color: markColor,
         },
         style,
       ]}
     >
       bored
-      <Text style={{ color: dotColor ?? theme.color.accent.default, fontFamily: serif ? theme.fonts.serifItalic : theme.fonts.sans }}>
-        .
-      </Text>
+      <Text style={{ color: markColor, fontFamily: serif ? theme.fonts.serifItalic : theme.fonts.sans }}>.</Text>
     </Text>
   );
 }
