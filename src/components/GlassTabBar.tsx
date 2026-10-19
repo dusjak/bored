@@ -7,7 +7,7 @@ import { Icon, type IconName } from '@/components/Icon';
 import { useTheme } from '@/theme';
 
 const ITEMS: Record<string, { label: string; icon: IconName }> = {
-  home: { label: 'Hjem', icon: 'timer' },
+  home: { label: 'Hjem', icon: 'clock' },
   log: { label: 'Logg', icon: 'list' },
   profile: { label: 'Deg', icon: 'user' },
 };
@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 24,
+    paddingHorizontal: 30,
   },
   bar: {
     flexDirection: 'row',

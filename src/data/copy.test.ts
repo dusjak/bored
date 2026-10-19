@@ -7,6 +7,7 @@ import {
   completionSentence,
   minutesPhrase,
   parseCustomMinutes,
+  reminderSchedule,
   sessionsPhrase,
 } from './copy.ts';
 
@@ -42,6 +43,13 @@ describe('copy', () => {
     assert.equal(parseCustomMinutes('30'), null);
     assert.equal(parseCustomMinutes('10.5'), null);
     assert.equal(parseCustomMinutes(''), null);
+  });
+
+  it('uses 08:00 unless the reminder time is midday or evening', () => {
+    assert.deepEqual(reminderSchedule('morgen'), { hour: 8, minute: 0, label: '08:00' });
+    assert.deepEqual(reminderSchedule('lunsj'), { hour: 12, minute: 30, label: '12:30' });
+    assert.deepEqual(reminderSchedule('kveld'), { hour: 20, minute: 0, label: '20:00' });
+    assert.deepEqual(reminderSchedule(undefined), { hour: 8, minute: 0, label: '08:00' });
   });
 
   it('resets a stored length outside 5–20 to the default', () => {

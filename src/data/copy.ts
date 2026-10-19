@@ -70,3 +70,10 @@ export function clampDurationMinutes(minutes: number): number {
 export function emptyProfile(): OnboardingProfile {
   return {};
 }
+
+/** Clock for the daily reminder. An unset or varying time uses 08:00. */
+export function reminderSchedule(time: string | undefined): { hour: number; minute: number; label: string } {
+  if (time === 'lunsj') return { hour: 12, minute: 30, label: '12:30' };
+  if (time === 'kveld') return { hour: 20, minute: 0, label: '20:00' };
+  return { hour: 8, minute: 0, label: '08:00' };
+}

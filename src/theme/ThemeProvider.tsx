@@ -14,6 +14,8 @@ type ThemeContextValue = {
   theme: Theme;
   preference: ThemePreference;
   setPreference: (preference: ThemePreference) => Promise<void>;
+  /** Drops the in-memory choice back to Lys. Storage is wiped separately. */
+  forgetPreference: () => void;
   ready: boolean;
 };
 
@@ -55,12 +57,16 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     await setSetting(THEME_PREFERENCE_KEY, next);
   }, []);
 
+  const forgetPreference = useCallback(() => {
+    setPreferenceState(DEFAULT_THEME_PREFERENCE);
+  }, []);
+
   const scheme = system === 'dark' || system === 'light' ? system : null;
   const theme = themes[resolveThemeName(preference, scheme)];
 
   const value = useMemo<ThemeContextValue>(
-    () => ({ theme, preference, setPreference, ready }),
-    [theme, preference, setPreference, ready],
+    () => ({ theme, preference, setPreference, forgetPreference, ready }),
+    [theme, preference, setPreference, forgetPreference, ready],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

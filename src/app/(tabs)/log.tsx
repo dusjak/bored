@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
-import { abortedPhrase, chosenMinutes, formatSessionDate, minutesPhrase } from '@/data/copy';
+import { TallyMarks } from '@/components/TallyMarks';
+import { abortedPhrase, chosenMinutes, formatSessionDate, minutesPhrase, sessionsPhrase } from '@/data/copy';
 import { sessionTotals } from '@/data/sessionQueries';
 import { MOODS, type MoodId, type SessionWithJournal } from '@/data/types';
 import { useAppState } from '@/state/AppState';
@@ -33,28 +34,34 @@ export default function Log() {
     <Screen scroll edges={['top']} contentStyle={styles.content}>
       <Text style={[theme.text.headline, { color: theme.color.text.primary, marginBottom: theme.space['6'] }]}>Logg</Text>
 
-      {total === 0 ? (
-        <Text style={[theme.text.headline, { color: theme.color.text.primary }]}>Ingen økter ennå.</Text>
-      ) : (
-        <View style={{ marginBottom: theme.space['8'] }}>
-          <View style={styles.countRow}>
-            <Text style={[theme.text.monoHero, { color: theme.color.text.primary }]}>{total}</Text>
-            <Text style={[theme.text.bodyLarge, { color: theme.color.text.primary, marginLeft: theme.space['3'] }]}>
-              {total === 1 ? 'økt' : 'økter'}
-            </Text>
-          </View>
-          {aborted > 0 ? (
-            <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginTop: theme.space['2'] }]}>
-              <Text style={theme.text.monoData}>{completed}</Text>
-              {' fullført, '}
-              <Text style={theme.text.monoData}>{aborted}</Text>
-              {' avbrutt'}
-            </Text>
-          ) : null}
+      <View style={{ marginBottom: theme.space['8'] }}>
+        <View
+          style={styles.countRow}
+          accessible
+          accessibilityLabel={sessionsPhrase(total)}
+        >
+          <Text style={[theme.text.monoHero, styles.count, { color: theme.color.text.primary }]}>{total}</Text>
+          <Text style={[theme.text.bodyLarge, { color: theme.color.text.primary, marginLeft: theme.space['3'] }]}>
+            {total === 1 ? 'økt' : 'økter'}
+          </Text>
         </View>
-      )}
+        {total > 0 ? <TallyMarks sessions={sessions} /> : null}
+        {total === 0 ? (
+          <Text style={[theme.text.body, { color: theme.color.text.secondary, marginTop: theme.space['3'] }]}>
+            Ingen økter ennå.
+          </Text>
+        ) : null}
+        {aborted > 0 ? (
+          <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginTop: theme.space['2'] }]}>
+            <Text style={theme.text.monoData}>{completed}</Text>
+            {' fullført, '}
+            <Text style={theme.text.monoData}>{aborted}</Text>
+            {' avbrutt'}
+          </Text>
+        ) : null}
+      </View>
 
-      <View style={{ marginTop: total === 0 ? 0 : theme.space['4'] }}>
+      <View>
         {sessions.map((session) => {
           const isAborted = session.status === 'aborted';
           const expanded = openId === session.id;
@@ -153,8 +160,9 @@ export default function Log() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: 8, paddingBottom: 140 },
-  countRow: { flexDirection: 'row', alignItems: 'flex-end' },
+  content: { paddingBottom: 140 },
+  countRow: { flexDirection: 'row', alignItems: 'baseline' },
+  count: { lineHeight: 56 },
   row: { borderBottomWidth: 1 },
   rowHit: { minHeight: 44, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
   preview: { maxWidth: 140, textAlign: 'right' },

@@ -22,7 +22,7 @@ export default function TabsLayout() {
         >
           <NativeTabs.Trigger name="home" contentStyle={{ backgroundColor: theme.color.bg.default }}>
             <NativeTabs.Trigger.Label>Hjem</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon sf={{ default: 'house', selected: 'house.fill' }} md="home" />
+            <NativeTabs.Trigger.Icon sf={{ default: 'clock', selected: 'clock.fill' }} md="schedule" />
           </NativeTabs.Trigger>
           <NativeTabs.Trigger name="log" contentStyle={{ backgroundColor: theme.color.bg.default }}>
             <NativeTabs.Trigger.Label>Logg</NativeTabs.Trigger.Label>

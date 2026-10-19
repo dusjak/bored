@@ -226,6 +226,22 @@ export async function deleteSession(db: AppDatabase, id: string): Promise<void> 
   await db.runAsync('DELETE FROM sessions WHERE id = ?', id);
 }
 
+/** Wipes sessions, notes, and settings. The next launch looks newly installed. */
+export async function clearAllLocalData(db: AppDatabase): Promise<void> {
+  await db.runAsync('DELETE FROM journal_entries');
+  await db.runAsync('DELETE FROM sessions');
+  await db.runAsync('DELETE FROM settings');
+}
+
+/** Oldest first, one mark per finished session. Aborted marks use the muted stroke. */
+export function tallyMarks(sessions: { status: SessionStatus; startedAt: string }[]): { aborted: boolean }[] {
+  return sessions
+    .filter((session) => session.status === 'completed' || session.status === 'aborted')
+    .slice()
+    .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+    .map((session) => ({ aborted: session.status === 'aborted' }));
+}
+
 /** Counts behind the Logg header. Active rows are not part of the log. */
 export function sessionTotals(sessions: { status: SessionStatus }[]): {
   total: number;

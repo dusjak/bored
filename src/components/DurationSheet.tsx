@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, PanResponder, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -15,53 +15,96 @@ type Props = {
   onClose: () => void;
 };
 
-const ITEM = 44;
+const SIZE = 280;
+const CENTER = SIZE / 2;
+const KNOB_RADIUS = 88;
+const LABEL_RADIUS = 118;
 
-/** Duration sheet: 5/10/15/20 wheel, or a custom value from 5 to 20 minutes. */
+function stopAngle(index: number): number {
+  return -Math.PI / 2 + index * (Math.PI / 2);
+}
+
+function pointOn(radius: number, index: number): { left: number; top: number } {
+  const angle = stopAngle(index);
+  return {
+    left: CENTER + Math.cos(angle) * radius,
+    top: CENTER + Math.sin(angle) * radius,
+  };
+}
+
+function nearestStop(x: number, y: number): number {
+  const angle = Math.atan2(y - CENTER, x - CENTER);
+  let best = 0;
+  let bestDistance = Infinity;
+  PRESET_MINUTES.forEach((_, index) => {
+    let distance = Math.abs(angle - stopAngle(index));
+    if (distance > Math.PI) distance = Math.PI * 2 - distance;
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = index;
+    }
+  });
+  return best;
+}
+
+/** Duration modal: a circle dial for 5/10/15/20, or a custom value from 5 to 20 minutes. */
 export function DurationSheet({ visible, current, onUse, onClose }: Props) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const initial = (PRESET_MINUTES as readonly number[]).includes(current) ? current : 10;
-  const [picked, setPicked] = useState(initial);
+  const presetIndex = (value: number) => {
+    const index = (PRESET_MINUTES as readonly number[]).indexOf(value);
+    return index >= 0 ? index : 1;
+  };
+  const [picked, setPicked] = useState(presetIndex(current));
   const [customOpen, setCustomOpen] = useState(false);
   const [custom, setCustom] = useState('');
-  const scroller = useRef<ScrollView>(null);
-  const lastIndex = useRef(PRESET_MINUTES.indexOf(initial as (typeof PRESET_MINUTES)[number]));
+  const pickedRef = useRef(picked);
+  const customOpenRef = useRef(false);
+  pickedRef.current = picked;
+
+  const chooseRef = useRef<(index: number) => void>(() => undefined);
+  chooseRef.current = (index: number) => {
+    if (index === pickedRef.current && !customOpenRef.current) return;
+    pickedRef.current = index;
+    customOpenRef.current = false;
+    setPicked(index);
+    setCustomOpen(false);
+    setCustom('');
+    Haptics.selectionAsync();
+  };
+  const choose = (index: number) => chooseRef.current(index);
+
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: (event) => {
+        chooseRef.current(nearestStop(event.nativeEvent.locationX, event.nativeEvent.locationY));
+      },
+      onPanResponderMove: (event) => {
+        chooseRef.current(nearestStop(event.nativeEvent.locationX, event.nativeEvent.locationY));
+      },
+    }),
+  ).current;
 
   useEffect(() => {
     if (!visible) return;
-    const next = (PRESET_MINUTES as readonly number[]).includes(current) ? current : 10;
-    setPicked(next);
+    const index = presetIndex(current);
+    pickedRef.current = index;
+    customOpenRef.current = false;
+    setPicked(index);
     setCustomOpen(false);
     setCustom('');
-    const index = PRESET_MINUTES.indexOf(next as (typeof PRESET_MINUTES)[number]);
-    lastIndex.current = index;
-    requestAnimationFrame(() => scroller.current?.scrollTo({ y: index * ITEM, animated: false }));
   }, [visible, current]);
 
-  const snapTo = (offsetY: number) => {
-    const index = Math.min(PRESET_MINUTES.length - 1, Math.max(0, Math.round(offsetY / ITEM)));
-    if (index !== lastIndex.current) {
-      lastIndex.current = index;
-      setPicked(PRESET_MINUTES[index]);
-      Haptics.selectionAsync();
-    } else {
-      setPicked(PRESET_MINUTES[index]);
-    }
-  };
-
   const step = (direction: 1 | -1) => {
-    const index = PRESET_MINUTES.indexOf(picked as (typeof PRESET_MINUTES)[number]);
-    const next = Math.min(PRESET_MINUTES.length - 1, Math.max(0, index + direction));
-    if (next === index) return;
-    lastIndex.current = next;
-    setPicked(PRESET_MINUTES[next]);
-    scroller.current?.scrollTo({ y: next * ITEM, animated: true });
-    Haptics.selectionAsync();
+    choose(Math.min(PRESET_MINUTES.length - 1, Math.max(0, pickedRef.current + direction)));
   };
 
   const customMinutes = parseCustomMinutes(custom);
+  const shown = customOpen ? (customMinutes ?? pickedMinutes(picked)) : PRESET_MINUTES[picked];
   const canUse = customOpen ? customMinutes != null : true;
+  const knob = pointOn(KNOB_RADIUS, picked);
 
   const confirm = () => {
     if (customOpen) {
@@ -69,18 +112,13 @@ export function DurationSheet({ visible, current, onUse, onClose }: Props) {
       onUse(customMinutes);
       return;
     }
-    onUse(picked);
+    onUse(PRESET_MINUTES[picked]);
   };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.wrap}>
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={onClose}
-          accessibilityLabel="Lukk"
-          accessibilityRole="button"
-        >
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Lukk" accessibilityRole="button">
           <View style={[styles.backdrop, { backgroundColor: theme.color.bg.overlay }]} />
         </Pressable>
         <View
@@ -99,27 +137,20 @@ export function DurationSheet({ visible, current, onUse, onClose }: Props) {
             },
           ]}
         >
-          <Pressable
-            onPress={onClose}
-            accessibilityRole="button"
-            accessibilityLabel="Lukk"
-            style={styles.handleHit}
-          >
+          <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Lukk" style={styles.handleHit}>
             <View style={[styles.handle, { backgroundColor: theme.color.control.off }]} />
           </Pressable>
 
           <View style={styles.body}>
-            <TactileCircle accessibilityLabel={minutesPhrase(customOpen && customMinutes ? customMinutes : picked)}>
-              <Text style={[theme.text.monoHero, { color: theme.color.object.content }]}>
-                {customOpen && customMinutes ? customMinutes : picked}
-              </Text>
-            </TactileCircle>
+            <Text accessibilityRole="header" style={[theme.text.headline, { color: theme.color.text.primary }]}>
+              Velg varighet
+            </Text>
 
             <View
-              style={[styles.wheelWindow, { height: ITEM * 3 }]}
+              style={styles.dial}
               accessibilityRole="adjustable"
-              accessibilityLabel="Varighet"
-              accessibilityValue={{ text: `Varighet, ${minutesPhrase(picked)}` }}
+              accessibilityLabel={`Trinn ${picked + 1} av ${PRESET_MINUTES.length}`}
+              accessibilityValue={{ text: `Varighet, ${minutesPhrase(shown)}` }}
               accessibilityActions={[
                 { name: 'increment', label: 'Øk' },
                 { name: 'decrement', label: 'Senk' },
@@ -128,48 +159,40 @@ export function DurationSheet({ visible, current, onUse, onClose }: Props) {
                 if (event.nativeEvent.actionName === 'increment') step(1);
                 if (event.nativeEvent.actionName === 'decrement') step(-1);
               }}
+              {...pan.panHandlers}
             >
-              <ScrollView
-                ref={scroller}
-                snapToInterval={ITEM}
-                decelerationRate="fast"
-                showsVerticalScrollIndicator={false}
-                contentContainerStyle={{ paddingVertical: ITEM }}
-                onLayout={() => scroller.current?.scrollTo({ y: lastIndex.current * ITEM, animated: false })}
-                onMomentumScrollEnd={(event) => snapTo(event.nativeEvent.contentOffset.y)}
-                onScrollEndDrag={(event) => {
-                  const velocity = event.nativeEvent.velocity?.y ?? 0;
-                  if (Math.abs(velocity) < 0.05) snapTo(event.nativeEvent.contentOffset.y);
-                }}
-                style={{ height: ITEM * 3 }}
-              >
-                {PRESET_MINUTES.map((minutes) => (
-                  <View key={minutes} style={styles.wheelItem}>
-                    <Text style={[theme.text.monoMeta, { color: theme.color.text.secondary }]}>{minutes}</Text>
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
-
-            <View
-              accessible
-              accessibilityLabel={`Trinn ${PRESET_MINUTES.indexOf(picked as (typeof PRESET_MINUTES)[number]) + 1} av ${PRESET_MINUTES.length}`}
-              style={styles.detents}
-            >
+              <View pointerEvents="none" style={styles.circleSlot}>
+                <TactileCircle>
+                  <Text style={[theme.text.monoHero, { color: theme.color.object.content }]}>{shown}</Text>
+                  <Text style={[theme.text.caption, { color: theme.color.object.content }]}>minutter</Text>
+                </TactileCircle>
+              </View>
+              {!customOpen ? (
+                <View
+                  pointerEvents="none"
+                  style={[
+                    styles.knob,
+                    {
+                      left: knob.left - 11,
+                      top: knob.top - 11,
+                      backgroundColor: theme.color.ink.default,
+                    },
+                  ]}
+                />
+              ) : null}
               {PRESET_MINUTES.map((minutes, index) => {
-                const selected = minutes === picked;
+                const at = pointOn(LABEL_RADIUS, index);
                 return (
-                  <View
+                  <Pressable
                     key={minutes}
+                    accessible={false}
                     importantForAccessibility="no"
-                    style={{
-                      width: selected ? 24 : 6,
-                      height: 6,
-                      borderRadius: 3,
-                      backgroundColor: selected ? theme.color.ink.default : theme.color.control.off,
-                      marginLeft: index === 0 ? 0 : 6,
-                    }}
-                  />
+                    accessibilityElementsHidden
+                    onPress={() => choose(index)}
+                    style={[styles.labelHit, { left: at.left - 22, top: at.top - 22 }]}
+                  >
+                    <Text style={[theme.text.monoMeta, { color: theme.color.text.secondary }]}>{minutes}</Text>
+                  </Pressable>
                 );
               })}
             </View>
@@ -194,15 +217,27 @@ export function DurationSheet({ visible, current, onUse, onClose }: Props) {
                 ]}
               />
             ) : (
-              <Button title="Annen lengde" variant="tertiary" size="compact" onPress={() => setCustomOpen(true)} />
+              <Button
+                title="Annen lengde"
+                variant="tertiary"
+                size="compact"
+                onPress={() => {
+                  customOpenRef.current = true;
+                  setCustomOpen(true);
+                }}
+              />
             )}
 
-            <Button title="Bruk" size="regular" disabled={!canUse} onPress={confirm} style={{ marginTop: theme.space['3'] }} />
+            <Button title="Bruk" size="regular" disabled={!canUse} onPress={confirm} style={{ alignSelf: 'stretch' }} />
           </View>
         </View>
       </View>
     </Modal>
   );
+}
+
+function pickedMinutes(index: number): number {
+  return PRESET_MINUTES[index] ?? 10;
 }
 
 const styles = StyleSheet.create({
@@ -211,12 +246,13 @@ const styles = StyleSheet.create({
   sheet: {},
   handleHit: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   handle: { width: 36, height: 4, borderRadius: 2 },
-  body: { alignItems: 'center', paddingHorizontal: 28, gap: 16 },
-  wheelWindow: { width: '100%', overflow: 'hidden' },
-  wheelItem: { height: ITEM, alignItems: 'center', justifyContent: 'center' },
-  detents: { flexDirection: 'row', alignItems: 'center', minHeight: 44, justifyContent: 'center' },
+  body: { alignItems: 'center', paddingHorizontal: 30, gap: 16 },
+  dial: { width: SIZE, height: SIZE },
+  circleSlot: { position: 'absolute', left: CENTER - 88, top: CENTER - 88 },
+  knob: { position: 'absolute', width: 22, height: 22, borderRadius: 11 },
+  labelHit: { position: 'absolute', width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   input: {
-    width: '100%',
+    alignSelf: 'stretch',
     minHeight: 44,
     borderWidth: 1,
     paddingHorizontal: 16,

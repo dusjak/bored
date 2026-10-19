@@ -7,6 +7,7 @@ export const THEME_PREFERENCE_KEY = 'bored.themePreference';
 export const DURATION_KEY = 'bored.defaultDurationMinutes';
 export const ONBOARDED_KEY = 'bored.onboarded';
 export const PROFILE_KEY = 'bored.profile';
+export const SHOW_COUNTDOWN_KEY = 'bored.showCountdown';
 
 function connection(db: Awaited<ReturnType<typeof openDatabase>>): AppDatabase {
   return db as unknown as AppDatabase;
@@ -88,4 +89,9 @@ export async function deleteJournal(sessionId: string): Promise<void> {
 /** Deletes the session row and its note. */
 export async function deleteSession(id: string): Promise<void> {
   await queries.deleteSession(connection(await openDatabase()), id);
+}
+
+/** Deletes every session, note, and setting. Does not touch the OS notification permission. */
+export async function clearAllLocalData(): Promise<void> {
+  await queries.clearAllLocalData(connection(await openDatabase()));
 }

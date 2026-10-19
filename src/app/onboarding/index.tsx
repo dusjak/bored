@@ -32,5 +32,5 @@ export default function Welcome() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 32, paddingTop: 20, paddingBottom: 40, justifyContent: 'space-between' },
+  content: { paddingBottom: 40, justifyContent: 'space-between' },
 });

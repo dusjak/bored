@@ -66,7 +66,7 @@ export default function Ready() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 32, paddingTop: 32, paddingBottom: 40 },
+  content: { paddingBottom: 40 },
   main: { flex: 1, justifyContent: 'flex-end', paddingBottom: 48 },
   row: {
     flexDirection: 'row',

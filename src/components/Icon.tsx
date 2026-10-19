@@ -6,6 +6,7 @@ import { useTheme } from '@/theme';
 /** Outline icons, 1.5 stroke. */
 export type IconName =
   | 'timer'
+  | 'clock'
   | 'moon'
   | 'list'
   | 'user'
@@ -50,6 +51,12 @@ const paths: Record<IconName, ReactNode> = {
       <Path d="M12 9v4l2 2" />
       <Path d="M9 3h6" />
       <Path d="M12 3v2" />
+    </>
+  ),
+  clock: (
+    <>
+      <Circle cx="12" cy="12" r="9" />
+      <Path d="M12 7v5l3 2" />
     </>
   ),
   moon: <Path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />,

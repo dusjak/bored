@@ -14,6 +14,8 @@ import { useTheme } from '@/theme';
 type Props = {
   children?: ReactNode;
   onPress?: () => void;
+  onPressIn?: () => void;
+  onPressOut?: () => void;
   onLongPress?: () => void;
   delayLongPress?: number;
   accessibilityLabel?: string;
@@ -28,6 +30,8 @@ type Props = {
 export function TactileCircle({
   children,
   onPress,
+  onPressIn,
+  onPressOut,
   onLongPress,
   delayLongPress,
   accessibilityLabel,
@@ -47,6 +51,8 @@ export function TactileCircle({
       accessibilityActions={accessibilityActions}
       onAccessibilityAction={onAccessibilityAction}
       onPress={onPress}
+      onPressIn={onPressIn}
+      onPressOut={onPressOut}
       onLongPress={onLongPress}
       delayLongPress={delayLongPress}
       style={({ pressed }) => [pressed && onPress ? { opacity: 0.92 } : null, style]}

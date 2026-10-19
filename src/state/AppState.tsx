@@ -1,12 +1,18 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import { clampDurationMinutes, DEFAULT_DURATION_MINUTES } from '@/data/copy';
+import { clampDurationMinutes, DEFAULT_DURATION_MINUTES, reminderSchedule } from '@/data/copy';
 import {
+  cancelAllScheduledNotifications,
+  cancelDailyReminder,
   cancelSessionNotification,
   dismissSessionNotification,
+  hasNotificationPermission,
+  requestNotificationPermission,
+  scheduleDailyReminder,
   scheduleSessionEndNotification,
 } from '@/data/notifications';
 import {
+  clearAllLocalData,
   clearBackgrounded,
   deleteJournal,
   deleteSession as deleteStoredSession,
@@ -23,6 +29,7 @@ import {
   saveProfile,
   setNotificationId,
   setSetting,
+  SHOW_COUNTDOWN_KEY,
   upsertJournal,
 } from '@/data/repository';
 import { decideUnfinishedSession, elapsedSeconds } from '@/data/sessionRules';
@@ -52,6 +59,12 @@ type AppStateValue = {
   removeReflection: (sessionId: string) => Promise<void>;
   /** Deletes the session and its note, then refreshes the log totals. */
   deleteSession: (sessionId: string) => Promise<void>;
+  showCountdown: boolean;
+  setShowCountdown: (on: boolean) => Promise<void>;
+  setDailyReminder: (on: boolean) => Promise<'on' | 'off' | 'denied'>;
+  refreshDailyReminder: () => Promise<void>;
+  /** Wipes local data and scheduled alerts. Does not change the OS notification permission. */
+  resetLocalData: () => Promise<void>;
 };
 
 const Ctx = createContext<AppStateValue | null>(null);
@@ -66,6 +79,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [durationMinutes, setDurationState] = useState(DEFAULT_DURATION_MINUTES);
   const [sessions, setSessions] = useState<SessionWithJournal[]>([]);
   const [activeSession, setActiveSession] = useState<SessionRecord | null>(null);
+  const [showCountdown, setShowCountdownState] = useState(true);
   const userRef = useRef(user);
   const activeRef = useRef(activeSession);
   userRef.current = user;
@@ -80,10 +94,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         await initDatabase();
-        const [profile, onboardedRaw, durationRaw, finished, active] = await Promise.all([
+        const [profile, onboardedRaw, durationRaw, countdownRaw, finished, active] = await Promise.all([
           getProfile(),
           getSetting(ONBOARDED_KEY),
           getSetting(DURATION_KEY),
+          getSetting(SHOW_COUNTDOWN_KEY),
           listFinishedSessions(),
           getActiveSession(),
         ]);
@@ -99,7 +114,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             ? clampDurationMinutes(fromProfile)
             : DEFAULT_DURATION_MINUTES;
         setDurationState(initialDuration);
+        setShowCountdownState(countdownRaw !== '0');
         setSessions(finished);
+        if (profile.notifications === true && (await hasNotificationPermission())) {
+          const clock = reminderSchedule(profile.time);
+          await scheduleDailyReminder(clock.hour, clock.minute);
+        }
 
         if (active) {
           const decision = decideUnfinishedSession({
@@ -219,6 +239,49 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     await refreshSessions();
   }, [refreshSessions]);
 
+  const setShowCountdown = useCallback(async (on: boolean) => {
+    setShowCountdownState(on);
+    await setSetting(SHOW_COUNTDOWN_KEY, on ? '1' : '0');
+  }, []);
+
+  const refreshDailyReminder = useCallback(async () => {
+    if (userRef.current.notifications !== true) return;
+    if (!(await hasNotificationPermission())) return;
+    const clock = reminderSchedule(userRef.current.time);
+    await scheduleDailyReminder(clock.hour, clock.minute);
+  }, []);
+
+  const setDailyReminder = useCallback(async (on: boolean): Promise<'on' | 'off' | 'denied'> => {
+    if (!on) {
+      await cancelDailyReminder();
+      const next = { ...userRef.current, notifications: false };
+      setUser(next);
+      await saveProfile(next);
+      return 'off';
+    }
+    const granted = await requestNotificationPermission();
+    if (!granted) return 'denied';
+    const clock = reminderSchedule(userRef.current.time);
+    await scheduleDailyReminder(clock.hour, clock.minute);
+    const next = { ...userRef.current, notifications: true };
+    setUser(next);
+    await saveProfile(next);
+    return 'on';
+  }, []);
+
+  const resetLocalData = useCallback(async () => {
+    await cancelAllScheduledNotifications();
+    await clearAllLocalData();
+    setUser({});
+    setOnboarded(false);
+    setDurationState(DEFAULT_DURATION_MINUTES);
+    setShowCountdownState(true);
+    setSessions([]);
+    setActiveSession(null);
+    setReflectionSessionId(null);
+    setLaunch('onboarding');
+  }, []);
+
   const deleteSession = useCallback(async (sessionId: string) => {
     const active = activeRef.current;
     if (active?.id === sessionId) {
@@ -252,6 +315,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       saveReflection,
       removeReflection,
       deleteSession,
+      showCountdown,
+      setShowCountdown,
+      setDailyReminder,
+      refreshDailyReminder,
+      resetLocalData,
     }),
     [
       ready,
@@ -274,6 +342,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       saveReflection,
       removeReflection,
       deleteSession,
+      showCountdown,
+      setShowCountdown,
+      setDailyReminder,
+      refreshDailyReminder,
+      resetLocalData,
     ],
   );
 

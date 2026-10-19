@@ -53,3 +53,45 @@ export async function dismissSessionNotification(id: string | null): Promise<voi
   if (!id || Platform.OS === 'web') return;
   await Notifications.dismissNotificationAsync(id).catch(() => undefined);
 }
+
+/** Asks the system. Used only when the user turns Daglig påminnelse on, never at session start. */
+export async function requestNotificationPermission(): Promise<boolean> {
+  if (Platform.OS === 'web') return false;
+  const existing = await Notifications.getPermissionsAsync();
+  if (existing.status === 'granted') return true;
+  const requested = await Notifications.requestPermissionsAsync({
+    ios: { allowAlert: true, allowSound: true, allowBadge: false },
+  });
+  return requested.status === 'granted';
+}
+
+const DAILY_REMINDER_ID = 'bored.daily-reminder';
+
+export async function scheduleDailyReminder(hour: number, minute: number): Promise<void> {
+  if (Platform.OS === 'web') return;
+  await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => undefined);
+  await Notifications.scheduleNotificationAsync({
+    identifier: DAILY_REMINDER_ID,
+    content: {
+      title: 'bored.',
+      body: 'Tid for ingenting.',
+      sound: 'default',
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour,
+      minute,
+    },
+  });
+}
+
+export async function cancelDailyReminder(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID).catch(() => undefined);
+}
+
+/** Drops every pending local alert. Does not change the system permission. */
+export async function cancelAllScheduledNotifications(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  await Notifications.cancelAllScheduledNotificationsAsync().catch(() => undefined);
+}

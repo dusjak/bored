@@ -4,12 +4,15 @@ import { describe, it } from 'node:test';
 
 import { SCHEMA_SQL } from './schema.ts';
 import {
+  clearAllLocalData,
   deleteSession,
   finishSession,
   getSession,
   insertActiveSession,
   listFinishedSessions,
   sessionTotals,
+  setSetting,
+  tallyMarks,
   upsertJournal,
   type AppDatabase,
 } from './sessionQueries.ts';
@@ -76,5 +79,31 @@ describe('session notes and delete', () => {
   it('returns null for an unknown session', async () => {
     const db = openMemoryDatabase();
     assert.equal(await getSession(db, 'missing'), null);
+  });
+
+  it('draws tally marks oldest first and marks an aborted session', async () => {
+    const db = openMemoryDatabase();
+    const first = await insertActiveSession(db, 10);
+    await finishSession(db, first.id, 'completed', 600, new Date('2026-10-18T12:10:00.000Z'));
+    const second = await insertActiveSession(db, 5);
+    await finishSession(db, second.id, 'aborted', 40, new Date('2026-10-18T13:00:00.000Z'));
+    const marks = tallyMarks(await listFinishedSessions(db));
+    assert.deepEqual(marks, [{ aborted: false }, { aborted: true }]);
+  });
+
+  it('clears sessions, notes, and settings together', async () => {
+    const db = openMemoryDatabase();
+    const session = await insertActiveSession(db, 10);
+    await finishSession(db, session.id, 'completed', 600, new Date('2026-10-18T12:10:00.000Z'));
+    await upsertJournal(db, session.id, 'calm', 'en tanke');
+    await setSetting(db, 'bored.themePreference', 'dark');
+    await setSetting(db, 'bored.onboarded', '1');
+    await clearAllLocalData(db);
+    assert.equal(await getSession(db, session.id), null);
+    assert.deepEqual(sessionTotals(await listFinishedSessions(db)), { total: 0, completed: 0, aborted: 0 });
+    const settings = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM settings');
+    assert.equal(Number(settings?.n), 0);
+    const notes = await db.getFirstAsync<{ n: number }>('SELECT COUNT(*) AS n FROM journal_entries');
+    assert.equal(Number(notes?.n), 0);
   });
 });

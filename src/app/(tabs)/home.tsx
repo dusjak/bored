@@ -45,6 +45,7 @@ export default function Home() {
           accessibilityHint="Endre lengde"
         >
           <Text style={[theme.text.monoHero, { color: theme.color.object.content }]}>{durationMinutes}</Text>
+          <Text style={[theme.text.caption, { color: theme.color.object.content }]}>minutter</Text>
         </TactileCircle>
         <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginTop: theme.space['6'] }]}>
           Trykk for å endre lengde
@@ -78,6 +79,6 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 120 },
-  top: { paddingTop: 4 },
+  top: {},
   hero: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

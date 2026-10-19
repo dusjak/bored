@@ -138,7 +138,7 @@ export default function Reflection() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: 24, paddingBottom: 40 },
+  content: { paddingBottom: 40 },
   moods: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pill: { paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   input: { minHeight: 110, paddingTop: 12, textAlignVertical: 'top', borderBottomWidth: 1 },

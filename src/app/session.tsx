@@ -21,6 +21,7 @@ export default function Session() {
     abortActiveSession,
     noteBackground,
     noteForeground,
+    showCountdown,
   } = useAppState();
 
   const session = activeSession;
@@ -45,8 +46,17 @@ export default function Session() {
   const hint = useRef(new Animated.Value(0)).current;
   const morph = useRef(new Animated.Value(0)).current;
   const dissolve = useRef(new Animated.Value(1)).current;
+  const holdScale = useRef(new Animated.Value(1)).current;
+  const holding = useRef(false);
+  const holdHaptics = useRef<ReturnType<typeof setInterval> | null>(null);
   const minutesRef = useRef(minutes);
   if (session) minutesRef.current = minutes;
+
+  useEffect(() => {
+    return () => {
+      if (holdHaptics.current) clearInterval(holdHaptics.current);
+    };
+  }, []);
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => undefined);
@@ -181,6 +191,32 @@ export default function Session() {
     return () => sub.remove();
   }, [session, startedAtMs, chosenSeconds, noteBackground, noteForeground, finishExpired]);
 
+  const stopHold = () => {
+    holding.current = false;
+    if (holdHaptics.current) {
+      clearInterval(holdHaptics.current);
+      holdHaptics.current = null;
+    }
+    Animated.spring(holdScale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 0 }).start();
+  };
+
+  const startHold = () => {
+    if (finished.current || showDone) return;
+    holding.current = true;
+    Animated.timing(holdScale, {
+      toValue: 0.94,
+      duration: HOLD_TO_END_MS,
+      easing: Easing.out(Easing.ease),
+      useNativeDriver: true,
+    }).start();
+    const started = Date.now();
+    holdHaptics.current = setInterval(() => {
+      if (!holding.current) return;
+      if (Date.now() - started < 300) return;
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+    }, 180);
+  };
+
   const brightenHint = () => {
     hint.setValue(1);
     Animated.timing(hint, { toValue: 0, duration: 1000, useNativeDriver: false }).start();
@@ -213,18 +249,20 @@ export default function Session() {
         <Animated.View style={[styles.root, { opacity: dissolve }]}>
           <View style={styles.stage}>
             <View style={styles.timerBlock}>
-              <Animated.View style={{ opacity: runningOpacity, alignItems: 'center' }} pointerEvents={showDone ? 'none' : 'auto'}>
-                <Text
-                  accessibilityRole="timer"
-                  accessibilityLabel={`${mm} minutter og ${ss} sekunder gjenstår`}
-                  adjustsFontSizeToFit
-                  numberOfLines={1}
-                  style={[theme.text.monoTimer, styles.timer, { color: theme.color.session['text-primary'] }]}
-                >
-                  {mm}:{ss}
-                </Text>
-                <Text style={[theme.text.caption, { color: theme.color.session['text-secondary'] }]}>gjenstår</Text>
-              </Animated.View>
+              {showCountdown ? (
+                <Animated.View style={{ opacity: runningOpacity, alignItems: 'center' }} pointerEvents={showDone ? 'none' : 'auto'}>
+                  <Text
+                    accessibilityRole="timer"
+                    accessibilityLabel={`${mm} minutter og ${ss} sekunder gjenstår`}
+                    adjustsFontSizeToFit
+                    numberOfLines={1}
+                    style={[theme.text.monoTimer, styles.timer, { color: theme.color.session['text-primary'] }]}
+                  >
+                    {mm}:{ss}
+                  </Text>
+                  <Text style={[theme.text.caption, { color: theme.color.session['text-secondary'] }]}>gjenstår</Text>
+                </Animated.View>
+              ) : null}
               <Animated.View
                 style={[styles.doneCopy, { opacity: doneOpacity }]}
                 pointerEvents="none"
@@ -235,8 +273,11 @@ export default function Session() {
               </Animated.View>
             </View>
 
+            <Animated.View style={{ transform: [{ scale: holdScale }] }}>
             <TactileCircle
               fill={circleFill}
+              onPressIn={startHold}
+              onPressOut={stopHold}
               onPress={() => {
                 if (didLong.current) {
                   didLong.current = false;
@@ -280,6 +321,7 @@ export default function Session() {
                 />
               </Animated.View>
             </TactileCircle>
+            </Animated.View>
 
             <Animated.Text style={[theme.text.caption, styles.hint, { color: hintColor, opacity: runningOpacity }]}>
               Hold inne sirkelen for å avslutte
@@ -294,7 +336,7 @@ export default function Session() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  stage: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28, gap: 28 },
+  stage: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30, paddingTop: 30, gap: 28 },
   timerBlock: { minHeight: 140, alignItems: 'center', justifyContent: 'center' },
   timer: { width: '100%', textAlign: 'center' },
   doneCopy: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 8 },

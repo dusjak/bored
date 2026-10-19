@@ -16,24 +16,28 @@ type Props = {
   statusBar?: 'light' | 'dark';
 };
 
-/** Screen shell: status bar, then content with the 28pt horizontal margin. */
+/** Side and top inset under the safe area. The slip asks for about 30pt. */
+const SCREEN_GUTTER = 30;
+
+/** Screen shell: status bar, then content with the 30pt side and top inset. */
 export function Screen({ children, session, scroll, edges = ['top', 'bottom'], contentStyle, background, statusBar }: Props) {
   const { theme } = useTheme();
   const bg = background ?? (session ? theme.color.bg.session : theme.color.bg.default);
   const bar = statusBar ?? (session ? 'light' : theme.statusBar);
+  const gutter = { paddingHorizontal: SCREEN_GUTTER, paddingTop: SCREEN_GUTTER };
   return (
     <SafeAreaView edges={edges} style={[styles.root, { backgroundColor: bg }]}>
       <StatusBar style={bar} />
       {scroll ? (
         <ScrollView
-          contentContainerStyle={[styles.content, { paddingHorizontal: theme.space['7'] }, contentStyle]}
+          contentContainerStyle={[styles.content, gutter, contentStyle]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
           {children}
         </ScrollView>
       ) : (
-        <View style={[styles.content, { flex: 1, paddingHorizontal: theme.space['7'] }, contentStyle]}>{children}</View>
+        <View style={[styles.content, gutter, { flex: 1 }, contentStyle]}>{children}</View>
       )}
     </SafeAreaView>
   );
