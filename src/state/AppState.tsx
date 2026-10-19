@@ -30,12 +30,15 @@ import {
   setNotificationId,
   setSetting,
   SHOW_COUNTDOWN_KEY,
+  SPLASH_SEEN_KEY,
   upsertJournal,
 } from '@/data/repository';
 import { decideUnfinishedSession, elapsedSeconds } from '@/data/sessionRules';
 import type { MoodId, OnboardingProfile, SessionRecord, SessionWithJournal } from '@/data/types';
 
 export type LaunchTarget = 'onboarding' | 'home' | 'session' | 'reflection';
+/** play = «Sluket» covers the first screen. fade = Reduce Motion crossfade. enter = welcome rises in. */
+export type IntroPhase = 'off' | 'play' | 'fade' | 'enter';
 
 type AppStateValue = {
   ready: boolean;
@@ -65,6 +68,10 @@ type AppStateValue = {
   refreshDailyReminder: () => Promise<void>;
   /** Wipes local data and scheduled alerts. Does not change the OS notification permission. */
   resetLocalData: () => Promise<void>;
+  /** «Sluket» on first launch and after Nullstill. Off on later launches and during a session. */
+  introPhase: IntroPhase;
+  beginIntroSplash: () => void;
+  setIntroPhase: (phase: IntroPhase) => void;
 };
 
 const Ctx = createContext<AppStateValue | null>(null);
@@ -80,6 +87,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<SessionWithJournal[]>([]);
   const [activeSession, setActiveSession] = useState<SessionRecord | null>(null);
   const [showCountdown, setShowCountdownState] = useState(true);
+  const [introPhase, setIntroPhaseState] = useState<IntroPhase>('off');
   const userRef = useRef(user);
   const activeRef = useRef(activeSession);
   userRef.current = user;
@@ -94,11 +102,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         await initDatabase();
-        const [profile, onboardedRaw, durationRaw, countdownRaw, finished, active] = await Promise.all([
+        const [profile, onboardedRaw, durationRaw, countdownRaw, splashSeen, finished, active] = await Promise.all([
           getProfile(),
           getSetting(ONBOARDED_KEY),
           getSetting(DURATION_KEY),
           getSetting(SHOW_COUNTDOWN_KEY),
+          getSetting(SPLASH_SEEN_KEY),
           listFinishedSessions(),
           getActiveSession(),
         ]);
@@ -139,8 +148,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             setActiveSession(active);
             setLaunch('session');
           }
+          setIntroPhaseState('off');
         } else {
           setLaunch(isOnboarded ? 'home' : 'onboarding');
+          setIntroPhaseState(!isOnboarded && splashSeen !== '1' ? 'play' : 'off');
         }
       } catch {
         if (!cancelled) setStorageError('noe gikk galt. prøv igjen.');
@@ -269,6 +280,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     return 'on';
   }, []);
 
+  const beginIntroSplash = useCallback(() => {
+    setIntroPhaseState('play');
+  }, []);
+
+  const setIntroPhase = useCallback((phase: IntroPhase) => {
+    setIntroPhaseState(phase);
+    if (phase === 'fade' || phase === 'enter') {
+      void setSetting(SPLASH_SEEN_KEY, '1').catch(() => undefined);
+    }
+  }, []);
+
   const resetLocalData = useCallback(async () => {
     await cancelAllScheduledNotifications();
     await clearAllLocalData();
@@ -320,6 +342,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setDailyReminder,
       refreshDailyReminder,
       resetLocalData,
+      introPhase,
+      beginIntroSplash,
+      setIntroPhase,
     }),
     [
       ready,
@@ -347,6 +372,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setDailyReminder,
       refreshDailyReminder,
       resetLocalData,
+      introPhase,
+      beginIntroSplash,
+      setIntroPhase,
     ],
   );
 

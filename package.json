@@ -6,6 +6,7 @@
     "@expo-google-fonts/dm-mono": "^0.4.2",
     "@expo-google-fonts/dm-sans": "^0.4.2",
     "@expo-google-fonts/dm-serif-display": "^0.4.2",
+    "@shopify/react-native-skia": "2.6.2",
     "expo": "~57.0.30",
     "expo-blur": "~57.0.3",
     "expo-constants": "~57.0.22",
@@ -36,7 +37,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "node --experimental-strip-types --test src/data/*.test.ts",
+    "test": "node --experimental-strip-types --test src/data/*.test.ts src/splash/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "private": true

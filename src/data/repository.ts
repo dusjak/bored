@@ -8,6 +8,7 @@ export const DURATION_KEY = 'bored.defaultDurationMinutes';
 export const ONBOARDED_KEY = 'bored.onboarded';
 export const PROFILE_KEY = 'bored.profile';
 export const SHOW_COUNTDOWN_KEY = 'bored.showCountdown';
+export const SPLASH_SEEN_KEY = 'bored.splashSeen';
 
 function connection(db: Awaited<ReturnType<typeof openDatabase>>): AppDatabase {
   return db as unknown as AppDatabase;

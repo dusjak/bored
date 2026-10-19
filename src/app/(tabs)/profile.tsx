@@ -30,6 +30,7 @@ export default function Profile() {
     setDailyReminder,
     refreshDailyReminder,
     resetLocalData,
+    beginIntroSplash,
   } = useAppState();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [allowed, setAllowed] = useState(false);
@@ -64,6 +65,7 @@ export default function Profile() {
               try {
                 await resetLocalData();
                 forgetPreference();
+                beginIntroSplash();
                 if (router.canDismiss()) router.dismissAll();
                 router.replace('/onboarding');
               } catch {
