@@ -43,10 +43,12 @@ type Props = {
 
 /**
  * «Sluket». Noise spirals into the period, then «bored» comes out of it.
- * Drawn with Views. If that animation throws, a solid wordmark is held for
- * two seconds and then fades, the same handover as Reduce Motion.
+ * Drawn with Views. If that animation throws, the splash takes the Reduce Motion
+ * path: a solid wordmark, held, then a short fade.
  */
 export function SluketSplash(props: Props) {
+  const reduceMotion = useReducedMotion();
+  if (reduceMotion) return <StillSplash {...props} />;
   return (
     <SplashBoundary {...props}>
       <SluketPlay {...props} />
@@ -62,19 +64,22 @@ class SplashBoundary extends Component<Props & { children: ReactNode }, { failed
   }
 
   componentDidCatch(error: unknown): void {
-    console.warn('Sluket could not run; showing the static wordmark.', error);
+    console.warn('Sluket could not run; using the Reduce Motion splash.', error);
   }
 
   render() {
-    if (this.state.failed) return <StaticFallback {...this.props} />;
+    if (this.state.failed) return <StillSplash {...this.props} />;
     return this.props.children;
   }
 }
 
-/** Solid «bored.» — the period is the same colour as the word. No motion system. */
-function StaticFallback({ fading, onHandoff, onDismiss }: Props) {
+/**
+ * Reduce Motion, and the fallback when Sluket cannot run.
+ * Solid «bored.» on the theme background, held, then a fade into onboarding.
+ */
+function StillSplash({ fading, onHandoff, onDismiss }: Props) {
   const { theme } = useTheme();
-  const [opacity, setOpacity] = useState(1);
+  const opacity = useSharedValue(1);
   const handed = useRef(false);
   const onHandoffRef = useRef(onHandoff);
   const onDismissRef = useRef(onDismiss);
@@ -87,32 +92,29 @@ function StaticFallback({ fading, onHandoff, onDismiss }: Props) {
     onHandoffRef.current('fade');
   }, []);
 
+  const dismiss = useCallback(() => {
+    onDismissRef.current();
+  }, []);
+
   useEffect(() => {
-    const timer = setTimeout(handoff, SPLASH_MS);
+    const timer = setTimeout(handoff, REDUCE_HOLD_MS);
     return () => clearTimeout(timer);
   }, [handoff]);
 
   useEffect(() => {
     if (!fading) return;
-    const start = Date.now();
-    let frame = 0;
-    const tick = () => {
-      const t = Math.min(1, (Date.now() - start) / REDUCE_FADE_MS);
-      setOpacity(1 - t);
-      if (t < 1) {
-        frame = requestAnimationFrame(tick);
-        return;
-      }
-      onDismissRef.current();
-    };
-    frame = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(frame);
-  }, [fading]);
+    opacity.value = withTiming(0, { duration: REDUCE_FADE_MS }, (done) => {
+      if (done) runOnJS(dismiss)();
+    });
+    return () => cancelAnimation(opacity);
+  }, [dismiss, fading, opacity]);
+
+  const veil = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return (
-    <View
+    <Animated.View
       accessibilityViewIsModal
-      style={[styles.layer, { opacity, backgroundColor: theme.color.bg.default }]}
+      style={[styles.layer, veil, { backgroundColor: theme.color.bg.default }]}
     >
       <StatusBar style={theme.statusBar} />
       <Pressable
@@ -124,7 +126,7 @@ function StaticFallback({ fading, onHandoff, onDismiss }: Props) {
       >
         <SolidWordmark color={theme.color.text.primary} fontFamily={theme.fonts.serifItalic} />
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 
@@ -136,7 +138,6 @@ function SolidWordmark({ color, fontFamily }: { color: string; fontFamily: strin
 
 function SluketPlay({ fading, onHandoff, onDismiss }: Props) {
   const { theme } = useTheme();
-  const reduceMotion = useReducedMotion();
   const { width, height } = useWindowDimensions();
   const stimuli = useMemo(() => createStimuli(), []);
   const hole = useMemo(() => parseHex(theme.color.text.primary), [theme.color.text.primary]);
@@ -160,10 +161,6 @@ function SluketPlay({ fading, onHandoff, onDismiss }: Props) {
   }, []);
 
   useEffect(() => {
-    if (reduceMotion) {
-      const timer = setTimeout(() => finish('fade'), REDUCE_HOLD_MS);
-      return () => clearTimeout(timer);
-    }
     ended.value = 0;
     clock.value = withTiming(SPLASH_MS, { duration: SPLASH_MS, easing: Easing.linear }, (done) => {
       if (done && ended.value === 0) {
@@ -172,7 +169,7 @@ function SluketPlay({ fading, onHandoff, onDismiss }: Props) {
       }
     });
     return () => cancelAnimation(clock);
-  }, [clock, ended, finish, reduceMotion]);
+  }, [clock, ended, finish]);
 
   useEffect(() => {
     if (!fading) return;
@@ -183,10 +180,6 @@ function SluketPlay({ fading, onHandoff, onDismiss }: Props) {
   }, [dismiss, fading, opacity]);
 
   const skip = () => {
-    if (reduceMotion) {
-      finish('fade');
-      return;
-    }
     runOnUI(() => {
       'worklet';
       if (ended.value === 1 || clock.value >= HANDOVER_AT) return;
@@ -207,20 +200,18 @@ function SluketPlay({ fading, onHandoff, onDismiss }: Props) {
       style={[styles.layer, veil, { backgroundColor: theme.color.bg.default }]}
     >
       <StatusBar style={theme.statusBar} />
-      {reduceMotion ? null : (
-        <View style={styles.field} pointerEvents="none">
-          {stimuli.map((stimulus, index) => (
-            <StimulusView
-              key={index}
-              stimulus={stimulus}
-              clock={clock}
-              width={width}
-              height={height}
-              hole={hole}
-            />
-          ))}
-        </View>
-      )}
+      <View style={styles.field} pointerEvents="none">
+        {stimuli.map((stimulus, index) => (
+          <StimulusView
+            key={index}
+            stimulus={stimulus}
+            clock={clock}
+            width={width}
+            height={height}
+            hole={hole}
+          />
+        ))}
+      </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="bored"
@@ -228,11 +219,7 @@ function SluketPlay({ fading, onHandoff, onDismiss }: Props) {
         onPress={skip}
         style={styles.press}
       >
-        {reduceMotion ? (
-          <SolidWordmark color={theme.color.text.primary} fontFamily={theme.fonts.serifItalic} />
-        ) : (
-          <Wordmark clock={clock} color={theme.color.text.primary} fontFamily={theme.fonts.serifItalic} />
-        )}
+        <Wordmark clock={clock} color={theme.color.text.primary} fontFamily={theme.fonts.serifItalic} />
       </Pressable>
     </Animated.View>
   );
