@@ -1,34 +1,79 @@
 import { Pressable, StyleSheet, Text, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 
-import { colors, em, fonts, onDark } from '@/theme';
+import { useTheme } from '@/theme';
 
-type Variant = 'primary' | 'ghost' | 'outline' | 'inverse' | 'darkOutline' | 'darkGhost';
+type Variant = 'primary' | 'tertiary' | 'ghost' | 'outline' | 'inverse' | 'darkGhost';
+type Size = 'comfort' | 'regular' | 'compact';
 
 type Props = {
   title: string;
   onPress?: () => void;
   variant?: Variant;
+  size?: Size;
   disabled?: boolean;
+  accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
 };
 
-/** Full-width, 0-radius buttons from the BORED component vocabulary. */
-export function Button({ title, onPress, variant = 'primary', disabled, style, textStyle }: Props) {
+/** Pill buttons. Comfort 56, regular 48, compact 36. Compact grows to a 44pt target. Tertiary is text only. */
+export function Button({
+  title,
+  onPress,
+  variant = 'primary',
+  size = 'regular',
+  disabled,
+  accessibilityLabel,
+  style,
+  textStyle,
+}: Props) {
+  const { theme } = useTheme();
+  const c = theme.color;
+  const height = Math.max(theme.size.button[size], variant === 'tertiary' ? theme.size['hit-min'] : 0);
+  const palette: Record<Variant, { box: ViewStyle; text: TextStyle }> = {
+    primary: {
+      box: { backgroundColor: c.button['primary-bg'] },
+      text: { color: c.button['primary-text'] },
+    },
+    tertiary: {
+      box: { backgroundColor: 'transparent' },
+      text: { color: c.text.primary },
+    },
+    ghost: {
+      box: { backgroundColor: 'transparent' },
+      text: { color: c.button['ghost-text'] },
+    },
+    outline: {
+      box: { backgroundColor: 'transparent', borderWidth: 1, borderColor: c.border.strong },
+      text: { color: c.text.primary },
+    },
+    inverse: {
+      box: { backgroundColor: c.session['text-primary'] },
+      text: { color: c.bg.session },
+    },
+    darkGhost: {
+      box: { backgroundColor: 'transparent' },
+      text: { color: c.session['text-tertiary'] },
+    },
+  };
+
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
       disabled={disabled}
+      hitSlop={size === 'compact' ? { top: 4, bottom: 4, left: 4, right: 4 } : undefined}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
-        variantStyles[variant].box,
+        { height, borderRadius: theme.radius.pill },
+        palette[variant].box,
         disabled && styles.disabled,
         pressed && styles.pressed,
         style,
       ]}
     >
-      <Text style={[styles.text, variantStyles[variant].text, textStyle]}>{title}</Text>
+      <Text style={[theme.text.button, palette[variant].text, textStyle]}>{title}</Text>
     </Pressable>
   );
 }
@@ -36,37 +81,10 @@ export function Button({ title, onPress, variant = 'primary', disabled, style, t
 const styles = StyleSheet.create({
   base: {
     width: '100%',
-    paddingVertical: 17,
     paddingHorizontal: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  text: {
-    fontFamily: fonts.sansMedium,
-    fontSize: 16,
-    letterSpacing: em(16, -0.01),
-  },
   disabled: { opacity: 0.28 },
-  pressed: { opacity: 0.6, transform: [{ scale: 0.98 }] },
+  pressed: { opacity: 0.6 },
 });
-
-const variantStyles: Record<Variant, { box: ViewStyle; text: TextStyle }> = {
-  primary: { box: { backgroundColor: colors.fg }, text: { color: colors.fgInverse } },
-  ghost: {
-    box: { backgroundColor: 'transparent', paddingVertical: 12 },
-    text: { color: colors.fgTertiary, fontFamily: fonts.sans, fontSize: 14 },
-  },
-  outline: {
-    box: { borderWidth: 1, borderColor: colors.borderStrong },
-    text: { color: colors.fg },
-  },
-  inverse: { box: { backgroundColor: onDark.fg }, text: { color: colors.fg } },
-  darkOutline: {
-    box: { borderWidth: 1, borderColor: onDark.borderStrong, paddingVertical: 11 },
-    text: { color: onDark.fg35, fontFamily: fonts.sans, fontSize: 13 },
-  },
-  darkGhost: {
-    box: { backgroundColor: 'transparent', paddingVertical: 12 },
-    text: { color: onDark.fg28, fontFamily: fonts.sans, fontSize: 13 },
-  },
-};

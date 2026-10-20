@@ -1,23 +1,34 @@
 import { useEffect, useRef } from 'react';
 import { Animated, Pressable, StyleSheet } from 'react-native';
 
-import { colors, palette } from '@/theme';
+import { useTheme } from '@/theme';
 
-/** 44x26 pill toggle. Off: mono400, on: near-black. */
-export function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) => void }) {
+/** 44x26 switch. The track is at least a 44pt target. */
+export function Toggle({
+  value,
+  onChange,
+  accessibilityLabel,
+}: {
+  value: boolean;
+  onChange: (next: boolean) => void;
+  accessibilityLabel?: string;
+}) {
+  const { theme } = useTheme();
   const x = useRef(new Animated.Value(value ? 20 : 2)).current;
   useEffect(() => {
-    Animated.timing(x, { toValue: value ? 20 : 2, duration: 300, useNativeDriver: true }).start();
+    Animated.timing(x, { toValue: value ? 20 : 2, duration: 200, useNativeDriver: true }).start();
   }, [value, x]);
 
   return (
     <Pressable
       accessibilityRole="switch"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: value }}
       onPress={() => onChange(!value)}
-      style={[styles.track, { backgroundColor: value ? colors.fg : palette.mono400 }]}
+      hitSlop={{ top: 9, bottom: 9 }}
+      style={[styles.track, { backgroundColor: value ? theme.color.ink.default : theme.color.control.off }]}
     >
-      <Animated.View style={[styles.thumb, { transform: [{ translateX: x }] }]} />
+      <Animated.View style={[styles.thumb, { backgroundColor: theme.color.surface.default, transform: [{ translateX: x }] }]} />
     </Pressable>
   );
 }
@@ -30,10 +41,5 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
-    shadowOffset: { width: 0, height: 1 },
   },
 });

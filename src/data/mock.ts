@@ -1,73 +1,8 @@
 /**
- * Mock data and static copy for the skeleton.
- * TODO: replace with real persistence/backend when the data model is defined.
+ * Onboarding copy. Session history lives in the database, not here.
  */
 
-export type Mood = 'rastløs' | 'nøytral' | 'rolig' | 'klar' | 'dyp';
-
-export const MOODS: Mood[] = ['rastløs', 'nøytral', 'rolig', 'klar', 'dyp'];
-
-export const MOOD_COLORS: Record<Mood, string> = {
-  rastløs: '#B85C4A',
-  nøytral: '#9E9285',
-  rolig: '#5A6B3A',
-  klar: '#C4B09A',
-  dyp: '#111110',
-};
-
-/** A completed session with its reflection (journal entry). */
-export type SessionEntry = {
-  id: string;
-  date: Date;
-  minutes: number;
-  mood: Mood | null;
-  note: string;
-};
-
-const daysAgo = (d: number, h: number, m: number) => {
-  const date = new Date();
-  date.setDate(date.getDate() - d);
-  date.setHours(h, m, 0, 0);
-  return date;
-};
-
-// TODO: mock journal entries, replace with stored sessions
-export const MOCK_SESSIONS: SessionEntry[] = [
-  { id: 's5', date: daysAgo(0, 8, 30), minutes: 10, mood: 'rolig', note: 'Tenkte på turen hjem og hvorfor jeg alltid tar den lange veien.' },
-  { id: 's4', date: daysAgo(1, 9, 15), minutes: 12, mood: 'klar', note: 'Hodet ble helt blankt. Første gang.' },
-  { id: 's3', date: daysAgo(3, 7, 50), minutes: 5, mood: 'rastløs', note: '' },
-  { id: 's2', date: daysAgo(4, 14, 0), minutes: 15, mood: 'dyp', note: 'Husket en drøm fra for mange år siden.' },
-  { id: 's1', date: daysAgo(5, 10, 0), minutes: 10, mood: 'nøytral', note: 'Tankene vandret til barndomshjemmet.' },
-];
-
-// TODO: mock aggregate stats, should be derived from the full session history
-export const MOCK_STATS = {
-  streakDays: 6,
-  recordStreak: 21,
-  historicSessions: 23, // sessions before the ones in MOCK_SESSIONS
-  memberSince: 'mai 2026',
-};
-
-/** Sessions needed before the AI duration suggestion unlocks. */
-export const AI_UNLOCK_SESSIONS = 60;
-// TODO: real AI insight, this is a hardcoded suggestion
-export const MOCK_AI_SUGGESTION_MIN = 14;
-
-export const WEEKDAYS = ['ma', 'ti', 'on', 'to', 'fr', 'lø', 'sø'];
-
-// ─── Onboarding ─────────────────────────────────────────────
-
-export type Option = { id: string; label: string; sub: string; icon?: string };
-
-export type OnboardingData = {
-  distraction?: string;
-  state?: string;
-  goal?: string;
-  duration?: string;
-  time?: string;
-  name?: string;
-  notifications?: boolean;
-};
+export type Option = { id: string; label: string; sub?: string; icon?: string };
 
 export type QuestionKey = 'distraction' | 'state' | 'goal' | 'duration' | 'time';
 
@@ -130,13 +65,13 @@ export const QUESTIONS: Record<QuestionKey, Question> = {
     key: 'duration',
     step: 3,
     title: 'Hvor lang tid har du?',
-    sub: 'Vi starter her. Du kan alltid endre det.',
+    sub: 'Du kan endre det når du vil.',
     next: '/onboarding/time',
     options: [
-      { id: '5', label: '5 minutter', sub: 'En kort, daglig dose ingenting' },
-      { id: '10', label: '10 minutter', sub: 'Standardenheten for stillhet' },
-      { id: '15', label: '15 minutter', sub: 'Nok tid til å virkelig lande' },
-      { id: '20', label: '20 minutter', sub: 'Du mener alvor' },
+      { id: '5', label: '5 minutter' },
+      { id: '10', label: '10 minutter' },
+      { id: '15', label: '15 minutter' },
+      { id: '20', label: '20 minutter' },
     ],
   },
   time: {
@@ -177,34 +112,9 @@ export const NOTIF_TIME_LABELS: Record<string, string> = {
   varierer: 'Daglig',
 };
 
-export const REMINDER_CLOCK: Record<string, string> = {
-  morgen: '08:00',
-  lunsj: '12:30',
-  kveld: '20:00',
-  varierer: 'Av',
-};
-
-export const HOME_ROUTINE: Record<string, string> = {
-  morgen: 'morgenrutinen din',
-  kveld: 'kveldsrutinen din',
-  lunsj: 'lunsjpausen din',
-};
-
-// ─── Formatting helpers ────────────────────────────────────
-
-const WEEKDAY_SHORT = ['Søn', 'Man', 'Tir', 'Ons', 'Tor', 'Fre', 'Lør'];
-
-const pad = (n: number) => String(n).padStart(2, '0');
-
-/** "I dag, 08:30" / "I går, 09:15" / "Man, 07:50" */
-export function formatSessionDate(date: Date): string {
-  const today = new Date();
-  const startOf = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-  const diffDays = Math.round((startOf(today) - startOf(date)) / 86_400_000);
-  const clock = `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-  if (diffDays === 0) return `I dag, ${clock}`;
-  if (diffDays === 1) return `I går, ${clock}`;
-  return `${WEEKDAY_SHORT[date.getDay()]}, ${clock}`;
-}
-
 export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Sessions needed before the AI duration suggestion unlocks. */
+export const AI_UNLOCK_SESSIONS = 60;
+// TODO: real AI insight, this is a hardcoded suggestion
+export const MOCK_AI_SUGGESTION_MIN = 14;

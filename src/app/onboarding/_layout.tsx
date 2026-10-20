@@ -1,18 +1,25 @@
 import { Stack } from 'expo-router';
+import { useReducedMotion } from 'react-native-reanimated';
 
-import { colors } from '@/theme';
+import { useTheme } from '@/theme';
 
 export default function OnboardingLayout() {
+  const { theme } = useTheme();
+  const reduceMotion = useReducedMotion();
   return (
     <Stack
       screenOptions={{
         headerShown: false,
-        animation: 'fade',
-        contentStyle: { backgroundColor: colors.bg },
+        gestureEnabled: true,
+        contentStyle: { backgroundColor: theme.color.bg.default },
+        // System push. Reduce Motion keeps a short crossfade and no content offset.
+        ...(reduceMotion
+          ? { animation: 'fade' as const, animationDuration: 200 }
+          : { animation: 'default' as const }),
       }}
     >
       <Stack.Screen name="index" />
-      <Stack.Screen name="ready" options={{ contentStyle: { backgroundColor: colors.bgInverse } }} />
+      <Stack.Screen name="ready" options={{ contentStyle: { backgroundColor: theme.color.bg.session } }} />
     </Stack>
   );
 }

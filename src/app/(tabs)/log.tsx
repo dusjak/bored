@@ -1,77 +1,171 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { RecentSessions } from '@/components/RecentSessions';
+import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
-import { WEEKDAYS } from '@/data/mock';
+import { TallyMarks } from '@/components/TallyMarks';
+import { abortedPhrase, chosenMinutes, formatSessionDate, minutesPhrase, sessionsPhrase } from '@/data/copy';
+import { sessionTotals } from '@/data/sessionQueries';
+import { MOODS, type MoodId, type SessionWithJournal } from '@/data/types';
 import { useAppState } from '@/state/AppState';
-import { colors, em, fonts, palette, shadow, type } from '@/theme';
+import { useTheme } from '@/theme';
 
-/** Progress dashboard + reflection journal ("Logg"). */
+function moodLabel(id: MoodId | null): string | null {
+  if (!id) return null;
+  return MOODS.find((mood) => mood.id === id)?.label ?? null;
+}
+
 export default function Log() {
-  const { stats, sessions } = useAppState();
-  const max = Math.max(1, ...stats.week);
+  const { theme } = useTheme();
+  const { sessions, saveReflection, removeReflection } = useAppState();
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [draft, setDraft] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
-  const cards = [
-    { label: 'Totale økter', value: String(stats.totalSessions) },
-    { label: 'Snitt lengde', value: `${stats.avgMinutes} min` },
-    { label: 'Denne uken', value: `${stats.weekMinutes} min` },
-  ];
+  const { total, completed, aborted } = sessionTotals(sessions);
+
+  const open = (session: SessionWithJournal) => {
+    setOpenId((current) => (current === session.id ? null : session.id));
+    setDraft(session.journal?.note ?? '');
+    setError(null);
+  };
 
   return (
-    <Screen scroll edges={['top']} contentStyle={{ paddingTop: 8, paddingBottom: 40 }}>
-      <View style={{ marginBottom: 24 }}>
-        <Text style={[type.eyebrow, { marginBottom: 6 }]}>Din utvikling</Text>
-        <Text style={styles.headline}>{stats.streakDays} dager på rad</Text>
-        <Text style={styles.record}>Rekord: {stats.recordStreak} dager</Text>
-      </View>
+    <Screen scroll edges={['top']} contentStyle={styles.content}>
+      <Text style={[theme.text.headline, { color: theme.color.text.primary, marginBottom: theme.space['6'] }]}>Logg</Text>
 
-      <View style={styles.cards}>
-        {cards.map((c) => (
-          <View key={c.label} style={styles.card}>
-            <Text style={styles.cardValue}>{c.value}</Text>
-            <Text style={styles.cardLabel}>{c.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      <View style={{ marginBottom: 32 }}>
-        <Text style={[type.eyebrow, { marginBottom: 12 }]}>Denne uken — minutter</Text>
-        <View style={styles.chart}>
-          {stats.week.map((m, i) => (
-            <View key={WEEKDAYS[i]} style={styles.barCol}>
-              <View
-                style={[
-                  styles.bar,
-                  { height: m ? (m / max) * 56 : 3, backgroundColor: m ? colors.fg : palette.mono300 },
-                ]}
-              />
-              <Text style={styles.barLabel}>{WEEKDAYS[i]}</Text>
-            </View>
-          ))}
+      <View style={{ marginBottom: theme.space['8'] }}>
+        <View
+          style={styles.countRow}
+          accessible
+          accessibilityLabel={sessionsPhrase(total)}
+        >
+          <Text style={[theme.text.monoHero, styles.count, { color: theme.color.text.primary }]}>{total}</Text>
+          <Text style={[theme.text.bodyLarge, { color: theme.color.text.primary, marginLeft: theme.space['3'] }]}>
+            {total === 1 ? 'økt' : 'økter'}
+          </Text>
         </View>
+        {total > 0 ? <TallyMarks sessions={sessions} /> : null}
+        {total === 0 ? (
+          <Text style={[theme.text.body, { color: theme.color.text.secondary, marginTop: theme.space['3'] }]}>
+            Ingen økter ennå.
+          </Text>
+        ) : null}
+        {aborted > 0 ? (
+          <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginTop: theme.space['2'] }]}>
+            <Text style={theme.text.monoData}>{completed}</Text>
+            {' fullført, '}
+            <Text style={theme.text.monoData}>{aborted}</Text>
+            {' avbrutt'}
+          </Text>
+        ) : null}
       </View>
 
-      {/* TODO: mood trend + AI insights over time (from the pitch) are not in the design yet */}
-      <RecentSessions sessions={sessions} />
+      <View>
+        {sessions.map((session) => {
+          const isAborted = session.status === 'aborted';
+          const expanded = openId === session.id;
+          const when = formatSessionDate(new Date(session.startedAt));
+          const title = isAborted
+            ? abortedPhrase(session.actualDurationSeconds)
+            : minutesPhrase(chosenMinutes(session.chosenDurationSeconds));
+          const mood = moodLabel(session.journal?.mood ?? null);
+          return (
+            <View key={session.id} style={[styles.row, { borderBottomColor: theme.color.border.default }]}>
+              <Pressable
+                onPress={() => open(session)}
+                accessibilityRole="button"
+                accessibilityLabel={isAborted ? `${title}. ${when}` : `${title}. ${when}`}
+                style={styles.rowHit}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text
+                    style={[
+                      theme.text.label,
+                      { color: isAborted ? theme.color.text.secondary : theme.color.text.primary },
+                    ]}
+                  >
+                    {title}
+                  </Text>
+                  <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginTop: 2 }]}>{when}</Text>
+                </View>
+                {session.journal?.note ? (
+                  <Text
+                    numberOfLines={2}
+                    style={[theme.text.note, styles.preview, { color: theme.color.text.secondary }]}
+                  >
+                    «{session.journal.note}»
+                  </Text>
+                ) : null}
+              </Pressable>
+              {expanded ? (
+                <View style={{ paddingBottom: theme.space['4'] }}>
+                  {mood ? (
+                    <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginBottom: theme.space['3'] }]}>
+                      {mood}
+                    </Text>
+                  ) : null}
+                  <TextInput
+                    multiline
+                    value={draft}
+                    onChangeText={setDraft}
+                    placeholder="Hva som helst. En tanke, en idé, ingenting spesielt."
+                    placeholderTextColor={theme.color.text.tertiary}
+                    accessibilityLabel="Notat"
+                    style={[
+                      theme.text.body,
+                      styles.input,
+                      { color: theme.color.text.primary, borderBottomColor: theme.color.border.strong },
+                    ]}
+                  />
+                  {error ? (
+                    <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginTop: theme.space['2'] }]}>
+                      {error}
+                    </Text>
+                  ) : null}
+                  <View style={styles.actions}>
+                    <Button
+                      title="Lagre"
+                      size="compact"
+                      onPress={() => {
+                        saveReflection(session.id, session.journal?.mood ?? null, draft.trim())
+                          .then(() => setError(null))
+                          .catch(() => setError('fikk ikke lagret. prøv igjen.'));
+                      }}
+                    />
+                    {session.journal ? (
+                      <Button
+                        title="Slett"
+                        variant="ghost"
+                        size="compact"
+                        onPress={() => {
+                          removeReflection(session.id)
+                            .then(() => {
+                              setDraft('');
+                              setError(null);
+                            })
+                            .catch(() => setError('fikk ikke lagret. prøv igjen.'));
+                        }}
+                      />
+                    ) : null}
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  headline: { fontFamily: fonts.sansMedium, fontSize: 22, letterSpacing: em(22, -0.02), color: colors.fg },
-  record: { fontFamily: fonts.sansLight, fontSize: 12, color: colors.fgTertiary, marginTop: 2 },
-  cards: { flexDirection: 'row', gap: 8, marginBottom: 28 },
-  card: { flex: 1, backgroundColor: colors.card, paddingVertical: 14, paddingHorizontal: 12, ...shadow[1] },
-  cardValue: { fontFamily: fonts.sansMedium, fontSize: 22, letterSpacing: em(22, -0.03), color: colors.fg },
-  cardLabel: { fontFamily: fonts.sans, fontSize: 10, color: colors.fgTertiary, marginTop: 3 },
-  chart: { flexDirection: 'row', gap: 5, alignItems: 'flex-end', height: 72 },
-  barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 5, height: '100%' },
-  bar: { width: '100%', borderTopLeftRadius: 1, borderTopRightRadius: 1 },
-  barLabel: {
-    fontFamily: fonts.sansMedium,
-    fontSize: 9,
-    letterSpacing: em(9, 0.04),
-    textTransform: 'uppercase',
-    color: palette.mono500,
-  },
+  content: { paddingBottom: 140 },
+  countRow: { flexDirection: 'row', alignItems: 'baseline' },
+  count: { lineHeight: 56 },
+  row: { borderBottomWidth: 1 },
+  rowHit: { minHeight: 44, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
+  preview: { maxWidth: 140, textAlign: 'right' },
+  input: { minHeight: 88, paddingTop: 8, borderBottomWidth: 1, textAlignVertical: 'top' },
+  actions: { marginTop: 16, gap: 4 },
 });
