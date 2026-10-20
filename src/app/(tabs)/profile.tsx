@@ -126,7 +126,7 @@ export default function Profile() {
           </Text>
           <Button
             title="Åpne Innstillinger"
-            variant="tertiary"
+            variant="secondary"
             size="compact"
             onPress={() => Linking.openSettings()}
             style={{ alignSelf: 'flex-start', marginTop: theme.space['3'] }}
