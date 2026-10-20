@@ -16,7 +16,7 @@ type Props = {
   textStyle?: StyleProp<TextStyle>;
 };
 
-/** Pill buttons. Comfort 56, regular 48, compact 36. Compact grows to a 44pt target. */
+/** Pill buttons. Comfort 56, regular 48, compact 36. Compact grows to a 44pt target. Tertiary is text only. */
 export function Button({
   title,
   onPress,
@@ -29,15 +29,15 @@ export function Button({
 }: Props) {
   const { theme } = useTheme();
   const c = theme.color;
-  const height = theme.size.button[size];
+  const height = Math.max(theme.size.button[size], variant === 'tertiary' ? theme.size['hit-min'] : 0);
   const palette: Record<Variant, { box: ViewStyle; text: TextStyle }> = {
     primary: {
       box: { backgroundColor: c.button['primary-bg'] },
       text: { color: c.button['primary-text'] },
     },
     tertiary: {
-      box: { backgroundColor: c.button['tertiary-bg'] },
-      text: { color: c.button['tertiary-text'] },
+      box: { backgroundColor: 'transparent' },
+      text: { color: c.text.primary },
     },
     ghost: {
       box: { backgroundColor: 'transparent' },

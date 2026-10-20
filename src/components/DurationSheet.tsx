@@ -209,7 +209,7 @@ export function DurationSheet({ visible, current, sessionCount, onUse, onClose }
                 placeholderTextColor={theme.color.text.tertiary}
                 value={custom}
                 onChangeText={(value) => setCustom(value.replace(/[^0-9]/g, '').slice(0, 2))}
-                accessibilityLabel="Annen lengde"
+                accessibilityLabel="Velg en annen lengde"
                 style={[
                   styles.input,
                   theme.text.body,
@@ -222,9 +222,8 @@ export function DurationSheet({ visible, current, sessionCount, onUse, onClose }
               />
             ) : (
               <Button
-                title="Annen lengde"
+                title="Velg en annen lengde"
                 variant="tertiary"
-                size="compact"
                 onPress={() => {
                   customOpenRef.current = true;
                   setCustomOpen(true);
@@ -234,7 +233,7 @@ export function DurationSheet({ visible, current, sessionCount, onUse, onClose }
 
             {features.aiCard ? <AiCard sessionCount={sessionCount ?? 0} onUse={onUse} /> : null}
 
-            <Button title="Bruk" size="regular" disabled={!canUse} onPress={confirm} style={{ alignSelf: 'stretch' }} />
+            <Button title="Bruk" size="comfort" disabled={!canUse} onPress={confirm} style={{ alignSelf: 'stretch' }} />
           </View>
         </View>
       </View>
