@@ -7,4 +7,8 @@ describe('features', () => {
   it('plays the Sluket animation unless the kill switch is flipped', () => {
     assert.equal(features.sluketAnimation, true);
   });
+
+  it('keeps the AI card off by default', () => {
+    assert.equal(features.aiCard, false);
+  });
 });

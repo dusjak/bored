@@ -3,14 +3,18 @@ import { Modal, PanResponder, Pressable, StyleSheet, Text, TextInput, View } fro
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { AiCard } from '@/components/AiCard';
 import { Button } from '@/components/Button';
 import { TactileCircle } from '@/components/TactileCircle';
+import { features } from '@/config/features';
 import { minutesPhrase, parseCustomMinutes, PRESET_MINUTES } from '@/data/copy';
 import { useTheme } from '@/theme';
 
 type Props = {
   visible: boolean;
   current: number;
+  /** Finished sessions. Read only when features.aiCard is on. */
+  sessionCount?: number;
   onUse: (minutes: number) => void;
   onClose: () => void;
 };
@@ -48,7 +52,7 @@ function nearestStop(x: number, y: number): number {
 }
 
 /** Duration modal: a circle dial for 5/10/15/20, or a custom value from 5 to 20 minutes. */
-export function DurationSheet({ visible, current, onUse, onClose }: Props) {
+export function DurationSheet({ visible, current, sessionCount, onUse, onClose }: Props) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const presetIndex = (value: number) => {
@@ -227,6 +231,8 @@ export function DurationSheet({ visible, current, onUse, onClose }: Props) {
                 }}
               />
             )}
+
+            {features.aiCard ? <AiCard sessionCount={sessionCount ?? 0} onUse={onUse} /> : null}
 
             <Button title="Bruk" size="regular" disabled={!canUse} onPress={confirm} style={{ alignSelf: 'stretch' }} />
           </View>

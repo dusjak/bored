@@ -113,3 +113,8 @@ export const NOTIF_TIME_LABELS: Record<string, string> = {
 };
 
 export const capitalize = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Sessions needed before the AI duration suggestion unlocks. */
+export const AI_UNLOCK_SESSIONS = 60;
+// TODO: real AI insight, this is a hardcoded suggestion
+export const MOCK_AI_SUGGESTION_MIN = 14;

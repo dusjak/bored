@@ -7,6 +7,7 @@ import { DurationSheet } from '@/components/DurationSheet';
 import { Icon } from '@/components/Icon';
 import { Screen } from '@/components/Screen';
 import { Toggle } from '@/components/Toggle';
+import { features } from '@/config/features';
 import { minutesPhrase, reminderSchedule } from '@/data/copy';
 import { hasNotificationPermission } from '@/data/notifications';
 import { useAppState } from '@/state/AppState';
@@ -31,6 +32,7 @@ export default function Profile() {
     refreshDailyReminder,
     resetLocalData,
     beginIntroSplash,
+    sessions,
   } = useAppState();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [allowed, setAllowed] = useState(false);
@@ -197,6 +199,7 @@ export default function Profile() {
       <DurationSheet
         visible={pickerOpen}
         current={durationMinutes}
+        sessionCount={features.aiCard ? sessions.length : undefined}
         onUse={(minutes) => {
           setDurationMinutes(minutes).catch(() => setError('fikk ikke lagret. prøv igjen.'));
           setPickerOpen(false);

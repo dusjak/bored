@@ -7,13 +7,14 @@ import { DurationSheet } from '@/components/DurationSheet';
 import { Logo } from '@/components/Logo';
 import { Screen } from '@/components/Screen';
 import { TactileCircle } from '@/components/TactileCircle';
+import { features } from '@/config/features';
 import { minutesPhrase } from '@/data/copy';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
 export default function Home() {
   const { theme } = useTheme();
-  const { durationMinutes, setDurationMinutes, beginSession } = useAppState();
+  const { durationMinutes, setDurationMinutes, beginSession, sessions } = useAppState();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
@@ -67,6 +68,7 @@ export default function Home() {
       <DurationSheet
         visible={pickerOpen}
         current={durationMinutes}
+        sessionCount={features.aiCard ? sessions.length : undefined}
         onUse={(minutes) => {
           setDurationMinutes(minutes).catch(() => setError('fikk ikke lagret. prøv igjen.'));
           setPickerOpen(false);
