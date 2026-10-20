@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, type StyleProp, type TextStyle, type ViewS
 
 import { useTheme } from '@/theme';
 
-type Variant = 'primary' | 'tertiary' | 'ghost' | 'outline' | 'inverse' | 'darkGhost';
+type Variant = 'primary' | 'secondary' | 'tertiary' | 'ghost' | 'outline' | 'inverse' | 'darkGhost';
 type Size = 'comfort' | 'regular' | 'compact';
 
 type Props = {
@@ -16,7 +16,13 @@ type Props = {
   textStyle?: StyleProp<TextStyle>;
 };
 
-/** Pill buttons. Comfort 56, regular 48, compact 36. Compact grows to a 44pt target. Tertiary is text only. */
+const PAD: Record<Size, number> = { compact: 16, regular: 24, comfort: 32 };
+
+/**
+ * Primary is the ink fill. Secondary is the tinted pill (light #EAE6DF, dark #2B2A27).
+ * Tertiary is an underlined text button. Ghost stays grey text.
+ * Comfort 56, regular 48, compact 36. Compact adds 4pt of vertical hit slop.
+ */
 export function Button({
   title,
   onPress,
@@ -29,15 +35,20 @@ export function Button({
 }: Props) {
   const { theme } = useTheme();
   const c = theme.color;
-  const height = Math.max(theme.size.button[size], variant === 'tertiary' ? theme.size['hit-min'] : 0);
+  const height = theme.size.button[size];
+  const label = size === 'compact' ? theme.text.labelSmall : theme.text.button;
   const palette: Record<Variant, { box: ViewStyle; text: TextStyle }> = {
     primary: {
       box: { backgroundColor: c.button['primary-bg'] },
       text: { color: c.button['primary-text'] },
     },
+    secondary: {
+      box: { backgroundColor: c.button['tertiary-bg'] },
+      text: { color: c.button['tertiary-text'] },
+    },
     tertiary: {
       box: { backgroundColor: 'transparent' },
-      text: { color: c.text.primary },
+      text: { color: c.text.primary, textDecorationLine: 'underline', letterSpacing: 0 },
     },
     ghost: {
       box: { backgroundColor: 'transparent' },
@@ -61,30 +72,36 @@ export function Button({
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityState={disabled ? { disabled: true } : undefined}
       disabled={disabled}
-      hitSlop={size === 'compact' ? { top: 4, bottom: 4, left: 4, right: 4 } : undefined}
+      hitSlop={size === 'compact' ? { top: 4, bottom: 4 } : undefined}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
-        { height, borderRadius: theme.radius.pill },
+        variant === 'tertiary' ? styles.hug : styles.full,
+        {
+          height,
+          paddingHorizontal: PAD[size],
+          borderRadius: theme.radius.pill,
+        },
         palette[variant].box,
+        pressed && variant === 'tertiary' && { backgroundColor: c.button['tertiary-bg'] },
+        pressed && variant !== 'tertiary' && styles.pressed,
         disabled && styles.disabled,
-        pressed && styles.pressed,
         style,
       ]}
     >
-      <Text style={[theme.text.button, palette[variant].text, textStyle]}>{title}</Text>
+      <Text numberOfLines={1} style={[label, palette[variant].text, textStyle]}>
+        {title}
+      </Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  base: {
-    width: '100%',
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  base: { alignItems: 'center', justifyContent: 'center' },
+  full: { width: '100%' },
+  hug: { alignSelf: 'center', minWidth: 44 },
   disabled: { opacity: 0.28 },
   pressed: { opacity: 0.6 },
 });

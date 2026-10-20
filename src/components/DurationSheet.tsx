@@ -224,6 +224,7 @@ export function DurationSheet({ visible, current, sessionCount, onUse, onClose }
               <Button
                 title="Velg en annen lengde"
                 variant="tertiary"
+                size="regular"
                 onPress={() => {
                   customOpenRef.current = true;
                   setCustomOpen(true);
