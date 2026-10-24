@@ -3,8 +3,12 @@ import { describe, it } from 'node:test';
 
 import {
   abortedPhrase,
+  APPEARANCE_OPTIONS,
+  APPEARANCE_SYSTEM_CAPTION,
+  appearanceLabel,
   clampDurationMinutes,
   completionSentence,
+  durationParts,
   minutesPhrase,
   parseCustomMinutes,
   reminderSchedule,
@@ -19,6 +23,24 @@ describe('copy', () => {
     assert.equal(sessionsPhrase(0), '0 økter');
     assert.equal(sessionsPhrase(1), '1 økt');
     assert.equal(sessionsPhrase(28), '28 økter');
+  });
+
+  it('splits a duration so the number can sit in a different face', () => {
+    assert.deepEqual(durationParts(10), { value: '10', unit: 'minutter' });
+    assert.deepEqual(durationParts(1), { value: '1', unit: 'minutt' });
+    assert.deepEqual(durationParts(1.9), { value: '1', unit: 'minutt' });
+    assert.equal(minutesPhrase(10), `${durationParts(10).value} ${durationParts(10).unit}`);
+  });
+
+  it('names the Deg appearance choices in sheet order', () => {
+    assert.deepEqual(
+      APPEARANCE_OPTIONS.map((option) => option.label),
+      ['Lys', 'Mørk', 'Automatisk'],
+    );
+    assert.equal(appearanceLabel('light'), 'Lys');
+    assert.equal(appearanceLabel('dark'), 'Mørk');
+    assert.equal(appearanceLabel('system'), 'Automatisk');
+    assert.equal(APPEARANCE_SYSTEM_CAPTION, 'Automatisk følger telefonen.');
   });
 
   it('builds the done sentence from the chosen duration', () => {

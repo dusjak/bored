@@ -4,7 +4,7 @@ import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '@/components/Icon';
-import { useTheme } from '@/theme';
+import { screenPadding, useTheme } from '@/theme';
 
 const ITEMS: Record<string, { label: string; icon: IconName }> = {
   home: { label: 'Hjem', icon: 'clock' },
@@ -83,7 +83,8 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 30,
+    // Same side inset as Screen, so the pill stays aligned with screen content.
+    paddingHorizontal: screenPadding,
   },
   bar: {
     flexDirection: 'row',

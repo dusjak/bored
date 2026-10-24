@@ -2,26 +2,21 @@ import { useEffect, useState } from 'react';
 import { Alert, AppState, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { AppearanceSheet } from '@/components/AppearanceSheet';
 import { Button } from '@/components/Button';
 import { DurationSheet } from '@/components/DurationSheet';
 import { Icon } from '@/components/Icon';
 import { Screen } from '@/components/Screen';
 import { Toggle } from '@/components/Toggle';
 import { features } from '@/config/features';
-import { minutesPhrase, reminderSchedule } from '@/data/copy';
+import { appearanceLabel, durationParts, minutesPhrase, reminderSchedule } from '@/data/copy';
 import { hasNotificationPermission } from '@/data/notifications';
 import { useAppState } from '@/state/AppState';
-import { useTheme, type ThemePreference } from '@/theme';
-
-const APPEARANCE: { id: ThemePreference; label: string }[] = [
-  { id: 'light', label: 'Lys' },
-  { id: 'dark', label: 'Mørk' },
-  { id: 'system', label: 'Automatisk' },
-];
+import { fonts, useTheme } from '@/theme';
 
 /** Deg. Preferences, appearance, then a full reset. */
 export default function Profile() {
-  const { theme, preference, setPreference, forgetPreference } = useTheme();
+  const { theme, preference, forgetPreference } = useTheme();
   const {
     user,
     durationMinutes,
@@ -35,11 +30,12 @@ export default function Profile() {
     sessions,
   } = useAppState();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [allowed, setAllowed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reminderOn = user.notifications === true && allowed;
   const clock = reminderSchedule(user.time);
-  const destructive = theme.name === 'dark' ? '#FFB4AB' : '#9F2D2D';
+  const duration = durationParts(durationMinutes);
 
   useEffect(() => {
     const check = () => {
@@ -96,28 +92,52 @@ export default function Profile() {
       >
         <Text style={[theme.text.label, { color: theme.color.text.primary }]}>Foretrukket varighet</Text>
         <View style={styles.rowRight}>
-          <Text style={[theme.text.bodySmall, { color: theme.color.text.secondary }]}>{minutesPhrase(durationMinutes)}</Text>
+          <Text style={[theme.text.bodySmall, { color: theme.color.text.secondary }]}>
+            <Text style={styles.monoFigure}>{duration.value}</Text>
+            {` ${duration.unit}`}
+          </Text>
           <Icon name="chevronRight" size={16} color={theme.color.text.tertiary} />
         </View>
       </Pressable>
 
-      <View style={[styles.row, { borderBottomColor: theme.color.border.default }]}>
-        <Text style={[theme.text.label, { color: theme.color.text.primary }]}>Daglig påminnelse</Text>
-        <View style={styles.rowRight}>
-          <Text style={[theme.text.bodySmall, { color: theme.color.text.secondary }]}>{reminderOn ? clock.label : 'Av'}</Text>
-          <Toggle
-            value={reminderOn}
-            accessibilityLabel="Daglig påminnelse"
-            onChange={(next) => {
-              setDailyReminder(next)
-                .then((result) => {
-                  if (result === 'on') setAllowed(true);
-                  if (result === 'denied') setAllowed(false);
-                })
-                .catch(() => setError('noe gikk galt. prøv igjen.'));
-            }}
-          />
+      <View
+        style={[
+          styles.row,
+          {
+            borderBottomColor: theme.color.border.default,
+            paddingVertical: theme.space['3'],
+          },
+        ]}
+      >
+        <View style={styles.reminderCopy}>
+          <Text style={[theme.text.label, { color: theme.color.text.primary }]}>Daglig påminnelse</Text>
+          {reminderOn ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={clock.label}
+              hitSlop={12}
+              onPress={() => {
+                // No time picker yet. hitSlop keeps a 44pt target until one exists.
+              }}
+              style={[styles.reminderTime, { marginTop: theme.space['1'], gap: theme.space['2'] }]}
+            >
+              <Text style={[styles.monoFigure, { color: theme.color.text.secondary }]}>{clock.label}</Text>
+              <Icon name="chevronRight" size={16} color={theme.color.text.tertiary} />
+            </Pressable>
+          ) : null}
         </View>
+        <Toggle
+          value={reminderOn}
+          accessibilityLabel="Daglig påminnelse"
+          onChange={(next) => {
+            setDailyReminder(next)
+              .then((result) => {
+                if (result === 'on') setAllowed(true);
+                if (result === 'denied') setAllowed(false);
+              })
+              .catch(() => setError('noe gikk galt. prøv igjen.'));
+          }}
+        />
       </View>
       {user.notifications === true && !allowed ? (
         <View style={{ marginTop: theme.space['3'], marginBottom: theme.space['2'] }}>
@@ -145,43 +165,18 @@ export default function Profile() {
         />
       </View>
 
-      <Text style={[theme.text.eyebrow, { color: theme.color.text.tertiary, marginTop: theme.space['8'], marginBottom: theme.space['2'] }]}>
-        Utseende
-      </Text>
-      {APPEARANCE.map((option, index) => {
-        const selected = preference === option.id;
-        const last = index === APPEARANCE.length - 1;
-        return (
-          <Pressable
-            key={option.id}
-            accessibilityRole="radio"
-            accessibilityState={{ selected }}
-            accessibilityLabel={option.label}
-            onPress={() => {
-              setPreference(option.id).catch(() => setError('noe gikk galt. prøv igjen.'));
-            }}
-            style={[styles.row, { borderBottomWidth: last ? 0 : 1, borderBottomColor: theme.color.border.default }]}
-          >
-            <Text style={[theme.text.label, { color: theme.color.text.primary }]}>{option.label}</Text>
-            {selected ? <Icon name="check" size={18} color={theme.color.ink.default} /> : <View style={styles.checkSpace} />}
-          </Pressable>
-        );
-      })}
-      <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginTop: theme.space['2'] }]}>
-        Automatisk følger telefonen.
-      </Text>
-
-      <View style={{ marginTop: theme.space['10'] }}>
-        <Text style={[theme.text.eyebrow, { color: theme.color.text.tertiary, marginBottom: theme.space['4'] }]}>Om bored.</Text>
-        <View style={[styles.quote, { borderLeftColor: theme.color.border.default }]}>
-          <Text style={[theme.text.bodySmall, { color: theme.color.text.secondary }]}>
-            «Kjedsomhet er drømmefuglen som ruger ut erfaringens egg.»
-          </Text>
-          <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginTop: theme.space['2'] }]}>
-            — Walter Benjamin
-          </Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Utseende, ${appearanceLabel(preference)}`}
+        onPress={() => setAppearanceOpen(true)}
+        style={[styles.row, { borderBottomColor: theme.color.border.default }]}
+      >
+        <Text style={[theme.text.label, { color: theme.color.text.primary }]}>Utseende</Text>
+        <View style={styles.rowRight}>
+          <Text style={[theme.text.bodySmall, { color: theme.color.text.secondary }]}>{appearanceLabel(preference)}</Text>
+          <Icon name="chevronRight" size={16} color={theme.color.text.tertiary} />
         </View>
-      </View>
+      </Pressable>
 
       {error ? (
         <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginTop: theme.space['4'] }]}>{error}</Text>
@@ -193,7 +188,7 @@ export default function Profile() {
         onPress={confirmReset}
         style={[styles.reset, { marginTop: theme.space['10'] }]}
       >
-        <Text style={[theme.text.label, { color: destructive }]}>Nullstill</Text>
+        <Text style={[theme.text.label, { color: theme.color.text.destructive }]}>Nullstill</Text>
       </Pressable>
 
       <DurationSheet
@@ -205,6 +200,11 @@ export default function Profile() {
           setPickerOpen(false);
         }}
         onClose={() => setPickerOpen(false)}
+      />
+      <AppearanceSheet
+        visible={appearanceOpen}
+        onClose={() => setAppearanceOpen(false)}
+        onError={() => setError('noe gikk galt. prøv igjen.')}
       />
     </Screen>
   );
@@ -220,7 +220,13 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
   },
   rowRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  checkSpace: { width: 18 },
-  quote: { borderLeftWidth: 2, paddingLeft: 16 },
+  reminderCopy: { flex: 1, paddingRight: 12 },
+  reminderTime: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' },
+  monoFigure: {
+    fontFamily: fonts.mono,
+    fontSize: 14,
+    lineHeight: 20,
+    fontVariant: ['tabular-nums'],
+  },
   reset: { minHeight: 44, justifyContent: 'center' },
 });

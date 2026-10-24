@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 're
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-import { useTheme } from '@/theme';
+import { screenPadding, useTheme } from '@/theme';
 
 type Props = {
   children: ReactNode;
@@ -16,10 +16,10 @@ type Props = {
   statusBar?: 'light' | 'dark';
 };
 
-/** Side and top inset under the safe area. The slip asks for about 30pt. */
-const SCREEN_GUTTER = 30;
+/** Side and top inset under the safe area. Token `screenPadding` (`space['7']`, 28). */
+const SCREEN_GUTTER = screenPadding;
 
-/** Screen shell: status bar, then content with the 30pt side and top inset. */
+/** Screen shell: status bar, then content with the screenPadding side and top inset. */
 export function Screen({ children, session, scroll, edges = ['top', 'bottom'], contentStyle, background, statusBar }: Props) {
   const { theme } = useTheme();
   const bg = background ?? (session ? theme.color.bg.session : theme.color.bg.default);
