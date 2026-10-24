@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme } from 'expo-router';
 import { Tabs } from 'expo-router/js-tabs';
-import { NativeTabs } from 'expo-router/unstable-native-tabs';
+import { NativeTabs } from 'expo-router/native-tabs';
 
 import { GlassTabBar } from '@/components/GlassTabBar';
 import { useTheme } from '@/theme';

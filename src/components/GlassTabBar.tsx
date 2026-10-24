@@ -16,7 +16,7 @@ const ITEMS: Record<string, { label: string; icon: IconName }> = {
  * Blur stand-in for the iOS 26 Liquid Glass tab bar.
  * Used below iOS 26, including Expo Go on older systems.
  */
-export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
+export function GlassTabBar({ state, emitter, navigateToTab }: BottomTabBarProps) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, 26);
@@ -48,8 +48,8 @@ export function GlassTabBar({ state, navigation }: BottomTabBarProps) {
           const focused = state.index === index;
           const color = focused ? theme.color.text.primary : theme.color.text.secondary;
           const onPress = () => {
-            const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
-            if (!focused && !event.defaultPrevented) navigation.navigate(route.name);
+            const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
+            if (!focused && !event.defaultPrevented) navigateToTab(route.key);
           };
           return (
             <Pressable

@@ -26,7 +26,14 @@
     },
     "plugins": [
       "expo-status-bar",
-      "expo-router",
+      [
+        "expo-router",
+        {
+          "asyncRoutes": {
+            "web": false
+          }
+        }
+      ],
       "expo-font",
       [
         "expo-splash-screen",
