@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SluketSplash } from '@/components/SluketSplash';
 import { AppStateProvider, useAppState } from '@/state/AppState';
+import { BackupProvider } from '@/state/BackupState';
 import { fontAssets, ThemeProvider, useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -20,7 +21,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AppStateProvider>
-          <ReadyGate />
+          <BackupProvider>
+            <ReadyGate />
+          </BackupProvider>
         </AppStateProvider>
       </ThemeProvider>
     </SafeAreaProvider>
