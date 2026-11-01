@@ -1,9 +1,9 @@
 import { useRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { Easing, runOnJS, useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from 'react-native-reanimated';
+import Svg, { Path } from 'react-native-svg';
 
 import { NUDGE_BODY, NUDGE_CLOSE, NUDGE_ENABLE, NUDGE_LATER, NUDGE_TITLE } from '@/backup/copy';
-import { Icon } from '@/components/Icon';
 import { useTheme } from '@/theme';
 
 type Props = {
@@ -12,7 +12,11 @@ type Props = {
   onDismiss: () => void;
 };
 
-/** Info card. VoiceOver order is title, body, actions, then «Lukk». */
+/**
+ * Infomelding from «N1 Logg – hint om sikkerhetskopi» (105:2087).
+ * The × is a 20×20 mark, top-aligned with the title. hitSlop grows the target to 44×44
+ * without moving the mark. VoiceOver follows the frame: title, body, Lukk, then the actions.
+ */
 export function BackupNudgeCard({ onEnable, onDismiss }: Props) {
   const { theme } = useTheme();
   const reduceMotion = useReducedMotion();
@@ -64,12 +68,24 @@ export function BackupNudgeCard({ onEnable, onDismiss }: Props) {
               paddingTop: theme.space['4'],
               paddingBottom: theme.space['2'],
               marginBottom: theme.space['6'],
+              gap: theme.space['1'],
             },
           ]}
         >
-          <View style={{ paddingRight: theme.size['hit-min'], gap: theme.space['2'] }}>
-            <Text style={[theme.text.label, { color: theme.color.text.primary }]}>{NUDGE_TITLE}</Text>
-            <Text style={[theme.text.bodySmall, { color: theme.color.text.primary }]}>{NUDGE_BODY}</Text>
+          <View style={[styles.top, { gap: theme.space['2'] }]}>
+            <View style={[styles.copy, { gap: theme.space['2'] }]}>
+              <Text style={[theme.text.label, { color: theme.color.text.primary }]}>{NUDGE_TITLE}</Text>
+              <Text style={[theme.text.bodySmall, { color: theme.color.text.primary }]}>{NUDGE_BODY}</Text>
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={NUDGE_CLOSE}
+              onPress={dismiss}
+              hitSlop={12}
+              style={styles.close}
+            >
+              <CloseMark color={theme.color.text.tertiary} />
+            </Pressable>
           </View>
           <View style={[styles.actions, { gap: theme.space['2'] }]}>
             <Pressable
@@ -78,7 +94,9 @@ export function BackupNudgeCard({ onEnable, onDismiss }: Props) {
               onPress={onEnable}
               style={styles.action}
             >
-              <Text style={[theme.text.labelSmall, { color: theme.color.button['tertiary-text'] }]}>{NUDGE_ENABLE}</Text>
+              <Text style={[theme.text.labelSmall, { color: theme.color.button['tertiary-text'] }]}>
+                {NUDGE_ENABLE}
+              </Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
@@ -86,30 +104,34 @@ export function BackupNudgeCard({ onEnable, onDismiss }: Props) {
               onPress={dismiss}
               style={[styles.action, { paddingHorizontal: theme.space['4'] }]}
             >
-              <Text style={[theme.text.labelSmall, { color: theme.color.text.secondary }]}>{NUDGE_LATER}</Text>
+              <Text style={[theme.text.labelSmall, { color: theme.color.button['ghost-text'] }]}>{NUDGE_LATER}</Text>
             </Pressable>
           </View>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={NUDGE_CLOSE}
-            onPress={dismiss}
-            hitSlop={0}
-            style={[
-              styles.close,
-              { top: theme.space['2'], right: theme.space['2'], width: theme.size['hit-min'], height: theme.size['hit-min'] },
-            ]}
-          >
-            <Icon name="x" size={20} color={theme.color.text.primary} />
-          </Pressable>
         </View>
       </View>
     </Animated.View>
   );
 }
 
+/** 20×20 close mark from the frame. Stroke is `text.tertiary` (#66635D in light). */
+function CloseMark({ color }: { color: string }) {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 20 20" fill="none">
+      <Path
+        d="M15 5L10 10M10 10L5 15M10 10L5 5M10 10L15 15"
+        stroke={color}
+        strokeWidth={1.25}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 const styles = StyleSheet.create({
-  card: { position: 'relative' },
+  card: {},
+  top: { flexDirection: 'row', alignItems: 'flex-start' },
+  copy: { flex: 1 },
   actions: { flexDirection: 'row', alignItems: 'center' },
   action: { minHeight: 44, justifyContent: 'center' },
-  close: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
+  close: { width: 20, height: 20 },
 });
