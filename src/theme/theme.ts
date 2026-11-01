@@ -32,6 +32,10 @@ const prim = {
   sand: {
     '400': '#C4B09A',
   },
+  red: {
+    '700': '#9F2D2D',
+    '200': '#FFB4AB',
+  },
   alpha: {
     'ink-24': 'rgba(17,17,16,0.24)',
     'ink-18': 'rgba(17,17,16,0.18)',
@@ -67,6 +71,7 @@ const lightColor = {
     primary: prim.neutral['900'],
     secondary: prim.neutral['650'],
     tertiary: prim.neutral['600'],
+    destructive: prim.red['700'],
     'on-ink': prim.neutral['50'],
   },
   ink: {
@@ -130,6 +135,7 @@ const darkColor = {
     primary: prim.neutral['50'],
     secondary: prim.neutral['300'],
     tertiary: prim.neutral['400'],
+    destructive: prim.red['200'],
     'on-ink': prim.neutral['900'],
   },
   ink: {

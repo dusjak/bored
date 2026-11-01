@@ -1,4 +1,5 @@
 import { openDatabase } from '@/data/db';
+import { migrateProfile } from '@/data/profile';
 import type { AppDatabase } from '@/data/sessionQueries';
 import * as queries from '@/data/sessionQueries';
 import type { MoodId, OnboardingProfile, SessionRecord, SessionWithJournal } from '@/data/types';
@@ -31,7 +32,16 @@ export async function getProfile(): Promise<OnboardingProfile> {
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw) as OnboardingProfile;
-    return parsed && typeof parsed === 'object' ? parsed : {};
+    if (!parsed || typeof parsed !== 'object') return {};
+    const migrated = migrateProfile(parsed);
+    if (migrated.changed) {
+      try {
+        await saveProfile(migrated.profile);
+      } catch {
+        // The rewritten id is still returned. The next launch tries the write again.
+      }
+    }
+    return migrated.profile;
   } catch {
     return {};
   }

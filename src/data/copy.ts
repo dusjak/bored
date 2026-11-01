@@ -6,10 +6,31 @@ export const MAX_CUSTOM_MINUTES = 20;
 export const DEFAULT_DURATION_MINUTES = 10;
 export const HOLD_TO_END_MS = 1000;
 
+/** Number and unit for a mixed-font duration, e.g. `{ value: '10', unit: 'minutter' }`. */
+export function durationParts(minutes: number): { value: string; unit: string } {
+  const n = Math.max(0, Math.floor(minutes));
+  return { value: String(n), unit: n === 1 ? 'minutt' : 'minutter' };
+}
+
 /** 1 → "1 minutt", every other count → "N minutter". */
 export function minutesPhrase(minutes: number): string {
-  const n = Math.max(0, Math.floor(minutes));
-  return n === 1 ? '1 minutt' : `${n} minutter`;
+  const { value, unit } = durationParts(minutes);
+  return `${value} ${unit}`;
+}
+
+/** Deg appearance choices, in sheet order. `system` is «Automatisk». */
+export const APPEARANCE_OPTIONS = [
+  { id: 'light', label: 'Lys' },
+  { id: 'dark', label: 'Mørk' },
+  { id: 'system', label: 'Automatisk' },
+] as const;
+
+export type AppearanceId = (typeof APPEARANCE_OPTIONS)[number]['id'];
+
+export const APPEARANCE_SYSTEM_CAPTION = 'Automatisk følger telefonen.';
+
+export function appearanceLabel(id: AppearanceId): string {
+  return APPEARANCE_OPTIONS.find((option) => option.id === id)?.label ?? 'Lys';
 }
 
 /** 1 → "1 økt", every other count including 0 → "N økter". */

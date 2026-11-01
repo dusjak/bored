@@ -57,7 +57,7 @@ export const QUESTIONS: Record<QuestionKey, Question> = {
       { id: 'ro', label: 'Mental ro', sub: 'Skru av alt, bare hvile' },
       { id: 'kreativitet', label: 'Mer kreativitet', sub: 'La tankene vandre til noe nytt' },
       { id: 'vane', label: 'En daglig vane', sub: 'Et rituale å komme tilbake til' },
-      { id: 'ensomhet', label: 'Tilstedeværelse', sub: 'Være mer til stede med meg selv' },
+      { id: 'autopilot', label: 'Tilstedeværelse', sub: 'Være mer til stede med meg selv' },
       { id: 'nysgjerrig', label: 'Bare nysgjerrig', sub: 'Se hva som skjer' },
     ],
   },
@@ -94,7 +94,7 @@ export const GOAL_LABELS: Record<string, string> = {
   ro: 'mental ro',
   kreativitet: 'mer kreativitet',
   vane: 'en daglig vane',
-  ensomhet: 'tilstedeværelse',
+  autopilot: 'tilstedeværelse',
   nysgjerrig: 'å utforske',
 };
 
