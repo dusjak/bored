@@ -186,9 +186,9 @@ const darkColor = {
 } as const;
 
 export type ThemeName = 'light' | 'dark';
-/** Stored user preference. Default 'light'. 'system' follows useColorScheme(). */
+/** Stored user preference. Default 'system' (Automatisk, follows the phone). Was 'light' until 2026-11-01. */
 export type ThemePreference = 'light' | 'dark' | 'system';
-export const DEFAULT_THEME_PREFERENCE: ThemePreference = 'light';
+export const DEFAULT_THEME_PREFERENCE: ThemePreference = 'system';
 export type ColorTokens = { [G in keyof typeof lightColor]: { [K in keyof (typeof lightColor)[G]]: string } };
 
 /* ---------- Dimensions (Figma "Primitives": space/*, radius/*, size/*) ---------- */
@@ -206,7 +206,7 @@ export const space = {
   '24': 96,
   '32': 128,
 } as const;
-export const screenPadding = space[7];
+export const screenPadding = space[4]; // 16 (HIG). Was space[7] = 28 until 2026-11-01.
 export const radius = {
   none: 0,
   small: 4,

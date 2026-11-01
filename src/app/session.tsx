@@ -10,7 +10,7 @@ import { TactileCircle } from '@/components/TactileCircle';
 import { HOLD_TO_END_MS, chosenMinutes, completionSentence } from '@/data/copy';
 import { decideUnfinishedSession } from '@/data/sessionRules';
 import { useAppState } from '@/state/AppState';
-import { useTheme } from '@/theme';
+import { screenPadding, useTheme } from '@/theme';
 
 /** Active session. Always dark. Hold the circle for one second to end early. */
 export default function Session() {
@@ -332,7 +332,7 @@ export default function Session() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  stage: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30, paddingTop: 30, gap: 28 },
+  stage: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: screenPadding, paddingTop: 30, gap: 28 },
   timerBlock: { minHeight: 140, alignItems: 'center', justifyContent: 'center' },
   timer: { width: '100%', textAlign: 'center' },
   doneCopy: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 8 },

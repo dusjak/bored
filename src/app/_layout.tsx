@@ -1,11 +1,14 @@
-import { useEffect } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SluketSplash } from '@/components/SluketSplash';
+import { StillSplash } from '@/components/StillSplash';
+import { STILL_HOLD_MS, REDUCE_FADE_MS } from '@/splash/splashTiming';
+import { splashSuppressed } from '@/splash/splashDecision';
 import { AppStateProvider, useAppState } from '@/state/AppState';
 import { fontAssets, ThemeProvider, useTheme } from '@/theme';
 
@@ -28,16 +31,67 @@ export default function RootLayout() {
 }
 
 function ReadyGate() {
-  const { ready, introPhase, setIntroPhase } = useAppState();
+  const {
+    ready,
+    introPhase,
+    splashOccasion,
+    splashHoldArmed,
+    setIntroPhase,
+    markSplashSeen,
+    setSplashSuppressed,
+    launch,
+    activeSession,
+  } = useAppState();
+  const pathname = usePathname();
   const { ready: themeReady, theme } = useTheme();
   const open = ready && themeReady;
-  const cover = introPhase === 'play' || introPhase === 'fade';
+  const suppressed = splashSuppressed({
+    pathname,
+    launch,
+    activeSession: activeSession != null,
+  });
+  setSplashSuppressed(suppressed);
 
+  const cover = introPhase === 'play' || introPhase === 'still' || introPhase === 'fade';
+  const startedAt = useRef(Date.now());
   useEffect(() => {
-    if (open) SplashScreen.hideAsync();
+    if (introPhase === 'play') startedAt.current = Date.now();
+  }, [introPhase]);
+
+  // The wordmark overlay is already in this commit. Hide the native splash after it mounts.
+  useLayoutEffect(() => {
+    if (!open) return;
+    SplashScreen.hideAsync().catch(() => undefined);
   }, [open]);
 
-  if (!open) return <View style={{ flex: 1, backgroundColor: theme.color.bg.default }} />;
+  const splash = (
+    <SluketSplash
+      occasion={splashOccasion}
+      fading={introPhase === 'fade'}
+      armed={open && splashHoldArmed}
+      holdMs={STILL_HOLD_MS}
+      fadeMs={REDUCE_FADE_MS}
+      elapsedMs={() => Math.max(0, Date.now() - startedAt.current)}
+      onHandoff={setIntroPhase}
+      onDismiss={() => setIntroPhase('off')}
+      onCrash={markSplashSeen}
+    />
+  );
+
+  if (!open) {
+    return (
+      <View style={{ flex: 1, backgroundColor: theme.color.bg.default }}>
+        <StillSplash
+          fading={false}
+          armed={false}
+          holdMs={STILL_HOLD_MS}
+          fadeMs={REDUCE_FADE_MS}
+          onHandoff={() => undefined}
+          onDismiss={() => undefined}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1 }}>
@@ -62,13 +116,7 @@ function ReadyGate() {
         />
         <Stack.Screen name="reflection" options={{ gestureEnabled: false }} />
       </Stack>
-      {cover ? (
-        <SluketSplash
-          fading={introPhase === 'fade'}
-          onHandoff={setIntroPhase}
-          onDismiss={() => setIntroPhase('off')}
-        />
-      ) : null}
+      {cover ? splash : null}
     </View>
   );
 }
