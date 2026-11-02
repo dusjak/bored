@@ -21,6 +21,7 @@ describe('features', () => {
     assert.equal(isSplashReplayEnabled(true, null), true);
     assert.equal(isSplashReplayEnabled(false, 'preview'), true);
     assert.equal(isSplashReplayEnabled(false, 'development'), true);
+    assert.equal(isSplashReplayEnabled(false, 'testflight'), true);
     assert.equal(isSplashReplayEnabled(false, 'production'), false);
     assert.equal(isSplashReplayEnabled(false, null), false);
     assert.equal(isSplashReplayEnabled(false, ''), false);

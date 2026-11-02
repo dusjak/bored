@@ -4,15 +4,22 @@
     "slug": "bored",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/icon/icon-1024.png",
     "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "no.bored.app",
+      "buildNumber": "1",
       "supportsTablet": true,
+      "icon": "./assets/icon/icon-1024.png",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
       "infoPlist": {
         "NSUserNotificationsUsageDescription": "bored. varsler når økta er ferdig."
       }
     },
     "android": {
+      "package": "no.bored.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -52,7 +59,8 @@
       [
         "expo-notifications",
         {
-          "enableBackgroundRemoteNotifications": false
+          "enableBackgroundRemoteNotifications": false,
+          "enableRemoteNotifications": false
         }
       ]
     ],
