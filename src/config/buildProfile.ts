@@ -3,7 +3,9 @@
  *
  * `production` is the only profile that counts as an App Store production build.
  * `testflight` does not: testers keep the honest preview backup (PR #6) and the
- * temporary splash-replay hook (PR #7).
+ * temporary splash-replay hook. `isSplashReplayEnabled` stays on for every
+ * non-empty profile other than `production`, including `testflight`. A release
+ * binary whose profile is missing still turns that hook off.
  *
  * PR #6 should call `isProductionBuildProfile(process.env.EAS_BUILD_PROFILE)`
  * from `assertBackupMode` instead of comparing the profile to `'production'`
@@ -11,16 +13,11 @@
  * `expo-constants` is loaded only when `easBuildProfile()` needs the manifest.
  * Do not add a top-level import of `expo-constants` here.
  *
- * PR #7 already reads `extra.easBuildProfile`. `app.config.js` copies
- * `EAS_BUILD_PROFILE` into that field and omits the key when it is unset.
- * Expo's serializer turns a `null` value into `{}`, so do not write null.
- * Keep the `EAS_BUILD_PROFILE` read below first when the two copies of this
- * file are merged. `isSplashReplayEnabled` stays on for every non-empty
- * profile other than `production`, including `testflight`. A release binary
- * whose profile is missing still turns that hook off; that is PR #7's rule,
- * and it is why the config must keep copying the profile. When PR #6's
- * `app.config.ts` is present, Expo loads that file instead of `app.config.js`,
- * so the `.ts` config has to copy `easBuildProfile` the same way.
+ * `app.config.js` copies `EAS_BUILD_PROFILE` into `extra.easBuildProfile` and
+ * omits the key when it is unset. Expo's serializer turns a `null` value into
+ * `{}`, so do not write null. When PR #6's `app.config.ts` is present, Expo
+ * loads that file instead of `app.config.js`, so the `.ts` config has to copy
+ * `easBuildProfile` the same way.
  */
 
 export const PRODUCTION_EAS_PROFILE = 'production' as const;

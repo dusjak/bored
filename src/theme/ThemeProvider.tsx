@@ -14,7 +14,7 @@ type ThemeContextValue = {
   theme: Theme;
   preference: ThemePreference;
   setPreference: (preference: ThemePreference) => Promise<void>;
-  /** Drops the in-memory choice back to Lys. Storage is wiped separately. */
+  /** Drops the in-memory choice back to Automatisk. Storage is wiped separately. */
   forgetPreference: () => void;
   ready: boolean;
 };
@@ -38,7 +38,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         if (isPreference(stored)) setPreferenceState(stored);
       })
       .catch(() => {
-        // Theme falls back to Lys if storage is not readable yet.
+        // Theme stays on the default (Automatisk) if storage is not readable yet.
       })
       .finally(() => {
         if (!cancelled) setReady(true);

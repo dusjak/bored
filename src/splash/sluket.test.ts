@@ -2,140 +2,171 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 
-import { REDUCE_FADE_MS as STILL_FADE_MS, REDUCE_HOLD_MS as STILL_HOLD_MS } from './splashTiming.ts';
+import { SPLASH_BG as PLATE, SPLASH_INK as INK } from './splashTiming.ts';
 import {
+  colorMixEnabled,
   createStimuli,
-  cubicBezierY,
-  NOISE_RGB,
-  periodScale,
-  REDUCE_FADE_MS,
-  REDUCE_HOLD_MS,
-  sampleMotion,
+  GLIDE_AT,
+  GLIDE_MS,
+  gooSigma,
+  legacyTime,
+  LOW_POWER_COUNT,
+  markPose,
+  MAX_TURNS,
+  mixAt,
+  NOISE_HEX,
+  phaseName,
+  REST_AT,
+  REVEAL_AT,
   sampleStimulus,
-  spiralAngle,
+  SPLASH_BG,
+  SPLASH_INK,
+  SPLASH_MS,
   STIMULUS_COUNT,
-  wordReveal,
-  type Rgb,
+  SWIRL_MS,
+  WOBBLE_SCALE,
+  writeOutline,
 } from './sluket.ts';
 
-const LIGHT_HOLE: Rgb = [0x11, 0x11, 0x10];
-const DARK_HOLE: Rgb = [0xf8, 0xf6, 0xf2];
-
-describe('sluket', () => {
-  it('shares the still-splash timings with the launch path', () => {
-    assert.equal(REDUCE_HOLD_MS, STILL_HOLD_MS);
-    assert.equal(REDUCE_FADE_MS, STILL_FADE_MS);
-    assert.equal(STILL_HOLD_MS, 600);
-    assert.equal(STILL_FADE_MS, 200);
-  });
-
-  it('builds 60 stimuli with the shape split and a stable seed', () => {
-    const stimuli = createStimuli();
-    assert.equal(stimuli.length, STIMULUS_COUNT);
-    assert.equal(stimuli.filter((item) => item.kind === 'badge').length, 36);
-    assert.equal(stimuli.filter((item) => item.kind === 'pill').length, 18);
-    assert.equal(stimuli.filter((item) => item.kind === 'squircle').length, 6);
-    assert.deepEqual(createStimuli(), stimuli);
-    for (const item of stimuli) {
-      assert.ok(item.r0 >= 0.6 && item.r0 <= 0.8);
-      assert.ok(item.drift <= (30 * Math.PI) / 180 + 1e-9);
-      assert.equal(item.spiral, spiralAngle(item.drift));
-      assert.equal(item.hex.startsWith('#'), true);
-      assert.ok(item.drift + spiralAngle(item.drift) <= Math.PI * 2 + 1e-9);
-      assert.ok(item.delay >= 0 && item.delay <= 300);
-      assert.ok(NOISE_RGB.some((color) => color[0] === item.color[0] && color[1] === item.color[1] && color[2] === item.color[2]));
+describe('sluket v4', () => {
+  it('is always dark and does not read the theme', () => {
+    assert.equal(SPLASH_BG, '#111110');
+    assert.equal(SPLASH_INK, '#F8F6F2');
+    assert.equal(SPLASH_BG, PLATE);
+    assert.equal(SPLASH_INK, INK);
+    for (const file of ['sluket.ts', '../components/SluketPlay.tsx', '../components/StillSplash.tsx', '../components/WordmarkImage.tsx', '../components/SluketSplash.tsx']) {
+      const source = readFileSync(new URL(file, import.meta.url), 'utf8');
+      assert.equal(source.includes('useTheme'), false, file);
+      assert.equal(source.includes('useColorScheme'), false, file);
+      assert.equal(source.includes('splash-wordmark-light'), false, file);
     }
   });
 
-  it('keeps noise off screen until its delay, then swallows it', () => {
-    const stimulus = createStimuli()[0]!;
-    assert.equal(sampleStimulus(stimulus, 100 + stimulus.delay - 1, 390, 844, LIGHT_HOLE), null);
-    const mid = sampleStimulus(stimulus, 400, 390, 844, LIGHT_HOLE);
-    assert.ok(mid);
-    assert.equal(sampleStimulus(stimulus, 1150, 390, 844, LIGHT_HOLE), null);
+  it('builds 160 shapes, largest first, with the v4 seed', () => {
+    const stimuli = createStimuli();
+    assert.equal(stimuli.length, STIMULUS_COUNT);
+    assert.deepEqual(createStimuli(), stimuli);
+    assert.equal(stimuli.filter((item) => item.hex === '#FF3B30').length, STIMULUS_COUNT / NOISE_HEX.length);
+    assert.equal(stimuli.filter((item) => item.kind === 0).length, 80);
+    assert.equal(stimuli.filter((item) => item.kind === 1).length, 48);
+    assert.equal(stimuli.filter((item) => item.kind === 2).length, 32);
+    for (let i = 0; i < stimuli.length; i += 1) {
+      const item = stimuli[i]!;
+      assert.ok(item.size >= 24 && item.size <= 490);
+      assert.ok(item.r0 >= 0.15 && item.r0 <= 0.75);
+      assert.ok(item.turnU >= 0.8 && item.turnU <= 1);
+      assert.ok(item.delay >= 0 && item.delay <= 160);
+      if (i > 0) assert.ok(item.delay >= stimuli[i - 1]!.delay);
+    }
+    assert.equal(stimuli[0]!.delay, 0);
   });
 
-  it('stretches and blends toward the hole in the last part of the spiral', () => {
-    const stimulus = createStimuli()[3]!;
-    const early = sampleStimulus(stimulus, 620, 390, 844, LIGHT_HOLE);
-    const late = sampleStimulus(stimulus, 1140, 390, 844, LIGHT_HOLE);
-    assert.ok(early && late);
-    assert.ok(late.stretch > early.stretch);
-    assert.ok(late.scale < early.scale);
-    const lightDistance = late.color[0] - LIGHT_HOLE[0];
-    const dark = sampleStimulus(stimulus, 1100, 390, 844, DARK_HOLE);
-    assert.ok(dark);
-    assert.notEqual(dark.color[0], late.color[0]);
-    assert.ok(Math.abs(lightDistance) < Math.abs(stimulus.color[0] - LIGHT_HOLE[0]));
+  it('stretches the shape timeline across the 4770 ms swirl', () => {
+    assert.equal(SWIRL_MS, 4770);
+    assert.equal(GLIDE_AT, 5020);
+    assert.equal(REVEAL_AT, 5200);
+    assert.equal(REST_AT, 5700);
+    assert.equal(SPLASH_MS, 6000);
+    assert.equal(legacyTime(0), 120);
+    assert.ok(Math.abs(legacyTime(1098) - 380) < 1.5);
+    assert.ok(Math.abs(legacyTime(2870) - 800) < 1.5);
+    assert.ok(Math.abs(legacyTime(4137) - 1100) < 1.5);
+    assert.equal(legacyTime(4770), 1250);
+    assert.equal(phaseName(0), 'flood');
+    assert.equal(phaseName(1097), 'flood');
+    assert.equal(phaseName(2000), 'swirl');
+    assert.equal(phaseName(3000), 'tighten');
+    assert.equal(phaseName(4500), 'swallow');
+    assert.equal(phaseName(4900), 'settle');
+    assert.equal(phaseName(5100), 'glide');
+    assert.equal(phaseName(5400), 'reveal');
+    assert.equal(phaseName(5800), 'rest');
+    assert.equal(phaseName(6000), 'done');
   });
 
-  it('springs the period in, gulps, and shrinks it on the handover', () => {
-    assert.equal(periodScale(0), 0);
-    assert.ok(periodScale(80) > 0.4);
-    assert.equal(periodScale(1150), 1.35);
-    assert.ok(periodScale(1400) < 1.35);
-    assert.equal(periodScale(2000), 0);
+  it('matches the paint-mix table', () => {
+    const start = mixAt(0);
+    assert.ok(Math.abs(start.m - 0.85) < 1e-9);
+    assert.ok(Math.abs(start.radius - 13) < 1e-9);
+    const edge = mixAt(0.25 * SWIRL_MS);
+    assert.ok(Math.abs(edge.m - 0.85) < 1e-9);
+    assert.ok(Math.abs(edge.radius - 13) < 1e-9);
+    const rows: [number, number, number][] = [
+      [2385, 0.82, 14],
+      [2862, 0.76, 16],
+      [3339, 0.66, 19],
+      [3816, 0.5, 24],
+      [4293, 0.27, 31],
+      [4722, 0, 40],
+    ];
+    for (const [t, m, radius] of rows) {
+      const value = mixAt(t);
+      assert.ok(Math.abs(value.m - m) < 0.02, `${t} m ${value.m}`);
+      assert.ok(Math.abs(value.radius - radius) < 1, `${t} r ${value.radius}`);
+    }
+    assert.equal(colorMixEnabled(true, false), true);
+    assert.equal(colorMixEnabled(true, true), false);
+    assert.equal(colorMixEnabled(false, false), false);
   });
 
-  it('reveals the word from the period and pulls it back', () => {
-    assert.equal(wordReveal(0), 0);
-    assert.equal(wordReveal(1299), 0);
-    assert.ok(wordReveal(1400) > 0 && wordReveal(1400) < 1);
-    assert.ok(wordReveal(1400) > 0.5);
-    assert.equal(wordReveal(1700), 1);
-    assert.ok(wordReveal(1925) > 0 && wordReveal(1925) < 1);
-    assert.equal(wordReveal(2000), 0);
+  it('hides shapes until the flood and drops the tail in Low Power Mode', () => {
+    const stimuli = createStimuli();
+    const first = stimuli[0]!;
+    const before = sampleStimulus(0, first.delay, first.angle, first.r0, first.size, first.phase, first.rot0, first.flake, first.turnU, first.shift, legacyTime(0), 402, 874, 0);
+    assert.equal(before[8], 0);
+    const mid = sampleStimulus(0, first.delay, first.angle, first.r0, first.size, first.phase, first.rot0, first.flake, first.turnU, first.shift, legacyTime(2000), 402, 874, 0);
+    assert.equal(mid[0], 1);
+    const tail = stimuli[LOW_POWER_COUNT]!;
+    const hidden = sampleStimulus(LOW_POWER_COUNT, tail.delay, tail.angle, tail.r0, tail.size, tail.phase, tail.rot0, tail.flake, tail.turnU, tail.shift, legacyTime(2000), 402, 874, 1);
+    assert.equal(hidden[0], 0);
+    assert.equal(MAX_TURNS, 2.5);
+    assert.equal(WOBBLE_SCALE, 1.6);
+    assert.ok(gooSigma(200) <= 2.01);
+    assert.ok(gooSigma(legacyTime(3500)) <= 6.01);
   });
 
-  it('returns seven numbers, including a neutral hidden frame', () => {
-    const stimulus = createStimuli()[0]!;
-    const hidden = sampleMotion(
-      stimulus.delay,
-      stimulus.angle,
-      stimulus.spin,
-      stimulus.drift,
-      stimulus.spiral,
-      stimulus.r0,
-      stimulus.r1,
-      0,
-      390,
-      844,
-    );
-    assert.deepEqual(hidden, [0, -1000, -1000, 0, 0, 1, 0]);
-    const shown = sampleMotion(
-      stimulus.delay,
-      stimulus.angle,
-      stimulus.spin,
-      stimulus.drift,
-      stimulus.spiral,
-      stimulus.r0,
-      stimulus.r1,
-      400,
-      390,
-      844,
-    );
-    assert.equal(shown.length, 7);
-    assert.equal(shown[0], 1);
+  it('rests on the static wordmark and glides the dot before the word reveals', () => {
+    const early = markPose(1000, 0.2);
+    assert.equal(early.showPng, false);
+    assert.equal(early.dx, 0);
+    const gliding = markPose(GLIDE_AT + GLIDE_MS, 1);
+    assert.ok(Math.abs(gliding.dx - 62.24) < 0.05);
+    assert.ok(Math.abs(gliding.dy - 0.31) < 0.05);
+    const rest = markPose(5800, 1);
+    assert.equal(rest.showPng, true);
+    assert.equal(rest.showCircle, false);
+    assert.equal(rest.glyphA, 0);
+  });
+
+  it('builds every blob from 28 quadratics', () => {
+    for (const kind of [0, 1, 2]) {
+      let quads = 0;
+      let closed = false;
+      writeOutline(
+        {
+          moveTo() {},
+          quadTo() {
+            quads += 1;
+          },
+          close() {
+            closed = true;
+          },
+        },
+        kind,
+        0.256,
+        1,
+      );
+      assert.equal(quads, 28);
+      assert.equal(closed, true);
+    }
   });
 
   it('marks every function a worklet calls as a worklet', () => {
     const timeline = readFileSync(new URL('./sluket.ts', import.meta.url), 'utf8');
     const play = readFileSync(new URL('../components/SluketPlay.tsx', import.meta.url), 'utf8');
     const defined = functionBodies(timeline);
-    const worklets = new Set([...defined.entries()].filter(([, fn]) => fn.worklet).map(([name]) => name));
-    for (const name of [
-      'clamp01',
-      'lerp',
-      'bezier',
-      'bezierSlope',
-      'cubicBezierY',
-      'springAt',
-      'spiralAngle',
-      'sampleMotion',
-      'periodScale',
-      'wordReveal',
-    ]) {
-      assert.equal(worklets.has(name), true, `${name} is missing 'worklet'`);
+    for (const name of ['legacyTime', 'mixAt', 'sampleStimulus', 'massIn', 'markPose', 'gooSigma', 'writeOutline']) {
+      assert.equal(defined.get(name)?.worklet, true, name);
     }
     for (const [name, fn] of defined) {
       if (!fn.worklet) continue;
@@ -145,7 +176,13 @@ describe('sluket', () => {
         assert.equal(target.worklet, true, `${name} calls ${callee}, which is not a worklet`);
       }
     }
-    const uiBodies = [...callbackBodies(play, 'useAnimatedStyle'), ...callbackBodies(play, 'runOnUI')];
+    const uiBodies = [
+      ...callbackBodies(play, 'useCallback'),
+      ...callbackBodies(play, 'useDerivedValue'),
+      ...callbackBodies(play, 'useAnimatedStyle'),
+      ...callbackBodies(play, 'useAnimatedReaction'),
+      ...callbackBodies(play, 'usePathValue'),
+    ];
     assert.ok(uiBodies.length >= 4);
     for (const body of uiBodies) {
       for (const callee of callsIn(body)) {
@@ -154,15 +191,8 @@ describe('sluket', () => {
         assert.equal(target.worklet, true, `a splash worklet calls ${callee}, which is not a worklet`);
       }
     }
-    assert.match(play, /opacity: motion\[0\]/);
-    assert.match(play, /backgroundColor: interpolateColor\(motion\[6\], MIX_STOPS, colors\)/);
-    assert.match(play, /translateX: motion\[1\][\s\S]*translateY: motion\[2\][\s\S]*rotate: `\$\{motion\[3\]\}rad`[\s\S]*scaleX: motion\[4\] \* motion\[5\][\s\S]*scaleY: motion\[4\]/);
-    assert.equal(play.includes('rgbToHex'), false);
-  });
-
-  it('uses an ease-in for the spiral and an ease-out for the word', () => {
-    assert.ok(cubicBezierY(0.55, 0, 1, 0.45, 0.5) < 0.5);
-    assert.ok(cubicBezierY(0.22, 1, 0.36, 1, 0.5) > 0.5);
+    assert.equal(play.includes('useTheme'), false);
+    assert.equal(play.includes('<Text'), false);
   });
 });
 

@@ -1,27 +1,27 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
-import { REDUCE_FADE_MS, REDUCE_HOLD_MS } from '@/splash/splashTiming';
-import { useTheme } from '@/theme';
-
-const WORD_SIZE = 52;
+import { WordmarkImage } from '@/components/WordmarkImage';
+import { SPLASH_BG } from '@/splash/splashTiming';
 
 export type SplashProps = {
-  /** Parent has asked the overlay to crossfade out. */
+  /** Parent has asked the overlay to leave. The exit is a cut, not a fade. */
   fading: boolean;
+  /** False keeps the image up without starting the hold (mounted under the native splash, or while backgrounded). */
+  armed: boolean;
+  holdMs: number;
+  fadeMs: number;
   onHandoff: (mode: 'enter' | 'fade') => void;
   onDismiss: () => void;
 };
 
 /**
- * Reduce Motion splash, and the splash shipped while features.sluketAnimation is off.
- * Solid «bored.» (word and period, one colour) on the theme background.
- * Hold, then a plain Animated fade. No Reanimated worklets.
+ * Static wordmark. Always splash-wordmark-dark.png on #111110, centred on the full window.
+ * Hold, then a hard cut. Tap skips. No theme read and no Text.
+ * v4 §0: a fade of this dark plate over a light screen would be a grey frame.
  */
-export function StillSplash({ fading, onHandoff, onDismiss }: SplashProps) {
-  const { theme } = useTheme();
-  const opacity = useRef(new Animated.Value(1)).current;
+export function StillSplash({ fading, armed, holdMs, onHandoff, onDismiss }: SplashProps) {
   const handed = useRef(false);
   const onHandoffRef = useRef(onHandoff);
   const onDismissRef = useRef(onDismiss);
@@ -39,52 +39,41 @@ export function StillSplash({ fading, onHandoff, onDismiss }: SplashProps) {
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(handoff, REDUCE_HOLD_MS);
+    if (!fading) handed.current = false;
+  }, [fading]);
+
+  useEffect(() => {
+    if (!armed || fading) return;
+    const timer = setTimeout(handoff, holdMs);
     return () => clearTimeout(timer);
-  }, [handoff]);
+  }, [armed, fading, handoff, holdMs]);
 
   useEffect(() => {
     if (!fading) return;
-    const fade = Animated.timing(opacity, {
-      toValue: 0,
-      duration: REDUCE_FADE_MS,
-      useNativeDriver: true,
-    });
-    fade.start(({ finished }) => {
-      if (finished) dismiss();
-    });
-    return () => fade.stop();
-  }, [dismiss, fading, opacity]);
+    dismiss();
+  }, [dismiss, fading]);
 
   return (
-    <Animated.View
-      accessibilityViewIsModal
-      style={[styles.layer, { opacity, backgroundColor: theme.color.bg.default }]}
-    >
-      <StatusBar style={theme.statusBar} />
+    <View accessibilityViewIsModal style={[styles.layer, { backgroundColor: SPLASH_BG }]}>
+      <StatusBar style="light" />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="bored"
         accessibilityHint="Trykk for å hoppe over"
-        onPress={handoff}
+        onPress={() => {
+          if (armed) handoff();
+        }}
         style={styles.press}
       >
-        <Text
-          style={{
-            fontFamily: theme.fonts.serifItalic,
-            fontSize: WORD_SIZE,
-            lineHeight: WORD_SIZE + 8,
-            color: theme.color.text.primary,
-          }}
-        >
-          bored.
-        </Text>
+        <View pointerEvents="none" style={styles.press}>
+          <WordmarkImage />
+        </View>
       </Pressable>
-    </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   layer: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 20 },
-  press: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  press: { flex: 1 },
 });

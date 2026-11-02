@@ -113,9 +113,9 @@ Internal testers are people on the App Store Connect team. You do not need a bet
 | `testflight` | The profile to use for this first TestFlight. Store distribution. |
 | `production` | Store distribution for a later App Store release. Do not use it for the tester build. |
 
-## Open pull requests
+## Profiles that are not production
 
-Two unmerged pull requests branch on whether the EAS profile is `production`. The `testflight` profile is not that name.
+The splash work from PR #7 is on master. The backup preview in PR #6 is still open. Both treat only the EAS profile named `production` as production. `testflight` is not that name.
 
 **PR #6** (backup preview) throws while Expo evaluates the config if `BACKUP_MODE` is `preview` and the profile is `production`. Any other profile, including `testflight`, keeps the preview backup, which is the honest TestFlight behavior (the screens are real, nothing leaves the phone).
 
@@ -143,8 +143,8 @@ if (typeof easBuildProfile === 'string' && easBuildProfile.length > 0) {
 }
 ```
 
-**PR #7** (splash) adds `app.config.js` and `src/config/buildProfile.ts`. The temporary «Jeg har allerede en konto» hook replays the splash when `__DEV__` is true, or when the baked profile is set and is not `production`. `testflight` keeps the hook on. A release build with no profile baked in turns the hook off, which is why the `extra.easBuildProfile` copy has to survive the merge.
+**Splash replay** (merged from PR #7) turns «Jeg har allerede en konto» on in `__DEV__`, and in a release binary whose baked profile is set and is not `production`. `testflight` keeps the hook on. A release build with no profile baked in turns the hook off, which is why `app.config.js` copies `EAS_BUILD_PROFILE` into `extra.easBuildProfile`.
 
-`src/config/buildProfile.ts` on this branch already uses PR #7's names (`easBuildProfile`, `isDevBuild`) and reads `extra.easBuildProfile`. It also reads `process.env.EAS_BUILD_PROFILE` first, and it adds `isProductionBuildProfile`. When the two copies of the file meet, keep all of that. Leave `expo-constants` inside the function. A top-level import would run while `app.config.ts` loads this module.
+`src/config/buildProfile.ts` keeps PR #7's names (`easBuildProfile`, `isDevBuild`), reads `process.env.EAS_BUILD_PROFILE` first, and adds `isProductionBuildProfile`. `expo-constants` stays inside the function. A top-level import would run while `app.config.ts` loads this module.
 
-PR #7's `app.config.js` assigns `null` when the env var is missing. Expo's config serializer turns that `null` into `{}`. This branch omits the key instead. Keep that omission when the files are merged, in both `app.config.js` and the `app.config.ts` snippet above.
+`app.config.js` omits `easBuildProfile` when the env var is missing. PR #7 assigned `null` there, and Expo's config serializer turns that `null` into `{}`. Keep the omission in `app.config.js` and in the `app.config.ts` snippet above. The native splash config is the always-dark v4 setup from master. Leave it as it is.
