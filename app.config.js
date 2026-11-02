@@ -1,0 +1,20 @@
+/**
+ * Expo loads app.json first and passes it as `config`. Spreading it keeps those
+ * values, and copies the EAS profile into `extra` so a release binary can tell
+ * production from preview. `EAS_BUILD_PROFILE` exists while EAS evaluates this
+ * file. It is not in the Metro bundle unless it is copied here.
+ *
+ * Do not assign `null`. Expo's config serializer treats null as an object and
+ * stores `{}`, which is truthy. Omit the key when no profile is set.
+ */
+module.exports = ({ config }) => {
+  const easBuildProfile = process.env.EAS_BUILD_PROFILE ?? process.env.EXPO_PUBLIC_EAS_BUILD_PROFILE;
+  const extra = { ...config.extra };
+  if (typeof easBuildProfile === 'string' && easBuildProfile.length > 0) {
+    extra.easBuildProfile = easBuildProfile;
+  }
+  return {
+    ...config,
+    extra,
+  };
+};
