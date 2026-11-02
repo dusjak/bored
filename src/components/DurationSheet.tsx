@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AiCard } from '@/components/AiCard';
 import { Button } from '@/components/Button';
+import { ScreenTitle } from '@/components/ScreenTitle';
 import { TactileCircle } from '@/components/TactileCircle';
 import { features } from '@/config/features';
 import { minutesPhrase, parseCustomMinutes, PRESET_MINUTES } from '@/data/copy';
@@ -146,9 +147,7 @@ export function DurationSheet({ visible, current, sessionCount, onUse, onClose }
           </Pressable>
 
           <View style={styles.body}>
-            <Text accessibilityRole="header" style={[theme.text.headline, { color: theme.color.text.primary }]}>
-              Velg varighet
-            </Text>
+            <ScreenTitle align="center">Velg varighet</ScreenTitle>
 
             <View
               style={styles.dial}

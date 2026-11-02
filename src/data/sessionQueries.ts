@@ -226,11 +226,12 @@ export async function deleteSession(db: AppDatabase, id: string): Promise<void> 
   await db.runAsync('DELETE FROM sessions WHERE id = ?', id);
 }
 
-/** Wipes sessions, notes, and settings. The next launch looks newly installed. */
+/** Wipes sessions, notes, settings, and app_state. The next launch looks newly installed. */
 export async function clearAllLocalData(db: AppDatabase): Promise<void> {
   await db.runAsync('DELETE FROM journal_entries');
   await db.runAsync('DELETE FROM sessions');
   await db.runAsync('DELETE FROM settings');
+  await db.runAsync('DELETE FROM app_state');
 }
 
 /** Oldest first, one mark per finished session. Aborted marks use the muted stroke. */

@@ -115,36 +115,10 @@ Internal testers are people on the App Store Connect team. You do not need a bet
 
 ## Profiles that are not production
 
-The splash work from PR #7 is on master. The backup preview in PR #6 is still open. Both treat only the EAS profile named `production` as production. `testflight` is not that name.
+The splash work and the backup preview are both on master. Only the EAS profile named `production` counts as production. `testflight` does not.
 
-**PR #6** (backup preview) throws while Expo evaluates the config if `BACKUP_MODE` is `preview` and the profile is `production`. Any other profile, including `testflight`, keeps the preview backup, which is the honest TestFlight behavior (the screens are real, nothing leaves the phone).
+`app.config.js` defaults `BACKUP_MODE` to `preview`. That is allowed for `testflight`, so a TestFlight build keeps the honest preview backup: the screens are real, and nothing leaves the phone. The same preview mode throws when `EAS_BUILD_PROFILE` is `production`. Use `BACKUP_MODE=off` or `BACKUP_MODE=live` for that profile.
 
-Hook it up by replacing the inline check in `src/backup/mode.ts`:
+The splash replay on «Jeg har allerede en konto» stays on for `testflight`. It stays off in a release binary whose profile was not baked in. `app.config.js` copies `EAS_BUILD_PROFILE` into `extra.easBuildProfile` and omits the key when it is unset. Do not write `null` there. Expo's serializer turns `null` into `{}`.
 
-```ts
-import { isProductionBuildProfile } from '../config/buildProfile.ts';
-
-if (mode === 'preview' && isProductionBuildProfile(easBuildProfile)) {
-  throw new Error(
-    "BACKUP_MODE 'preview' cannot ship when EAS_BUILD_PROFILE is 'production'. Use 'off' or 'live'.",
-  );
-}
-```
-
-`assertBackupMode` already receives `process.env.EAS_BUILD_PROFILE` from `app.config.ts`. Pass that same value through. Do not treat `testflight` as production.
-
-When that `app.config.ts` lands, Expo will load it instead of `app.config.js`. Copy the profile into `extra` there as well, or a release binary cannot see the profile name:
-
-```ts
-const easBuildProfile = process.env.EAS_BUILD_PROFILE ?? process.env.EXPO_PUBLIC_EAS_BUILD_PROFILE;
-const extra = { ...config.extra, backupMode };
-if (typeof easBuildProfile === 'string' && easBuildProfile.length > 0) {
-  extra.easBuildProfile = easBuildProfile;
-}
-```
-
-**Splash replay** (merged from PR #7) turns «Jeg har allerede en konto» on in `__DEV__`, and in a release binary whose baked profile is set and is not `production`. `testflight` keeps the hook on. A release build with no profile baked in turns the hook off, which is why `app.config.js` copies `EAS_BUILD_PROFILE` into `extra.easBuildProfile`.
-
-`src/config/buildProfile.ts` keeps PR #7's names (`easBuildProfile`, `isDevBuild`), reads `process.env.EAS_BUILD_PROFILE` first, and adds `isProductionBuildProfile`. `expo-constants` stays inside the function. A top-level import would run while `app.config.ts` loads this module.
-
-`app.config.js` omits `easBuildProfile` when the env var is missing. PR #7 assigned `null` there, and Expo's config serializer turns that `null` into `{}`. Keep the omission in `app.config.js` and in the `app.config.ts` snippet above. The native splash config is the always-dark v4 setup from master. Leave it as it is.
+The native splash config is the always-dark v4 setup from master. Leave it as it is.

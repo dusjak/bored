@@ -1,12 +1,14 @@
 export { fontAssets } from './fonts';
-export { ThemeProvider, useTheme } from './ThemeProvider';
+export { ThemeOverride, ThemeProvider, useTheme } from './ThemeProvider';
 export {
   DEFAULT_THEME_PREFERENCE,
   fonts,
   glassBlurRadius,
   motion,
+  monoHeroFontLineHeight,
   radius,
   resolveThemeName,
+  screenHeaderInset,
   screenPadding,
   size,
   space,
