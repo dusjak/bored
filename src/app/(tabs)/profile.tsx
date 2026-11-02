@@ -7,12 +7,13 @@ import { Button } from '@/components/Button';
 import { DurationSheet } from '@/components/DurationSheet';
 import { Icon } from '@/components/Icon';
 import { Screen } from '@/components/Screen';
+import { ScreenTitle } from '@/components/ScreenTitle';
 import { Toggle } from '@/components/Toggle';
 import { features } from '@/config/features';
 import { appearanceLabel, durationParts, minutesPhrase, reminderSchedule } from '@/data/copy';
 import { hasNotificationPermission } from '@/data/notifications';
 import { useAppState } from '@/state/AppState';
-import { fonts, useTheme } from '@/theme';
+import { fonts, screenHeaderInset, useTheme } from '@/theme';
 
 /** Deg. Preferences, appearance, then a full reset. */
 export default function Profile() {
@@ -78,11 +79,7 @@ export default function Profile() {
 
   return (
     <Screen scroll edges={['top']} contentStyle={styles.content}>
-      {user.name ? (
-        <Text style={[theme.text.headline, { color: theme.color.text.primary, marginBottom: theme.space['6'] }]}>
-          {user.name}
-        </Text>
-      ) : null}
+      {user.name ? <ScreenTitle style={{ marginBottom: theme.space['6'] }}>{user.name}</ScreenTitle> : null}
 
       <Pressable
         accessibilityRole="button"
@@ -211,7 +208,7 @@ export default function Profile() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 140 },
+  content: { paddingBottom: 140, paddingTop: screenHeaderInset },
   row: {
     minHeight: 44,
     flexDirection: 'row',

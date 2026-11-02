@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
+import { ScreenTitle } from '@/components/ScreenTitle';
 import { abortedPhrase } from '@/data/copy';
 import { getSession } from '@/data/repository';
 import { MOODS, type MoodId, type SessionWithJournal } from '@/data/types';
@@ -66,7 +67,7 @@ export default function Reflection() {
   return (
     <Screen scroll contentStyle={styles.content}>
       <View style={{ marginBottom: theme.space['8'] }}>
-        <Text style={[theme.text.headline, { color: theme.color.text.primary }]}>{heading}</Text>
+        <ScreenTitle>{heading}</ScreenTitle>
       </View>
 
       <Text style={[theme.text.label, { color: theme.color.text.primary, marginBottom: theme.space['3'] }]}>
