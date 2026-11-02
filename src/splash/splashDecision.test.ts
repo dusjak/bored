@@ -9,6 +9,7 @@ import {
   reduceSplashAppState,
   shouldPersistSplashSeen,
   splashAfterReset,
+  splashReplay,
   splashSuppressed,
 } from './splashDecision.ts';
 
@@ -32,6 +33,12 @@ describe('splash decision', () => {
     assert.deepEqual(boot, { occasion: 'after-reset', phase: 'play' });
     const decision = decideSplash({ ...base, occasion: boot.occasion });
     assert.equal(decision.mode, 'sluket');
+  });
+
+  it('replays the full first-launch Sluket without a data reset', () => {
+    const boot = splashReplay();
+    assert.deepEqual(boot, { occasion: 'first-launch', phase: 'play' });
+    assert.equal(decideSplash({ ...base, occasion: boot.occasion }).mode, 'sluket');
   });
 
   it('shows the still wordmark on a later launch', () => {

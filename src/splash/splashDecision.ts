@@ -90,6 +90,14 @@ export function splashAfterReset(): { occasion: SplashOccasion; phase: IntroPhas
 }
 
 /**
+ * TODO: The real existing-account flow replaces the button that calls this.
+ * Same motion as a cold first launch. Does not read or write storage.
+ */
+export function splashReplay(): { occasion: SplashOccasion; phase: IntroPhase } {
+  return { occasion: 'first-launch', phase: 'play' };
+}
+
+/**
  * AppState changes.
  * 'inactive' (Control Center, notification shade) is ignored.
  * 'background' shows the wordmark so the iOS snapshot is the splash, unless a

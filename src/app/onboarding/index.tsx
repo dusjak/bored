@@ -5,11 +5,19 @@ import { Button } from '@/components/Button';
 import { Logo } from '@/components/Logo';
 import { Screen } from '@/components/Screen';
 import { WelcomeReveal } from '@/components/WelcomeReveal';
+import { easBuildProfile, isDevBuild } from '@/config/buildProfile';
+import { isSplashReplayEnabled } from '@/config/features';
+import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
 /** Welcome screen. */
 export default function Welcome() {
   const { theme } = useTheme();
+  const { replayIntroSplash } = useAppState();
+  // TODO: The real existing-account flow replaces this.
+  // Temporary test hook: replay the full first-launch Sluket and stay on this screen.
+  // No stored data changes. Off unless __DEV__ or a non-production EAS profile.
+  const replaySplash = isSplashReplayEnabled(isDevBuild(), easBuildProfile());
   return (
     <Screen contentStyle={styles.content}>
       <WelcomeReveal index={0}>
@@ -33,7 +41,11 @@ export default function Welcome() {
       <WelcomeReveal index={3}>
         <View style={{ gap: 10 }}>
           <Button title="Kom i gang" onPress={() => router.push('/onboarding/distraction')} />
-          <Button title="Jeg har allerede en konto" variant="ghost" />
+          <Button
+            title="Jeg har allerede en konto"
+            variant="ghost"
+            onPress={replaySplash ? () => replayIntroSplash() : undefined}
+          />
         </View>
       </WelcomeReveal>
     </Screen>

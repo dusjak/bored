@@ -40,6 +40,7 @@ import {
   initialSplash,
   reduceSplashAppState,
   splashAfterReset,
+  splashReplay,
   type IntroPhase,
   type SplashOccasion,
 } from '@/splash/splashDecision';
@@ -88,6 +89,11 @@ type AppStateValue = {
   /** Latest session/reflection flag for the AppState listener. Ref write, no render. */
   setSplashSuppressed: (suppressed: boolean) => void;
   beginIntroSplash: () => void;
+  /**
+   * TODO: The real existing-account flow replaces the caller.
+   * Plays full Sluket as a first launch. Does not change stored data or the route.
+   */
+  replayIntroSplash: () => void;
   setIntroPhase: (phase: IntroPhase) => void;
   /** Crash fallback. Writes bored.splashSeen even if the timeline never reaches fade. */
   markSplashSeen: () => void;
@@ -327,6 +333,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     sawBackgroundRef.current = false;
   }, []);
 
+  const replayIntroSplash = useCallback(() => {
+    const splash = splashReplay();
+    setSplashOccasion(splash.occasion);
+    setIntroPhaseState(splash.phase);
+    setSplashHoldArmed(true);
+    sawBackgroundRef.current = false;
+  }, []);
+
   const setIntroPhase = useCallback((phase: IntroPhase) => {
     setIntroPhaseState(phase);
     if (phase === 'fade' || phase === 'enter') {
@@ -421,6 +435,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       splashHoldArmed,
       setSplashSuppressed,
       beginIntroSplash,
+      replayIntroSplash,
       setIntroPhase,
       markSplashSeen,
     }),
@@ -455,6 +470,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       splashHoldArmed,
       setSplashSuppressed,
       beginIntroSplash,
+      replayIntroSplash,
       setIntroPhase,
       markSplashSeen,
     ],
