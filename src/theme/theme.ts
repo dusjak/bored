@@ -186,9 +186,9 @@ const darkColor = {
 } as const;
 
 export type ThemeName = 'light' | 'dark';
-/** Stored user preference. Default 'light'. 'system' follows useColorScheme(). */
+/** Stored user preference. Default 'system' (Automatisk, follows the phone). Was 'light' until 2026-11-01. */
 export type ThemePreference = 'light' | 'dark' | 'system';
-export const DEFAULT_THEME_PREFERENCE: ThemePreference = 'light';
+export const DEFAULT_THEME_PREFERENCE: ThemePreference = 'system';
 export type ColorTokens = { [G in keyof typeof lightColor]: { [K in keyof (typeof lightColor)[G]]: string } };
 
 /* ---------- Dimensions (Figma "Primitives": space/*, radius/*, size/*) ---------- */
@@ -206,7 +206,7 @@ export const space = {
   '24': 96,
   '32': 128,
 } as const;
-export const screenPadding = space[7];
+export const screenPadding = space[4]; // 16 (HIG). Was space[7] = 28 until 2026-11-01.
 export const radius = {
   none: 0,
   small: 4,
@@ -259,6 +259,20 @@ export const text = {
   monoMeta: { fontFamily: fonts.mono, fontSize: 13, lineHeight: 18, fontVariant: ['tabular-nums'] } as TextStyle,
   note: { fontFamily: fonts.sansItalic, fontSize: 13, lineHeight: 18 } as TextStyle,
 };
+/**
+ * Top inset under the safe area on screens that opened with a title or wordmark.
+ * «Logg» was `text.headline` (lineHeight 32) plus `space['6']` (24) under it: 56.
+ * That sat on `screenPadding` (16), so the next line started at 72.
+ * Welcome, Logg, and Deg use this. Hjem stays on `screenPadding`.
+ */
+export const screenHeaderInset = screenPadding + Number(text.headline.lineHeight) + space['6'];
+/**
+ * DM Mono 300 Light line box at `text.monoHero` size (56).
+ * Ascender 992, descender −310, unitsPerEm 1000 → ceil(56 × 1.302) = 73.
+ * iOS clips a line when `lineHeight` is shorter than that box, which cuts the top of «2».
+ * The token stays 56 so Hjem's circle is unchanged. Logg's count uses this.
+ */
+export const monoHeroFontLineHeight = Math.ceil((56 * (992 - -310)) / 1000);
 
 /* ---------- Effects (Figma effect styles effect/object/*, effect/glass/*) ---------- */
 /** RN can render one shadow per view: use the soft drop shadow; highlight/shade need an inner overlay (e.g. a 1px top border or LinearGradient-free inset View). */

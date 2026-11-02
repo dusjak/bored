@@ -3,6 +3,7 @@ import { router } from 'expo-router';
 
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
+import { ScreenTitle } from '@/components/ScreenTitle';
 import { capitalize, GOAL_LABELS, TIME_PHRASES } from '@/data/mock';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
@@ -32,12 +33,13 @@ export default function Ready() {
     <Screen session background={theme.color.bg.session} contentStyle={styles.content}>
       <View style={styles.main}>
         <View style={{ marginBottom: 40 }}>
-          <Text style={[theme.text.eyebrow, { color: theme.color.session['text-tertiary'], marginBottom: 20 }]}>
-            Klar til å begynne
-          </Text>
-          <Text style={[theme.text.display, { color: theme.color.session['text-primary'], marginBottom: 16 }]}>
+          <ScreenTitle
+            variant="display"
+            color={theme.color.session['text-primary']}
+            style={{ marginBottom: 16 }}
+          >
             {user.name ? `${user.name}, la oss starte.` : 'La oss starte.'}
-          </Text>
+          </ScreenTitle>
           <Text style={[theme.text.body, { color: theme.color.session['text-secondary'] }]}>
             Du starter med {dur} minutter {time}, med mål om {goal}.
           </Text>

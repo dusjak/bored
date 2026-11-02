@@ -12,7 +12,7 @@ import { sessionTotals } from '@/data/sessionQueries';
 import { MOODS, type MoodId, type SessionWithJournal } from '@/data/types';
 import { useAppState } from '@/state/AppState';
 import { useBackup } from '@/state/BackupState';
-import { useTheme } from '@/theme';
+import { monoHeroFontLineHeight, screenHeaderInset, useTheme } from '@/theme';
 
 function moodLabel(id: MoodId | null): string | null {
   if (!id) return null;
@@ -47,8 +47,6 @@ export default function Log() {
 
   return (
     <Screen scroll edges={['top']} contentStyle={styles.content}>
-      <Text style={[theme.text.headline, { color: theme.color.text.primary, marginBottom: theme.space['6'] }]}>Logg</Text>
-
       {showNudge ? (
         <BackupNudgeCard
           onEnable={() => router.push('/log/backup')}
@@ -186,9 +184,10 @@ export default function Log() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 140 },
+  content: { paddingBottom: 140, paddingTop: screenHeaderInset },
   countRow: { flexDirection: 'row', alignItems: 'baseline' },
-  count: { lineHeight: 56 },
+  // Taller than monoHero's 56 so iOS does not clip the top of the digit.
+  count: { lineHeight: monoHeroFontLineHeight },
   row: { borderBottomWidth: 1 },
   rowHit: { minHeight: 44, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
   preview: { maxWidth: 140, textAlign: 'right' },

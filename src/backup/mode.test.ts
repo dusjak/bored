@@ -11,10 +11,12 @@ describe('BACKUP_MODE build check', () => {
     );
   });
 
-  it('allows preview for development, preview, and an unset profile', () => {
+  it('allows preview for development, preview, testflight, and an unset profile', () => {
     assert.equal(assertBackupMode('preview', 'development'), 'preview');
     assert.equal(assertBackupMode('preview', 'preview'), 'preview');
+    assert.equal(assertBackupMode('preview', 'testflight'), 'preview');
     assert.equal(assertBackupMode('preview', undefined), 'preview');
+    assert.equal(assertBackupMode('preview', null), 'preview');
   });
 
   it('allows off and live on a production build', () => {

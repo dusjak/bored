@@ -5,10 +5,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AiCard } from '@/components/AiCard';
 import { Button } from '@/components/Button';
+import { ScreenTitle } from '@/components/ScreenTitle';
 import { TactileCircle } from '@/components/TactileCircle';
 import { features } from '@/config/features';
 import { minutesPhrase, parseCustomMinutes, PRESET_MINUTES } from '@/data/copy';
-import { useTheme } from '@/theme';
+import { screenPadding, useTheme } from '@/theme';
 
 type Props = {
   visible: boolean;
@@ -146,9 +147,7 @@ export function DurationSheet({ visible, current, sessionCount, onUse, onClose }
           </Pressable>
 
           <View style={styles.body}>
-            <Text accessibilityRole="header" style={[theme.text.headline, { color: theme.color.text.primary }]}>
-              Velg varighet
-            </Text>
+            <ScreenTitle align="center">Velg varighet</ScreenTitle>
 
             <View
               style={styles.dial}
@@ -252,7 +251,7 @@ const styles = StyleSheet.create({
   sheet: {},
   handleHit: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   handle: { width: 36, height: 4, borderRadius: 2 },
-  body: { alignItems: 'center', paddingHorizontal: 30, gap: 16 },
+  body: { alignItems: 'center', paddingHorizontal: screenPadding, gap: 16 },
   dial: { width: SIZE, height: SIZE },
   circleSlot: { position: 'absolute', left: CENTER - 88, top: CENTER - 88 },
   knob: { position: 'absolute', width: 22, height: 22, borderRadius: 11 },

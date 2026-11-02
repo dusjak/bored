@@ -6,6 +6,7 @@ import { useTheme } from '@/theme';
 import { ForwardSlide, SUBTITLE_SLIDE_OFFSET } from './ForwardSlide';
 import { Icon } from './Icon';
 import { ProgressDots } from './ProgressDots';
+import { ScreenTitle } from './ScreenTitle';
 
 /** Back control, progress, step count, title and subtitle. */
 export function OnboardingHeader({
@@ -36,7 +37,7 @@ export function OnboardingHeader({
       <Text style={[theme.text.eyebrow, { color: theme.color.text.tertiary, marginBottom: 10 }]}>
         {step + 1} av {ONBOARDING_STEPS}
       </Text>
-      <Text style={[theme.text.headline, { color: theme.color.text.primary, marginBottom: 8 }]}>{title}</Text>
+      <ScreenTitle style={{ marginBottom: 8 }}>{title}</ScreenTitle>
       {slideSub ? (
         <ForwardSlide offset={SUBTITLE_SLIDE_OFFSET} delay={0}>
           {subtitle}

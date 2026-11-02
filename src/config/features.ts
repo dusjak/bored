@@ -11,4 +11,21 @@ const aiCard =
 export const features = {
   sluketAnimation: true,
   aiCard,
+  /**
+   * Paint-mix pass (Kubelka–Munk + OKLab). Flip this off to keep goo only
+   * after measuring on an older iPhone. Low Power Mode also forces it off.
+   */
+  sluketColorMix: true,
 } as const;
+
+/**
+ * TODO: The real existing-account flow replaces this hook.
+ * Temporary: «Jeg har allerede en konto» replays the full first-launch Sluket.
+ * On in `__DEV__`, and in a non-production EAS profile. Off in a production build,
+ * including a release binary whose profile is missing (that must not ship the hook).
+ */
+export function isSplashReplayEnabled(dev: boolean, easBuildProfile: string | null | undefined): boolean {
+  if (dev) return true;
+  if (easBuildProfile == null || easBuildProfile === '') return false;
+  return easBuildProfile !== 'production';
+}

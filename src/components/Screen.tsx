@@ -16,7 +16,7 @@ type Props = {
   statusBar?: 'light' | 'dark';
 };
 
-/** Side and top inset under the safe area. Token `screenPadding` (`space['7']`, 28). */
+/** Side and top inset under the safe area. Token `screenPadding` (`space['4']`, 16). */
 const SCREEN_GUTTER = screenPadding;
 
 /** Screen shell: status bar, then content with the screenPadding side and top inset. */

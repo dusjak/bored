@@ -5,12 +5,12 @@ import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { Logo } from '@/components/Logo';
+import { ScreenTitle } from '@/components/ScreenTitle';
 import { TactileCircle } from '@/components/TactileCircle';
 import { HOLD_TO_END_MS, chosenMinutes, completionSentence } from '@/data/copy';
 import { decideUnfinishedSession } from '@/data/sessionRules';
 import { useAppState } from '@/state/AppState';
-import { useTheme } from '@/theme';
+import { screenPadding, useTheme } from '@/theme';
 
 /** Active session. Always dark. Hold the circle for one second to end early. */
 export default function Session() {
@@ -269,7 +269,7 @@ export default function Session() {
                 accessibilityElementsHidden={!showDone}
               >
                 <Text style={[theme.text.eyebrow, { color: theme.color.text.primary }]}>Økt fullført</Text>
-                <Text style={[theme.text.headline, styles.sentence, { color: theme.color.text.primary }]}>{sentence}</Text>
+                <ScreenTitle align="center">{sentence}</ScreenTitle>
               </Animated.View>
             </View>
 
@@ -299,15 +299,6 @@ export default function Session() {
                 if (event.nativeEvent.actionName === 'end') playAbort();
               }}
             >
-              <Animated.View
-                pointerEvents="none"
-                style={[styles.circleLayer, { opacity: runningOpacity }]}
-                accessible={false}
-                importantForAccessibility="no-hide-descendants"
-                accessibilityElementsHidden
-              >
-                <Logo size={22} color={theme.color.session.decorative} />
-              </Animated.View>
               <Animated.View pointerEvents="none" style={[styles.circleLayer, { opacity: doneOpacity }]}>
                 <View
                   accessible={false}
@@ -332,11 +323,10 @@ export default function Session() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  stage: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 30, paddingTop: 30, gap: 28 },
+  stage: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: screenPadding, paddingTop: 30, gap: 28 },
   timerBlock: { minHeight: 140, alignItems: 'center', justifyContent: 'center' },
   timer: { width: '100%', textAlign: 'center' },
   doneCopy: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 8 },
-  sentence: { textAlign: 'center' },
   hint: { textAlign: 'center' },
   dot: { width: 8, height: 8, borderRadius: 4 },
   circleLayer: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
