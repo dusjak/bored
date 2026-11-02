@@ -1,3 +1,14 @@
+import type { BackupPreview } from '@/backup/model';
+import type { NudgeFlags } from '@/backup/nudge';
+import {
+  dismissNudgeFlags,
+  purgeLegacyNudgeFlags,
+  readBackupEverEnabled,
+  readBackupPreview,
+  readNudgeFlags,
+  setBackupEverEnabled,
+  writeBackupPreview,
+} from '@/data/appState';
 import { openDatabase } from '@/data/db';
 import { migrateProfile } from '@/data/profile';
 import type { AppDatabase } from '@/data/sessionQueries';
@@ -102,7 +113,37 @@ export async function deleteSession(id: string): Promise<void> {
   await queries.deleteSession(connection(await openDatabase()), id);
 }
 
-/** Deletes every session, note, and setting. Does not touch the OS notification permission. */
+/** Deletes every session, note, setting, and app_state row. Does not touch the OS notification permission. */
 export async function clearAllLocalData(): Promise<void> {
   await queries.clearAllLocalData(connection(await openDatabase()));
+}
+
+async function stateDb() {
+  const db = connection(await openDatabase());
+  await purgeLegacyNudgeFlags(db);
+  return db;
+}
+
+export async function loadNudgeFlags(): Promise<NudgeFlags> {
+  return readNudgeFlags(await stateDb());
+}
+
+export async function dismissBackupNudge(completed: number, dismissedAt: string): Promise<NudgeFlags> {
+  return dismissNudgeFlags(await stateDb(), completed, dismissedAt);
+}
+
+export async function loadBackupEverEnabled(): Promise<boolean> {
+  return readBackupEverEnabled(await stateDb());
+}
+
+export async function markBackupEverEnabled(): Promise<void> {
+  await setBackupEverEnabled(await stateDb());
+}
+
+export async function loadBackupPreview(): Promise<BackupPreview> {
+  return readBackupPreview(await stateDb());
+}
+
+export async function saveBackupPreview(preview: BackupPreview): Promise<void> {
+  await writeBackupPreview(await stateDb(), preview);
 }

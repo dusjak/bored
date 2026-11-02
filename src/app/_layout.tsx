@@ -10,6 +10,7 @@ import { StillSplash } from '@/components/StillSplash';
 import { REDUCE_FADE_MS, SPLASH_BG, STILL_HOLD_MS } from '@/splash/splashTiming';
 import { splashSuppressed } from '@/splash/splashDecision';
 import { AppStateProvider, useAppState } from '@/state/AppState';
+import { BackupProvider } from '@/state/BackupState';
 import { fontAssets, ThemeProvider, useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -23,7 +24,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AppStateProvider>
-          <ReadyGate />
+          <BackupProvider>
+            <ReadyGate />
+          </BackupProvider>
         </AppStateProvider>
       </ThemeProvider>
     </SafeAreaProvider>

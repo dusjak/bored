@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { AccessibilityInfo, findNodeHandle, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { router } from 'expo-router';
 
+import { shouldShowBackupNudge } from '@/backup/nudge';
+import { BackupNudgeCard } from '@/components/backup/BackupNudgeCard';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { TallyMarks } from '@/components/TallyMarks';
@@ -8,6 +11,7 @@ import { abortedPhrase, chosenMinutes, formatSessionDate, minutesPhrase, session
 import { sessionTotals } from '@/data/sessionQueries';
 import { MOODS, type MoodId, type SessionWithJournal } from '@/data/types';
 import { useAppState } from '@/state/AppState';
+import { useBackup } from '@/state/BackupState';
 import { monoHeroFontLineHeight, screenHeaderInset, useTheme } from '@/theme';
 
 function moodLabel(id: MoodId | null): string | null {
@@ -18,11 +22,22 @@ function moodLabel(id: MoodId | null): string | null {
 export default function Log() {
   const { theme } = useTheme();
   const { sessions, saveReflection, removeReflection } = useAppState();
+  const backup = useBackup();
+  const countRef = useRef<React.ComponentRef<typeof View>>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
 
   const { total, completed, aborted } = sessionTotals(sessions);
+  const showNudge =
+    backup.ready && backup.mode !== 'off' && shouldShowBackupNudge(backup.nudge, completed);
+
+  const focusCount = () => {
+    requestAnimationFrame(() => {
+      const node = findNodeHandle(countRef.current);
+      if (node != null) AccessibilityInfo.setAccessibilityFocus(node);
+    });
+  };
 
   const open = (session: SessionWithJournal) => {
     setOpenId((current) => (current === session.id ? null : session.id));
@@ -32,8 +47,19 @@ export default function Log() {
 
   return (
     <Screen scroll edges={['top']} contentStyle={styles.content}>
+      {showNudge ? (
+        <BackupNudgeCard
+          onEnable={() => router.push('/log/backup')}
+          onDismiss={() => {
+            void backup.dismissNudge(completed).then(focusCount);
+          }}
+        />
+      ) : null}
+
       <View style={{ marginBottom: theme.space['8'] }}>
         <View
+          ref={countRef}
+          collapsable={false}
           style={styles.countRow}
           accessible
           accessibilityLabel={sessionsPhrase(total)}
