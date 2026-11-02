@@ -33,9 +33,6 @@ export default function Ready() {
     <Screen session background={theme.color.bg.session} contentStyle={styles.content}>
       <View style={styles.main}>
         <View style={{ marginBottom: 40 }}>
-          <Text style={[theme.text.eyebrow, { color: theme.color.session['text-tertiary'], marginBottom: 20 }]}>
-            Klar til å begynne
-          </Text>
           <ScreenTitle
             variant="display"
             color={theme.color.session['text-primary']}

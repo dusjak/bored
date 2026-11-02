@@ -8,7 +8,7 @@ import { WelcomeReveal } from '@/components/WelcomeReveal';
 import { easBuildProfile, isDevBuild } from '@/config/buildProfile';
 import { isSplashReplayEnabled } from '@/config/features';
 import { useAppState } from '@/state/AppState';
-import { useTheme } from '@/theme';
+import { screenHeaderInset, useTheme } from '@/theme';
 
 /** Welcome screen. */
 export default function Welcome() {
@@ -48,5 +48,5 @@ export default function Welcome() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 40, justifyContent: 'space-between' },
+  content: { paddingBottom: 40, paddingTop: screenHeaderInset, justifyContent: 'space-between' },
 });
