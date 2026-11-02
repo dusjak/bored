@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { AppState as AppActivity } from 'react-native';
 
 import { clampDurationMinutes, DEFAULT_DURATION_MINUTES, reminderSchedule } from '@/data/copy';
 import {
@@ -35,10 +36,18 @@ import {
 } from '@/data/repository';
 import { decideUnfinishedSession, elapsedSeconds } from '@/data/sessionRules';
 import type { MoodId, OnboardingProfile, SessionRecord, SessionWithJournal } from '@/data/types';
+import {
+  initialSplash,
+  reduceSplashAppState,
+  splashAfterReset,
+  splashReplay,
+  type IntroPhase,
+  type SplashOccasion,
+} from '@/splash/splashDecision';
+
+export type { IntroPhase };
 
 export type LaunchTarget = 'onboarding' | 'home' | 'session' | 'reflection';
-/** play = «Sluket» covers the first screen. fade = Reduce Motion crossfade. enter = welcome rises in. */
-export type IntroPhase = 'off' | 'play' | 'fade' | 'enter';
 
 type AppStateValue = {
   ready: boolean;
@@ -68,10 +77,26 @@ type AppStateValue = {
   refreshDailyReminder: () => Promise<void>;
   /** Wipes local data and scheduled alerts. Does not change the OS notification permission. */
   resetLocalData: () => Promise<void>;
-  /** «Sluket» on first launch and after Nullstill. Off on later launches and during a session. */
+  /**
+   * play = full «Sluket». still = static wordmark. fade = wordmark fading out.
+   * enter = welcome rises in. off = no overlay.
+   */
   introPhase: IntroPhase;
+  /** Why the overlay is up. The player picks Sluket vs the still wordmark from this. */
+  splashOccasion: SplashOccasion;
+  /** False while the app is backgrounded: the wordmark stays, and the hold waits for active. */
+  splashHoldArmed: boolean;
+  /** Latest session/reflection flag for the AppState listener. Ref write, no render. */
+  setSplashSuppressed: (suppressed: boolean) => void;
   beginIntroSplash: () => void;
+  /**
+   * TODO: The real existing-account flow replaces the caller.
+   * Plays full Sluket as a first launch. Does not change stored data or the route.
+   */
+  replayIntroSplash: () => void;
   setIntroPhase: (phase: IntroPhase) => void;
+  /** Crash fallback. Writes bored.splashSeen even if the timeline never reaches fade. */
+  markSplashSeen: () => void;
 };
 
 const Ctx = createContext<AppStateValue | null>(null);
@@ -88,10 +113,20 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [activeSession, setActiveSession] = useState<SessionRecord | null>(null);
   const [showCountdown, setShowCountdownState] = useState(true);
   const [introPhase, setIntroPhaseState] = useState<IntroPhase>('off');
+  const [splashOccasion, setSplashOccasion] = useState<SplashOccasion>('later-launch');
+  const [splashHoldArmed, setSplashHoldArmed] = useState(true);
   const userRef = useRef(user);
   const activeRef = useRef(activeSession);
   userRef.current = user;
   activeRef.current = activeSession;
+  const suppressedRef = useRef(false);
+  const sawBackgroundRef = useRef(false);
+  const phaseRef = useRef(introPhase);
+  const occasionRef = useRef(splashOccasion);
+  const holdRef = useRef(splashHoldArmed);
+  phaseRef.current = introPhase;
+  occasionRef.current = splashOccasion;
+  holdRef.current = splashHoldArmed;
 
   const refreshSessions = useCallback(async () => {
     setSessions(await listFinishedSessions());
@@ -152,10 +187,16 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             setActiveSession(active);
             setLaunch('session');
           }
-          setIntroPhaseState('off');
+          const splash = initialSplash({ splashSeen: splashSeen === '1', inSessionOrReflection: true });
+          setSplashOccasion(splash.occasion);
+          setIntroPhaseState(splash.phase);
+          setSplashHoldArmed(splash.phase !== 'off');
         } else {
           setLaunch(isOnboarded ? 'home' : 'onboarding');
-          setIntroPhaseState(!isOnboarded && splashSeen !== '1' ? 'play' : 'off');
+          const splash = initialSplash({ splashSeen: splashSeen === '1', inSessionOrReflection: false });
+          setSplashOccasion(splash.occasion);
+          setIntroPhaseState(splash.phase);
+          setSplashHoldArmed(true);
         }
       } catch {
         if (!cancelled) setStorageError('noe gikk galt. prøv igjen.');
@@ -285,7 +326,19 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const beginIntroSplash = useCallback(() => {
-    setIntroPhaseState('play');
+    const splash = splashAfterReset();
+    setSplashOccasion(splash.occasion);
+    setIntroPhaseState(splash.phase);
+    setSplashHoldArmed(true);
+    sawBackgroundRef.current = false;
+  }, []);
+
+  const replayIntroSplash = useCallback(() => {
+    const splash = splashReplay();
+    setSplashOccasion(splash.occasion);
+    setIntroPhaseState(splash.phase);
+    setSplashHoldArmed(true);
+    sawBackgroundRef.current = false;
   }, []);
 
   const setIntroPhase = useCallback((phase: IntroPhase) => {
@@ -293,6 +346,37 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     if (phase === 'fade' || phase === 'enter') {
       void setSetting(SPLASH_SEEN_KEY, '1').catch(() => undefined);
     }
+  }, []);
+
+  const markSplashSeen = useCallback(() => {
+    void setSetting(SPLASH_SEEN_KEY, '1').catch(() => undefined);
+  }, []);
+
+  const setSplashSuppressed = useCallback((suppressed: boolean) => {
+    suppressedRef.current = suppressed;
+  }, []);
+
+  useEffect(() => {
+    const sub = AppActivity.addEventListener('change', (next) => {
+      const reduced = reduceSplashAppState({
+        event: next,
+        sawBackground: sawBackgroundRef.current,
+        inSessionOrReflection: suppressedRef.current,
+        phase: phaseRef.current,
+        occasion: occasionRef.current,
+        armHold: holdRef.current,
+      });
+      const phaseChanged = reduced.phase !== phaseRef.current;
+      const occasionChanged = reduced.occasion !== occasionRef.current;
+      sawBackgroundRef.current = reduced.sawBackground;
+      phaseRef.current = reduced.phase;
+      occasionRef.current = reduced.occasion;
+      holdRef.current = reduced.armHold;
+      if (phaseChanged) setIntroPhaseState(reduced.phase);
+      if (occasionChanged) setSplashOccasion(reduced.occasion);
+      setSplashHoldArmed(reduced.armHold);
+    });
+    return () => sub.remove();
   }, []);
 
   const resetLocalData = useCallback(async () => {
@@ -347,8 +431,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       refreshDailyReminder,
       resetLocalData,
       introPhase,
+      splashOccasion,
+      splashHoldArmed,
+      setSplashSuppressed,
       beginIntroSplash,
+      replayIntroSplash,
       setIntroPhase,
+      markSplashSeen,
     }),
     [
       ready,
@@ -377,8 +466,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       refreshDailyReminder,
       resetLocalData,
       introPhase,
+      splashOccasion,
+      splashHoldArmed,
+      setSplashSuppressed,
       beginIntroSplash,
+      replayIntroSplash,
       setIntroPhase,
+      markSplashSeen,
     ],
   );
 
