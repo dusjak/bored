@@ -3,6 +3,7 @@ import { describe, it } from 'node:test';
 
 import {
   abortedPhrase,
+  APPEARANCE_CONFIRM,
   APPEARANCE_OPTIONS,
   APPEARANCE_SYSTEM_CAPTION,
   appearanceLabel,
@@ -41,6 +42,7 @@ describe('copy', () => {
     assert.equal(appearanceLabel('dark'), 'Mørk');
     assert.equal(appearanceLabel('system'), 'Automatisk');
     assert.equal(APPEARANCE_SYSTEM_CAPTION, 'Automatisk følger telefonen.');
+    assert.equal(APPEARANCE_CONFIRM, 'Velg');
   });
 
   it('builds the done sentence from the chosen duration', () => {

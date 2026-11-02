@@ -4,7 +4,6 @@ import { router } from 'expo-router';
 
 import { Button } from '@/components/Button';
 import { DurationSheet } from '@/components/DurationSheet';
-import { Logo } from '@/components/Logo';
 import { Screen } from '@/components/Screen';
 import { TactileCircle } from '@/components/TactileCircle';
 import { features } from '@/config/features';
@@ -35,10 +34,6 @@ export default function Home() {
 
   return (
     <Screen edges={['top']} contentStyle={styles.content}>
-      <View style={styles.top}>
-        <Logo />
-      </View>
-
       <View style={styles.hero}>
         <TactileCircle
           onPress={() => setPickerOpen(true)}
@@ -81,6 +76,5 @@ export default function Home() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 120 },
-  top: {},
   hero: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

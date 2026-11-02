@@ -25,15 +25,7 @@ export default function NotificationsStep() {
       />
 
       <View style={[styles.preview, { backgroundColor: theme.color.surface.default }]}>
-        <View style={styles.previewHead}>
-          <View style={[styles.appIcon, { backgroundColor: theme.color.ink.default }]}>
-            <Text style={[theme.text.labelSmall, { color: theme.color.text['on-ink'] }]}>b.</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={[theme.text.labelSmall, { color: theme.color.text.primary }]}>bored.</Text>
-            <Text style={[theme.text.caption, { color: theme.color.text.tertiary }]}>{timeLabel}</Text>
-          </View>
-        </View>
+        <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginBottom: 8 }]}>{timeLabel}</Text>
         <Text style={[theme.text.bodySmall, { color: theme.color.text.primary }]}>
           {user.name ? `${user.name}, ` : ''}Ti minutter. Ingenting skjer her. Det er poenget.
         </Text>
@@ -67,14 +59,6 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     marginBottom: 32,
-  },
-  previewHead: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
-  appIcon: {
-    width: 28,
-    height: 28,
-    borderRadius: 7,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   toggleRow: {
     flexDirection: 'row',

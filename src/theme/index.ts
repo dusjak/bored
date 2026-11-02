@@ -1,5 +1,5 @@
 export { fontAssets } from './fonts';
-export { ThemeProvider, useTheme } from './ThemeProvider';
+export { ThemeOverride, ThemeProvider, useTheme } from './ThemeProvider';
 export {
   DEFAULT_THEME_PREFERENCE,
   fonts,

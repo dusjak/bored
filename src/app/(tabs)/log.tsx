@@ -32,8 +32,6 @@ export default function Log() {
 
   return (
     <Screen scroll edges={['top']} contentStyle={styles.content}>
-      <Text style={[theme.text.headline, { color: theme.color.text.primary, marginBottom: theme.space['6'] }]}>Logg</Text>
-
       <View style={{ marginBottom: theme.space['8'] }}>
         <View
           style={styles.countRow}

@@ -29,6 +29,9 @@ export type AppearanceId = (typeof APPEARANCE_OPTIONS)[number]['id'];
 
 export const APPEARANCE_SYSTEM_CAPTION = 'Automatisk følger telefonen.';
 
+/** Saves the appearance preview. Dismissing the sheet does not. */
+export const APPEARANCE_CONFIRM = 'Velg';
+
 export function appearanceLabel(id: AppearanceId): string {
   return APPEARANCE_OPTIONS.find((option) => option.id === id)?.label ?? 'Lys';
 }
