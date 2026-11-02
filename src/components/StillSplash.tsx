@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 
 import { WordmarkImage } from '@/components/WordmarkImage';
-import { REDUCE_FADE_MS } from '@/splash/splashTiming';
-import { useTheme } from '@/theme';
+import { SPLASH_BG } from '@/splash/splashTiming';
 
 export type SplashProps = {
-  /** Parent has asked the overlay to crossfade out. */
+  /** Parent has asked the overlay to leave. The exit is a cut, not a fade. */
   fading: boolean;
   /** False keeps the image up without starting the hold (mounted under the native splash, or while backgrounded). */
   armed: boolean;
@@ -18,12 +17,11 @@ export type SplashProps = {
 };
 
 /**
- * Static wordmark. Same PNG as the native splash, centred on the full window.
- * Hold, then a 200 ms fade. Tap skips. No Reanimated worklets and no Text.
+ * Static wordmark. Always splash-wordmark-dark.png on #111110, centred on the full window.
+ * Hold, then a hard cut. Tap skips. No theme read and no Text.
+ * v4 §0: a fade of this dark plate over a light screen would be a grey frame.
  */
-export function StillSplash({ fading, armed, holdMs, fadeMs, onHandoff, onDismiss }: SplashProps) {
-  const { theme } = useTheme();
-  const opacity = useRef(new Animated.Value(1)).current;
+export function StillSplash({ fading, armed, holdMs, onHandoff, onDismiss }: SplashProps) {
   const handed = useRef(false);
   const onHandoffRef = useRef(onHandoff);
   const onDismissRef = useRef(onDismiss);
@@ -41,11 +39,8 @@ export function StillSplash({ fading, armed, holdMs, fadeMs, onHandoff, onDismis
   }, []);
 
   useEffect(() => {
-    if (!fading) {
-      handed.current = false;
-      opacity.setValue(1);
-    }
-  }, [fading, opacity]);
+    if (!fading) handed.current = false;
+  }, [fading]);
 
   useEffect(() => {
     if (!armed || fading) return;
@@ -55,24 +50,12 @@ export function StillSplash({ fading, armed, holdMs, fadeMs, onHandoff, onDismis
 
   useEffect(() => {
     if (!fading) return;
-    const fade = Animated.timing(opacity, {
-      toValue: 0,
-      duration: fadeMs,
-      easing: Easing.bezier(0.4, 0, 1, 1),
-      useNativeDriver: true,
-    });
-    fade.start(({ finished }) => {
-      if (finished) dismiss();
-    });
-    return () => fade.stop();
-  }, [dismiss, fadeMs, fading, opacity]);
+    dismiss();
+  }, [dismiss, fading]);
 
   return (
-    <Animated.View
-      accessibilityViewIsModal
-      style={[styles.layer, { opacity, backgroundColor: theme.color.bg.default }]}
-    >
-      <StatusBar style={theme.statusBar} />
+    <View accessibilityViewIsModal style={[styles.layer, { backgroundColor: SPLASH_BG }]}>
+      <StatusBar style="light" />
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="bored"
@@ -83,14 +66,12 @@ export function StillSplash({ fading, armed, holdMs, fadeMs, onHandoff, onDismis
         style={styles.press}
       >
         <View pointerEvents="none" style={styles.press}>
-          <WordmarkImage scheme={theme.name} />
+          <WordmarkImage />
         </View>
       </Pressable>
-    </Animated.View>
+    </View>
   );
 }
-
-export const STILL_FADE_MS = REDUCE_FADE_MS;
 
 const styles = StyleSheet.create({
   layer: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 20 },

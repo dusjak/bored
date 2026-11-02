@@ -7,7 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SluketSplash } from '@/components/SluketSplash';
 import { StillSplash } from '@/components/StillSplash';
-import { STILL_HOLD_MS, REDUCE_FADE_MS } from '@/splash/splashTiming';
+import { REDUCE_FADE_MS, SPLASH_BG, STILL_HOLD_MS } from '@/splash/splashTiming';
 import { splashSuppressed } from '@/splash/splashDecision';
 import { AppStateProvider, useAppState } from '@/state/AppState';
 import { fontAssets, ThemeProvider, useTheme } from '@/theme';
@@ -80,7 +80,7 @@ function ReadyGate() {
 
   if (!open) {
     return (
-      <View style={{ flex: 1, backgroundColor: theme.color.bg.default }}>
+      <View style={{ flex: 1, backgroundColor: SPLASH_BG }}>
         <StillSplash
           fading={false}
           armed={false}

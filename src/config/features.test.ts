@@ -12,6 +12,10 @@ describe('features', () => {
     assert.equal(features.aiCard, false);
   });
 
+  it('keeps the paint-mix pass on so it can be switched off in one place', () => {
+    assert.equal(features.sluketColorMix, true);
+  });
+
   it('replays Sluket from the account button only outside production', () => {
     assert.equal(isSplashReplayEnabled(true, 'production'), true);
     assert.equal(isSplashReplayEnabled(true, null), true);

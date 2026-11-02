@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 
 import { crashHoldMs, REDUCE_FADE_MS, REDUCE_HOLD_MS, STILL_HOLD_MS } from './splashTiming.ts';
@@ -157,10 +157,10 @@ describe('splash decision', () => {
     assert.equal(decision.mode, 'still');
     assert.equal(decision.markSeenNow, true);
     assert.equal(decision.holdMs, crashHoldMs(400));
-    assert.equal(decision.holdMs, 1450);
-    assert.equal(crashHoldMs(0), 1850);
-    assert.equal(crashHoldMs(1700), 300);
-    assert.equal(crashHoldMs(2000), 300);
+    assert.equal(decision.holdMs, 5300);
+    assert.equal(crashHoldMs(0), 5700);
+    assert.equal(crashHoldMs(5600), 300);
+    assert.equal(crashHoldMs(6000), 300);
     assert.equal(shouldPersistSplashSeen({ phase: 'play', crashed: true }), true);
     assert.equal(shouldPersistSplashSeen({ phase: 'play', crashed: false }), false);
     assert.equal(shouldPersistSplashSeen({ phase: 'fade', crashed: false }), true);
@@ -183,8 +183,8 @@ describe('splash assets', () => {
     ) as [string, Record<string, unknown>] | undefined;
     assert.ok(plugin);
     const config = plugin[1];
-    assert.equal(config.backgroundColor, '#F0EDE7');
-    assert.equal(config.image, './assets/splash/splash-wordmark-light.png');
+    assert.equal(config.backgroundColor, '#111110');
+    assert.equal(config.image, './assets/splash/splash-wordmark-dark.png');
     assert.equal(config.imageWidth, 160);
     assert.equal(config.resizeMode, 'contain');
     const dark = config.dark as { backgroundColor: string; image: string };
@@ -194,13 +194,10 @@ describe('splash assets', () => {
 
   it('ships the wordmark at 1x, 2x and 3x and the iPhone 16 Pro references', () => {
     const root = new URL('../../assets/splash/', import.meta.url);
-    assert.deepEqual(pngSize(new URL('splash-wordmark-light.png', root)), { width: 160, height: 80 });
     assert.deepEqual(pngSize(new URL('splash-wordmark-dark.png', root)), { width: 160, height: 80 });
-    assert.deepEqual(pngSize(new URL('splash-wordmark-light@2x.png', root)), { width: 320, height: 160 });
     assert.deepEqual(pngSize(new URL('splash-wordmark-dark@2x.png', root)), { width: 320, height: 160 });
-    assert.deepEqual(pngSize(new URL('splash-wordmark-light@3x.png', root)), { width: 480, height: 240 });
     assert.deepEqual(pngSize(new URL('splash-wordmark-dark@3x.png', root)), { width: 480, height: 240 });
-    assert.deepEqual(pngSize(new URL('ref/preview-light-402x874@2x.png', root)), { width: 804, height: 1748 });
+    assert.equal(existsSync(new URL('splash-wordmark-light.png', root)), false);
     assert.deepEqual(pngSize(new URL('ref/preview-dark-402x874@2x.png', root)), { width: 804, height: 1748 });
     const meta = JSON.parse(readFileSync(new URL('splash-wordmark.json', root), 'utf8')) as {
       canvas_pt: number[];

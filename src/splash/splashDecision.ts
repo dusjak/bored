@@ -9,7 +9,7 @@
 const STILL_HOLD_MS = 300;
 const REDUCE_HOLD_MS = 600;
 const REDUCE_FADE_MS = 200;
-const CRASH_REST_AT = 1850;
+const CRASH_REST_AT = 5700;
 const CRASH_HOLD_MIN_MS = 300;
 
 function crashHoldMs(elapsedMs: number): number {

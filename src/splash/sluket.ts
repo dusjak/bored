@@ -1,50 +1,48 @@
 /**
- * «Sluket» v2 timeline. Pure numbers so the motion can be tested without Skia.
+ * «Sluket» v4 timeline. Pure numbers, so the motion can be tested without Skia.
+ * The draw loop is the v4 testbench (engine v3): shapes become the dot, the dot
+ * glides to the logo, then «bored» reveals from the right. Always dark.
  * Functions called from the UI thread are marked 'worklet'.
- * The rest frame is not drawn here: it is the same wordmark PNG as the native splash.
- * Reduce-motion timings are duplicated from splashTiming.ts so this file can
- * stay free of imports the UI-thread bundle and the node tests both have to load.
  */
-export const REDUCE_HOLD_MS = 600;
-export const REDUCE_FADE_MS = 200;
+export const SPLASH_BG = '#111110';
+export const SPLASH_INK = '#F8F6F2';
+export const INK_RGB = [0xf8, 0xf6, 0xf2] as const;
 
-export const SPLASH_MS = 2000;
-export const HANDOVER_AT = 1850;
-export const HANDOVER_MS = 150;
-export const REST_AT = 1550;
-export const WORD_AT = 1250;
-export const SWALLOW_AT = 1100;
-export const TIGHTEN_AT = 800;
-export const SWIRL_AT = 380;
-export const FLOOD_AT = 120;
+export const SPLASH_MS = 6000;
+export const SETTLE_MS = 250;
+export const GLIDE_MS = 450;
+export const REVEAL_MS = 500;
+export const REST_HOLD_MS = 300;
+export const REVEAL_LEAD = 0.4;
+export const SOFT_PT = 28;
+/** Swirl length. 6000 − (250 + max(450, 0.4·450 + 500) + 300). */
+export const SWIRL_MS = 4770;
+export const GLIDE_AT = SWIRL_MS + SETTLE_MS;
+export const REVEAL_AT = GLIDE_AT + REVEAL_LEAD * GLIDE_MS;
+export const REST_AT = GLIDE_AT + Math.max(GLIDE_MS, REVEAL_LEAD * GLIDE_MS + REVEAL_MS);
 
-export const STIMULUS_COUNT = 96;
-export const MORPH_COUNT = 24;
+export const STIMULUS_COUNT = 160;
 export const LOW_POWER_COUNT = 64;
-export const LOW_POWER_SIGMA = 8;
-export const SIGMA_MAX = 12;
-export const MAX_TURNS = 1.25;
-export const SPLASH_SEED = 0xb0ed;
+export const WOBBLE_SCALE = 1.6;
+export const GOO_SCALE = 0.5;
+export const EASE_K = 1.1;
+export const MAX_TURNS = 2.5;
+export const SPLASH_SEED = 0xb0ed ^ 0x2222;
 
-export const WORDMARK_W = 160;
-export const WORDMARK_H = 80;
-/** Period glyph centre, relative to the window centre. Baked into the PNG. */
-export const PERIOD_DX = 62.24;
-export const PERIOD_DY = 0.31;
-export const HOLE_DIAMETER = 10;
-export const HOLE_DIAMETER_PEAK = 13.5;
+export const DOT_CX = 62.24;
+export const DOT_CY = 0.31;
+export const WORD_CLIP_RIGHT = 57.5;
+export const WORD_CLIP_LEFT = -80;
 
-/** Goo threshold. RGB stays 1 so the blur mixes colour; alpha sharpens the edge. */
-export const ALPHA_GAIN = 18;
-export const ALPHA_BIAS = -7;
-export const GOO_MATRIX = [
-  1, 0, 0, 0, 0,
-  0, 1, 0, 0, 0,
-  0, 0, 1, 0, 0,
-  0, 0, 0, ALPHA_GAIN, ALPHA_BIAS,
-] as const;
+export const MIX_START = 0.85;
+export const MIX_END = 0;
+export const MIX_EXP = 3;
+export const MIX_FROM = 0.25;
+export const MIX_TO = 0.99;
+export const MIX_RADIUS_START = 13;
+export const MIX_RADIUS_END = 40;
 
-/** iOS system colours. Same in Lys and Mørk. Red is one of eight, so at most 1/8 of the shapes. */
+/** iOS system colours. Red is one of eight, so exactly 1/8 of the shapes. */
 export const NOISE_HEX = [
   '#FF3B30',
   '#FF9500',
@@ -56,52 +54,25 @@ export const NOISE_HEX = [
   '#FF2D55',
 ] as const;
 
-export type Rgb = readonly [number, number, number];
-
-export const NOISE_RGB: readonly Rgb[] = NOISE_HEX.map(parseHex);
-
-export type StimulusKind = 'badge' | 'pill' | 'squircle';
-
 export type Stimulus = {
-  kind: StimulusKind;
-  /** 0 badge, 1 pill, 2 squircle. Passed into the worklet as a number. */
-  kindId: number;
-  color: Rgb;
-  hex: string;
-  /** 0–160 ms after the flood starts. Largest shapes first. */
-  delay: number;
-  angle: number;
-  spin: 1 | -1;
-  /** Start radius as a fraction of the screen diagonal (0.15–0.75). */
-  r0: number;
-  /** Flood size, 24–490 pt. */
   size: number;
+  /** Start radius as a fraction of the screen diagonal. */
+  r0: number;
+  angle: number;
+  kind: number;
+  hex: string;
   phase: number;
-  /** Flake size while the ring tightens, 2–20 pt. */
+  rot0: number;
   flake: number;
-  /** One of the 24 shapes that may path-morph. The rest are circles. */
-  morph: boolean;
+  /** Share of the max revolutions, 0.8–1. */
+  turnU: number;
+  delay: number;
+  /** Nearest shapes finish first. Added to the legacy clock, 0–150 ms. */
+  shift: number;
 };
 
-export type WordmarkDraw = {
-  /** 0 while the hole is on screen and the PNG is hidden. */
-  opacity: number;
-  translateX: number;
-  translateY: number;
-  scale: number;
-  /** Pixels of the 160-wide PNG hidden from the left. 0 shows the whole word. */
-  clipLeft: number;
-  holeX: number;
-  holeY: number;
-  holeR: number;
-};
-
-const HIDDEN: readonly [number, number, number, number, number, number, number, number] = [0, 0, 0, 0, 1, 1, 0, 0];
-
-export function parseHex(hex: string): Rgb {
-  const h = hex.replace('#', '');
-  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
-}
+const NP = 28;
+const PILL_R = 1 / 2.6 / 2;
 
 function clamp01(value: number) {
   'worklet';
@@ -113,34 +84,38 @@ function lerp(from: number, to: number, t: number) {
   return from + (to - from) * t;
 }
 
-function bezier(t: number, p0: number, p1: number, p2: number, p3: number) {
+function smoothstep(edge0: number, edge1: number, x: number) {
+  'worklet';
+  const t = clamp01((x - edge0) / (edge1 - edge0));
+  return t * t * (3 - 2 * t);
+}
+
+function bez(t: number, p0: number, p1: number, p2: number, p3: number) {
   'worklet';
   const u = 1 - t;
   return u * u * u * p0 + 3 * u * u * t * p1 + 3 * u * t * t * p2 + t * t * t * p3;
 }
 
-function bezierSlope(t: number, p0: number, p1: number, p2: number, p3: number) {
+function bezSlope(t: number, p0: number, p1: number, p2: number, p3: number) {
   'worklet';
   const u = 1 - t;
   return 3 * u * u * (p1 - p0) + 6 * u * t * (p2 - p1) + 3 * t * t * (p3 - p2);
 }
 
-/** Y of a unit cubic-bezier easing at time `x`. */
 export function cubicBezierY(x1: number, y1: number, x2: number, y2: number, x: number) {
   'worklet';
   if (x <= 0) return 0;
   if (x >= 1) return 1;
   let t = x;
   for (let i = 0; i < 8; i += 1) {
-    const dx = bezier(t, 0, x1, x2, 1) - x;
-    const slope = bezierSlope(t, 0, x1, x2, 1);
+    const dx = bez(t, 0, x1, x2, 1) - x;
+    const slope = bezSlope(t, 0, x1, x2, 1);
     if (Math.abs(slope) < 1e-6) break;
     t = Math.max(0, Math.min(1, t - dx / slope));
   }
-  return bezier(t, 0, y1, y2, 1);
+  return bez(t, 0, y1, y2, 1);
 }
 
-/** Underdamped spring, rest velocity 0. `tSec` is seconds from the start. */
 export function springAt(
   tSec: number,
   from: number,
@@ -161,10 +136,84 @@ export function springAt(
   return to + decay * (x0 * Math.cos(omegaD * tSec) + b * Math.sin(omegaD * tSec));
 }
 
-function smoothstep(edge0: number, edge1: number, x: number) {
+/** Integrated spin weight from the v2 clock, normalised so gAt(1250) is 1. */
+const SPIN: number[] = (() => {
+  const steps: number[] = [0];
+  let acc = 0;
+  for (let t = 381; t <= 1250; t += 1) {
+    const w = t < 800 ? cubicBezierY(0.4, 0, 1, 1, (t - 380) / 420) : 1;
+    acc += w;
+    steps.push(acc);
+  }
+  return steps.map((value) => value / acc);
+})();
+
+function gAt(legacyMs: number) {
   'worklet';
-  const t = clamp01((x - edge0) / (edge1 - edge0));
-  return t * t * (3 - 2 * t);
+  if (legacyMs <= 380) return 0;
+  if (legacyMs >= 1250) return 1;
+  return SPIN[Math.round(legacyMs - 380)] ?? 1;
+}
+
+/** v2 clock. The 120–1250 ms shape timeline is stretched over 0–4770 ms. */
+export function legacyTime(tMs: number) {
+  'worklet';
+  if (tMs <= 0) return 120;
+  if (tMs >= SWIRL_MS) return 1250;
+  return 120 + (tMs / SWIRL_MS) * 1130;
+}
+
+/**
+ * Paint-mix amount and radius. u = t / 4770.
+ * x = clamp((u − 0.25) / 0.74), e = x³, m = 0.85·(1−e), radius = 13 + 27·e.
+ */
+export function mixAt(tMs: number) {
+  'worklet';
+  const u = tMs / SWIRL_MS;
+  const x = clamp01((u - MIX_FROM) / (MIX_TO - MIX_FROM));
+  const e = Math.pow(x, MIX_EXP);
+  return {
+    m: MIX_START * (1 - e) + MIX_END * e,
+    radius: MIX_RADIUS_START + (MIX_RADIUS_END - MIX_RADIUS_START) * e,
+  };
+}
+
+/** Mixing pass is one flag, and Low Power Mode forces it off. */
+export function colorMixEnabled(flag: boolean, lowPower: boolean) {
+  return flag && !lowPower;
+}
+
+export function phaseName(tMs: number) {
+  const legacy = legacyTime(tMs);
+  if (tMs < SWIRL_MS) {
+    if (legacy < 380) return 'flood';
+    if (legacy < 800) return 'swirl';
+    if (legacy < 1100) return 'tighten';
+    return 'swallow';
+  }
+  if (tMs < GLIDE_AT) return 'settle';
+  if (tMs < REVEAL_AT) return 'glide';
+  if (tMs < REST_AT) return 'reveal';
+  if (tMs < SPLASH_MS) return 'rest';
+  return 'done';
+}
+
+function wobbleAmp(legacyMs: number) {
+  'worklet';
+  let amp = 0.22;
+  if (legacyMs < 380) amp = 0.04;
+  else if (legacyMs < 800) amp = lerp(0.04, 0.16, (legacyMs - 380) / 420);
+  else if (legacyMs < 1100) amp = lerp(0.16, 0.22, (legacyMs - 800) / 300);
+  return amp * WOBBLE_SCALE;
+}
+
+export function gooSigma(legacyMs: number) {
+  'worklet';
+  let sigma = 12;
+  if (legacyMs < 380) sigma = 4;
+  else if (legacyMs < 800) sigma = lerp(4, 10, (legacyMs - 380) / 420);
+  else if (legacyMs < 1100) sigma = lerp(10, 12, (legacyMs - 800) / 300);
+  return sigma * GOO_SCALE;
 }
 
 function mulberry32(seed: number) {
@@ -177,383 +226,235 @@ function mulberry32(seed: number) {
   };
 }
 
-/** Centred PNG rect in a window of `width` × `height`. The native splash uses the same centre. */
-export function wordmarkFrame(width: number, height: number) {
-  return {
-    x: width / 2 - WORDMARK_W / 2,
-    y: height / 2 - WORDMARK_H / 2,
-    width: WORDMARK_W,
-    height: WORDMARK_H,
-  };
-}
-
-/**
- * 0 = full «bored.», 1 = only the period.
- * 0–120 sucks the word into the period, 1250–1550 rolls it back out, 1850–2000 sucks it in again.
- */
-export function wordMask(tMs: number) {
-  'worklet';
-  if (tMs <= 0) return 0;
-  if (tMs < FLOOD_AT) return cubicBezierY(0.55, 0, 1, 0.45, tMs / FLOOD_AT);
-  if (tMs < WORD_AT) return 1;
-  if (tMs < REST_AT) return 1 - cubicBezierY(0.22, 1, 0.36, 1, (tMs - WORD_AT) / (REST_AT - WORD_AT));
-  if (tMs < HANDOVER_AT) return 0;
-  return cubicBezierY(0.55, 0, 1, 0.45, clamp01((tMs - HANDOVER_AT) / HANDOVER_MS));
-}
-
-/** 1 = period at its place in the word. 0 = period at the window centre. */
-export function periodShift(tMs: number) {
-  'worklet';
-  if (tMs <= 0) return 1;
-  if (tMs < FLOOD_AT) return 1 - cubicBezierY(0.55, 0, 1, 0.45, tMs / FLOOD_AT);
-  if (tMs < WORD_AT) return 0;
-  if (tMs < REST_AT) return cubicBezierY(0.22, 1, 0.36, 1, (tMs - WORD_AT) / (REST_AT - WORD_AT));
-  return 1;
-}
-
-/** Hole diameter in pt. 0 when the PNG is showing the period instead. */
-export function holeDiameter(tMs: number) {
-  'worklet';
-  if (tMs < FLOOD_AT || tMs >= WORD_AT) return 0;
-  if (tMs < SWALLOW_AT) return HOLE_DIAMETER;
-  if (tMs < SWALLOW_AT + 80) return lerp(HOLE_DIAMETER, HOLE_DIAMETER_PEAK, (tMs - SWALLOW_AT) / 80);
-  return Math.max(HOLE_DIAMETER, springAt((tMs - (SWALLOW_AT + 80)) / 1000, HOLE_DIAMETER_PEAK, HOLE_DIAMETER, 12, 300, 0.6));
-}
-
-export function handoverScale(tMs: number) {
-  'worklet';
-  if (tMs < HANDOVER_AT) return 1;
-  return 1 - cubicBezierY(0.55, 0, 1, 0.45, clamp01((tMs - HANDOVER_AT) / HANDOVER_MS));
-}
-
-/** Blur sigma for the one goo layer. Low Power Mode stays at 8. */
-export function gooSigma(tMs: number, lowPower: boolean) {
-  'worklet';
-  if (lowPower) return LOW_POWER_SIGMA;
-  if (tMs < SWIRL_AT) return 4;
-  if (tMs < TIGHTEN_AT) {
-    const u = cubicBezierY(0.5, 0, 0.75, 0, (tMs - SWIRL_AT) / (TIGHTEN_AT - SWIRL_AT));
-    return lerp(4, 10, u);
-  }
-  if (tMs < SWALLOW_AT) {
-    const u = cubicBezierY(0.55, 0, 1, 0.45, (tMs - TIGHTEN_AT) / (SWALLOW_AT - TIGHTEN_AT));
-    return lerp(10, SIGMA_MAX, u);
-  }
-  return SIGMA_MAX;
-}
-
-export function wobbleAmp(tMs: number) {
-  'worklet';
-  if (tMs < SWIRL_AT) return 0.04;
-  if (tMs < TIGHTEN_AT) return lerp(0.04, 0.16, (tMs - SWIRL_AT) / (TIGHTEN_AT - SWIRL_AT));
-  if (tMs < SWALLOW_AT) return lerp(0.16, 0.22, (tMs - TIGHTEN_AT) / (SWALLOW_AT - TIGHTEN_AT));
-  return 0.22;
-}
-
-/** Turns around the hole. Ease-in over the 420 ms swirl, then on to 1.25 and no further. */
-export function spinTurns(tMs: number) {
-  'worklet';
-  if (tMs <= SWIRL_AT) return 0;
-  if (tMs >= WORD_AT) return MAX_TURNS;
-  if (tMs < TIGHTEN_AT) {
-    const u = cubicBezierY(0.4, 0, 1, 1, (tMs - SWIRL_AT) / (TIGHTEN_AT - SWIRL_AT));
-    return 0.75 * u;
-  }
-  const u = cubicBezierY(0.55, 0, 1, 0.45, (tMs - TIGHTEN_AT) / (WORD_AT - TIGHTEN_AT));
-  return 0.75 + 0.5 * u;
-}
-
-/**
- * [count, sigma cap, morph on].
- * Low Power Mode, or more than two dropped frames, drops to 64 circles and sigma 8.
- */
-export function stimulusBudget(lowPower: number, droppedFrames: number) {
-  'worklet';
-  if (lowPower === 1 || droppedFrames > 2) {
-    return [LOW_POWER_COUNT, LOW_POWER_SIGMA, 0] as const;
-  }
-  return [STIMULUS_COUNT, SIGMA_MAX, 1] as const;
-}
-
-export function createStimuli(seed = SPLASH_SEED): Stimulus[] {
+export function createStimuli(count = STIMULUS_COUNT, seed = SPLASH_SEED): Stimulus[] {
   const rand = mulberry32(seed);
-  const draft: Stimulus[] = [];
-  for (let i = 0; i < STIMULUS_COUNT; i += 1) {
-    const roll = rand();
-    const kind: StimulusKind = roll < 0.5 ? 'badge' : roll < 0.8 ? 'pill' : 'squircle';
-    draft.push({
-      kind,
-      kindId: kind === 'badge' ? 0 : kind === 'pill' ? 1 : 2,
-      color: NOISE_RGB[i % NOISE_RGB.length]!,
-      hex: NOISE_HEX[i % NOISE_HEX.length]!,
-      delay: 0,
+  const list: Stimulus[] = [];
+  for (let i = 0; i < count; i += 1) {
+    const roll = i % 10;
+    list.push({
+      size: 24 + 466 * rand() ** 3.5,
+      r0: 0.15 + 0.6 * rand() ** 1.2,
       angle: rand() * Math.PI * 2,
-      spin: rand() < 0.5 ? -1 : 1,
-      r0: 0.15 + rand() * 0.6,
-      size: 24 + rand() * (490 - 24),
+      kind: roll < 5 ? 0 : roll < 8 ? 1 : 2,
+      hex: NOISE_HEX[i % NOISE_HEX.length]!,
       phase: rand() * Math.PI * 2,
-      flake: 2 + rand() * 18,
-      morph: false,
+      rot0: rand() * Math.PI,
+      flake: 2 + 18 * rand(),
+      turnU: 0.8 + 0.2 * rand(),
+      delay: 0,
+      shift: 0,
     });
   }
-  draft.sort((a, b) => b.size - a.size);
-  for (let i = 0; i < draft.length; i += 1) {
-    const item = draft[i]!;
-    item.delay = (i / (STIMULUS_COUNT - 1)) * 160;
-    item.morph = i < MORPH_COUNT;
-  }
-  return draft;
-}
-
-function popScale(tMs: number, delay: number) {
-  'worklet';
-  const start = FLOOD_AT + delay;
-  if (tMs < start) return 0;
-  if (tMs >= SWIRL_AT) return 1;
-  return Math.max(0, springAt((tMs - start) / 1000, 0, 1, 14, 380, 0.6));
-}
-
-function orbitRadius(tMs: number, r0: number, diagonal: number) {
-  'worklet';
-  const lead = ((0.75 - r0) / 0.6) * 40;
-  const t = tMs + lead;
-  let frac = 1;
-  if (t >= WORD_AT) frac = 0;
-  else if (t >= SWALLOW_AT) frac = lerp(0.06, 0, clamp01((t - SWALLOW_AT) / (WORD_AT - SWALLOW_AT)));
-  else if (t >= TIGHTEN_AT) {
-    const u = cubicBezierY(0.55, 0, 1, 0.45, clamp01((t - TIGHTEN_AT) / (SWALLOW_AT - TIGHTEN_AT)));
-    frac = lerp(0.45, 0.06, u);
-  } else if (t >= SWIRL_AT) {
-    const u = cubicBezierY(0.5, 0, 0.75, 0, clamp01((t - SWIRL_AT) / (TIGHTEN_AT - SWIRL_AT)));
-    frac = lerp(1, 0.45, u);
-  }
-  return frac * r0 * diagonal;
-}
-
-function sizePx(tMs: number, size: number, flake: number, pop: number) {
-  'worklet';
-  if (pop <= 0) return 0;
-  if (tMs < SWIRL_AT) return size * pop;
-  if (tMs < TIGHTEN_AT) {
-    const u = cubicBezierY(0.5, 0, 0.75, 0, (tMs - SWIRL_AT) / (TIGHTEN_AT - SWIRL_AT));
-    return size * lerp(1, 0.5, u);
-  }
-  if (tMs < SWALLOW_AT) {
-    const u = cubicBezierY(0.55, 0, 1, 0.45, (tMs - TIGHTEN_AT) / (SWALLOW_AT - TIGHTEN_AT));
-    return lerp(size * 0.5, flake, u);
-  }
-  if (tMs < WORD_AT) return lerp(flake, 1, (tMs - SWALLOW_AT) / (WORD_AT - SWALLOW_AT));
-  return 0;
-}
-
-function stretchX(tMs: number) {
-  'worklet';
-  const start = SWIRL_AT + 0.6 * (WORD_AT - SWIRL_AT);
-  if (tMs < start) return 1;
-  const u = cubicBezierY(0.55, 0, 1, 0.45, clamp01((tMs - start) / (WORD_AT - start)));
-  return lerp(1, 3, u);
-}
-
-function stretchY(tMs: number) {
-  'worklet';
-  const start = SWIRL_AT + 0.6 * (WORD_AT - SWIRL_AT);
-  if (tMs < start) return 1;
-  const u = cubicBezierY(0.55, 0, 1, 0.45, clamp01((tMs - start) / (WORD_AT - start)));
-  return lerp(1, 0.6, u);
+  const bySize = list.map((_, index) => index).sort((a, b) => list[b]!.size - list[a]!.size);
+  bySize.forEach((index, rank) => {
+    list[index]!.delay = count > 1 ? (rank / (count - 1)) * 160 : 0;
+  });
+  const byRadius = list.map((_, index) => index).sort((a, b) => list[a]!.r0 - list[b]!.r0);
+  byRadius.forEach((index, rank) => {
+    list[index]!.shift = count > 1 ? (1 - rank / (count - 1)) * 150 : 0;
+  });
+  return bySize.map((index) => list[index]!);
 }
 
 /**
- * One stimulus, eight plain numbers:
- * [visible, x, y, radius, scaleX, scaleY, mix, rotation].
- * Hidden frames are [0, 0, 0, 0, 1, 1, 0, 0]. `mix` is the blend toward text.primary.
+ * One shape on the v2 clock.
+ * [visible, swallowed, x, y, tan, scaleX, scaleY, own, size, inkMix]
+ * swallowed is 1 once the shape has entered the hole and is no longer drawn.
  */
 export function sampleStimulus(
   index: number,
   delay: number,
-  angle0: number,
-  spin: number,
+  angle: number,
   r0: number,
   size: number,
+  phase: number,
+  rot0: number,
   flake: number,
-  tMs: number,
+  turnU: number,
+  shift: number,
+  legacyMs: number,
   width: number,
   height: number,
   lowPower: number,
 ) {
   'worklet';
-  if (lowPower === 1 && index >= LOW_POWER_COUNT) return HIDDEN;
-  if (tMs < FLOOD_AT || tMs >= WORD_AT) return HIDDEN;
-  const pop = popScale(tMs, delay);
-  if (pop <= 0) return HIDDEN;
-  const diagonal = Math.hypot(width, height);
-  const orbit = orbitRadius(tMs, r0, diagonal);
-  if (orbit < 0.5) return HIDDEN;
-  const px = sizePx(tMs, size, flake, pop);
-  if (px <= 0) return HIDDEN;
-  const theta = angle0 + spin * spinTurns(tMs) * Math.PI * 2;
-  const r0px = Math.max(1, r0 * diagonal);
-  const mix = smoothstep(0.4, 1, 1 - orbit / r0px);
+  const hidden = [0, 0, 0, 0, 0, 1, 1, 0, 0, 0] as const;
+  if (lowPower === 1 && index >= LOW_POWER_COUNT) return hidden;
+  if (legacyMs < 120 + delay) return hidden;
+  const pop = Math.max(0, springAt((legacyMs - 120 - delay) / 1000, 0, 1, 14, 380, 0.6));
+  const te = legacyMs < 380 ? legacyMs : 380 + ((legacyMs - 380) * 870) / (870 - shift);
+  if (te >= 1250) return [0, 1, 0, 0, 0, 1, 1, 0, 0, 0] as const;
+  let rf = 1;
+  let sz = size * pop;
+  if (te >= 380 && te < 800) {
+    const e = Math.pow(cubicBezierY(0.5, 0, 0.75, 0, (te - 380) / 420), EASE_K);
+    rf = lerp(1, 0.45, e);
+    sz = size * lerp(1, 0.5, e) * pop;
+  } else if (te >= 800 && te < 1100) {
+    const e = Math.pow(cubicBezierY(0.55, 0, 1, 0.45, (te - 800) / 300), EASE_K);
+    rf = lerp(0.45, 0.06, e);
+    sz = lerp(size * 0.5, flake, e) * pop;
+  } else if (te >= 1100) {
+    const u = (te - 1100) / 150;
+    rf = 0.06 * (1 - u * u);
+    sz = flake * (1 - 0.6 * u) * pop;
+  }
+  const dist = rf * r0 * Math.hypot(width, height);
+  if (te > 800 && dist < 5) return [0, 1, 0, 0, 0, 1, 1, 0, 0, 0] as const;
+  const th = angle + turnU * MAX_TURNS * Math.PI * 2 * gAt(te);
+  const stretch = smoothstep(0.6, 1, 1 - rf);
   return [
     1,
-    width / 2 + Math.cos(theta) * orbit,
-    height / 2 + Math.sin(theta) * orbit,
-    px / 2,
-    stretchX(tMs),
-    stretchY(tMs),
-    mix,
-    theta + Math.PI / 2,
+    0,
+    width / 2 + Math.cos(th) * dist,
+    height / 2 + Math.sin(th) * dist,
+    th + Math.PI / 2,
+    1 + 2 * stretch,
+    1 - 0.4 * stretch,
+    rot0 + (th - angle),
+    sz,
+    smoothstep(0.4, 1, 1 - rf),
   ] as const;
 }
 
-export type StimulusPose = {
-  x: number;
-  y: number;
-  r: number;
-  scaleX: number;
-  scaleY: number;
-  mix: number;
-  rotation: number;
+export function massIn(stimuli: readonly Stimulus[], legacyMs: number, width: number, height: number, lowPower: number) {
+  'worklet';
+  let swallowed = 0;
+  let total = 0;
+  for (let i = 0; i < stimuli.length; i += 1) {
+    if (lowPower === 1 && i >= LOW_POWER_COUNT) break;
+    total += 1;
+    const item = stimuli[i]!;
+    const pose = sampleStimulus(
+      i,
+      item.delay,
+      item.angle,
+      item.r0,
+      item.size,
+      item.phase,
+      item.rot0,
+      item.flake,
+      item.turnU,
+      item.shift,
+      legacyMs,
+      width,
+      height,
+      lowPower,
+    );
+    swallowed += pose[1];
+  }
+  return total > 0 ? swallowed / total : 1;
+}
+
+export type MarkPose = {
+  circleR: number;
+  showCircle: boolean;
+  glyphA: number;
+  glyphS: number;
+  dx: number;
+  dy: number;
+  front: number;
+  clipLeft: number;
+  clipRight: number;
+  showPng: boolean;
 };
 
-/** JS helper for tests. The UI thread calls sampleStimulus. */
-export function samplePose(
-  stimulus: Stimulus,
-  index: number,
-  tMs: number,
-  width: number,
-  height: number,
-  lowPower: number,
-): StimulusPose | null {
-  const motion = sampleStimulus(
-    index,
-    stimulus.delay,
-    stimulus.angle,
-    stimulus.spin,
-    stimulus.r0,
-    stimulus.size,
-    stimulus.flake,
-    tMs,
-    width,
-    height,
-    lowPower,
-  );
-  if (motion[0] === 0) return null;
+/** Dot, glide and the «bored» reveal. massIn is the swallowed fraction. */
+export function markPose(tMs: number, swallowedFraction: number): MarkPose {
+  'worklet';
+  let circleR = 0;
+  let glyphA = 0;
+  let glyphS = 1;
+  let showCircle = true;
+  if (tMs < SWIRL_MS) {
+    // Testbench: diameter grows with sqrt(swallowed), up to 13.5.
+    circleR = (13.5 * Math.sqrt(Math.max(0, swallowedFraction))) / 2;
+    if (circleR < 0.3) showCircle = false;
+  } else {
+    const diameter = springAt((tMs - SWIRL_MS) / 1000, 13.5, 10, 12, 300, 0.6);
+    const e = cubicBezierY(0.22, 1, 0.36, 1, clamp01((tMs - SWIRL_MS) / SETTLE_MS));
+    circleR = lerp(diameter / 2, 3.8, e);
+    glyphA = e;
+    glyphS = lerp(diameter / 8.7, 1, e);
+    if (e >= 0.999) showCircle = false;
+  }
+  const glide = cubicBezierY(0.22, 1, 0.36, 1, clamp01((tMs - GLIDE_AT) / GLIDE_MS));
+  const dx = DOT_CX * glide;
+  const dy = DOT_CY * glide;
+  const reveal = cubicBezierY(0.2, 0.7, 0.2, 1, clamp01((tMs - REVEAL_AT) / REVEAL_MS));
+  const front = lerp(WORD_CLIP_RIGHT, WORD_CLIP_LEFT - SOFT_PT, reveal);
+  const clipRight = Math.min(WORD_CLIP_RIGHT, dx - 4.36 - 0.3);
+  const showPng = tMs >= REST_AT && tMs < SPLASH_MS;
   return {
-    x: motion[1],
-    y: motion[2],
-    r: motion[3],
-    scaleX: motion[4],
-    scaleY: motion[5],
-    mix: motion[6],
-    rotation: motion[7],
+    circleR,
+    showCircle: showCircle && !showPng,
+    glyphA: showPng ? 0 : glyphA,
+    glyphS,
+    dx,
+    dy,
+    front,
+    clipLeft: Math.max(-120, front),
+    clipRight,
+    showPng,
   };
 }
 
-function blobRadius(kind: number, theta: number, radius: number, amp: number, timeSec: number, phase: number) {
+function outlinePoint(kind: number, k: number) {
   'worklet';
-  const c = Math.abs(Math.cos(theta));
-  const s = Math.abs(Math.sin(theta));
-  let r = radius;
-  if (kind === 1) {
-    const rx = radius * 1.7;
-    const ry = radius * 0.55;
-    r = (rx * ry) / Math.max(0.001, Math.hypot(ry * Math.max(c, 1e-4), rx * Math.max(s, 1e-4)));
-  } else if (kind === 2) {
-    const n = 4;
-    const v = Math.pow(Math.max(c, 1e-4), n) + Math.pow(Math.max(s, 1e-4), n);
-    r = radius * Math.pow(v, -1 / n);
+  const angle = k * Math.PI * 2;
+  if (kind === 0) return [0.5 * Math.cos(angle), 0.5 * Math.sin(angle)] as const;
+  if (kind === 2) {
+    const c = Math.cos(angle);
+    const s = Math.sin(angle);
+    const sign = (v: number) => (v < 0 ? -1 : 1);
+    return [0.5 * sign(c) * Math.pow(Math.abs(c), 0.4), 0.5 * sign(s) * Math.pow(Math.abs(s), 0.4)] as const;
   }
-  return r * (1 + amp * Math.sin(3 * theta + 9 * timeSec + phase));
+  const r = PILL_R;
+  const straight = 0.5 - r;
+  const perimeter = 4 * straight + Math.PI * 2 * r;
+  let s = (k - Math.floor(k)) * perimeter;
+  if (s < 2 * straight) return [-straight + s, -r] as const;
+  s -= 2 * straight;
+  if (s < Math.PI * r) {
+    const a = -Math.PI / 2 + s / r;
+    return [straight + r * Math.cos(a), r * Math.sin(a)] as const;
+  }
+  s -= Math.PI * r;
+  if (s < 2 * straight) return [straight - s, r] as const;
+  s -= 2 * straight;
+  const a = Math.PI / 2 + s / r;
+  return [-straight + r * Math.cos(a), r * Math.sin(a)] as const;
 }
 
-type BlobBuilder = {
+function wobblePoint(kind: number, index: number, amp: number, phase: number) {
+  'worklet';
+  const base = outlinePoint(kind, index / NP);
+  const angle = Math.atan2(base[1], base[0]);
+  const scale = 1 + amp * Math.sin(3 * angle + phase);
+  return [base[0] * scale, base[1] * scale] as const;
+}
+
+type OutlineBuilder = {
   moveTo(x: number, y: number): void;
-  cubicTo(c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number): void;
+  quadTo(c1x: number, c1y: number, x: number, y: number): void;
   close(): void;
 };
 
-function stretchPoint(
-  px: number,
-  py: number,
-  cx: number,
-  cy: number,
-  tx: number,
-  ty: number,
-  nx: number,
-  ny: number,
-  scaleX: number,
-  scaleY: number,
-) {
+/** Unit outline, 28 quadratics, wobble included. The view scales and places it. */
+export function writeOutline(builder: OutlineBuilder, kind: number, amp: number, phase: number) {
   'worklet';
-  const along = px * tx + py * ty;
-  const across = px * nx + py * ny;
-  return [cx + tx * along * scaleX + nx * across * scaleY, cy + ty * along * scaleX + ny * across * scaleY] as const;
-}
-
-/**
- * Closed blob of 8 cubics, so badge, pill and squircle share a verb count.
- * Stretch runs along `tangent` (the orbit direction).
- */
-export function writeBlob(
-  builder: BlobBuilder,
-  kind: number,
-  cx: number,
-  cy: number,
-  radius: number,
-  amp: number,
-  timeSec: number,
-  phase: number,
-  scaleX: number,
-  scaleY: number,
-  tangent: number,
-) {
-  'worklet';
-  const n = 8;
-  const step = (Math.PI * 2) / n;
-  const handle = (4 / 3) * Math.tan(step / 4);
-  const tx = -Math.sin(tangent);
-  const ty = Math.cos(tangent);
-  const nx = Math.cos(tangent);
-  const ny = Math.sin(tangent);
-  for (let i = 0; i < n; i += 1) {
-    const a0 = i * step;
-    const a1 = a0 + step;
-    const r0 = blobRadius(kind, a0, radius, amp, timeSec, phase);
-    const r1 = blobRadius(kind, a1, radius, amp, timeSec, phase);
-    const s0 = stretchPoint(Math.cos(a0) * r0, Math.sin(a0) * r0, cx, cy, tx, ty, nx, ny, scaleX, scaleY);
-    const s1 = stretchPoint(Math.cos(a1) * r1, Math.sin(a1) * r1, cx, cy, tx, ty, nx, ny, scaleX, scaleY);
-    const h0 = stretchPoint(
-      Math.cos(a0) * r0 - Math.sin(a0) * handle * r0,
-      Math.sin(a0) * r0 + Math.cos(a0) * handle * r0,
-      cx, cy, tx, ty, nx, ny, scaleX, scaleY,
-    );
-    const h1 = stretchPoint(
-      Math.cos(a1) * r1 - (-Math.sin(a1)) * handle * r1,
-      Math.sin(a1) * r1 - Math.cos(a1) * handle * r1,
-      cx, cy, tx, ty, nx, ny, scaleX, scaleY,
-    );
-    if (i === 0) builder.moveTo(s0[0], s0[1]);
-    builder.cubicTo(h0[0], h0[1], h1[0], h1[1], s1[0], s1[1]);
+  const first = wobblePoint(kind, 0, amp, phase);
+  const last = wobblePoint(kind, NP - 1, amp, phase);
+  builder.moveTo((last[0] + first[0]) / 2, (last[1] + first[1]) / 2);
+  for (let i = 0; i < NP; i += 1) {
+    const current = i === 0 ? first : wobblePoint(kind, i, amp, phase);
+    const next = i === NP - 1 ? first : wobblePoint(kind, i + 1, amp, phase);
+    builder.quadTo(current[0], current[1], (current[0] + next[0]) / 2, (current[1] + next[1]) / 2);
   }
   builder.close();
 }
 
-/** PNG pose for the current time. Translate is relative to the centred rest position. */
-export function wordmarkDraw(tMs: number, width: number, height: number): WordmarkDraw {
+export function wobbleAtLegacy(legacyMs: number) {
   'worklet';
-  const cx = width / 2;
-  const cy = height / 2;
-  const shift = periodShift(tMs);
-  const mask = wordMask(tMs);
-  const inHole = tMs >= FLOOD_AT && tMs < WORD_AT;
-  return {
-    opacity: inHole ? 0 : 1,
-    translateX: (shift - 1) * PERIOD_DX,
-    translateY: (shift - 1) * PERIOD_DY,
-    scale: handoverScale(tMs),
-    clipLeft: mask * (WORDMARK_W / 2 + 57.88 - 2),
-    holeX: cx + shift * PERIOD_DX,
-    holeY: cy + shift * PERIOD_DY,
-    holeR: inHole ? holeDiameter(tMs) / 2 : 0,
-  };
+  return wobbleAmp(legacyMs);
 }

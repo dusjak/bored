@@ -11,6 +11,11 @@ const aiCard =
 export const features = {
   sluketAnimation: true,
   aiCard,
+  /**
+   * Paint-mix pass (Kubelka–Munk + OKLab). Flip this off to keep goo only
+   * after measuring on an older iPhone. Low Power Mode also forces it off.
+   */
+  sluketColorMix: true,
 } as const;
 
 /**
