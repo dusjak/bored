@@ -1,22 +1,33 @@
 /**
  * Expo loads app.json first and passes it as `config`. Spreading it keeps those
- * values, including the native splash. This file adds the backup flag and Sign
- * in with Apple, and copies the EAS profile into `extra` so a release binary
- * can tell production from preview.
+ * values, including the native splash, `owner`, `extra.eas.projectId`, and
+ * `extra.router`. This file adds Sign in with Apple and copies the EAS profile
+ * into `extra` so a release binary can tell production from preview.
+ *
+ * `extra.backupMode` in app.json is `preview`. That is the default when
+ * `BACKUP_MODE` is unset. An env value replaces it. Do not drop `extra.eas` or
+ * `extra.router` when writing `extra`: replace the object only by spreading
+ * `config.extra` first.
  *
  * `EAS_BUILD_PROFILE` exists while EAS evaluates this file. It is not in the
  * Metro bundle unless it is copied here. Omit `easBuildProfile` when it is
  * unset. Expo's serializer turns a null value into `{}`.
  *
- * `BACKUP_MODE=preview` is the TestFlight default. It throws only for the
- * `production` profile. `testflight` is allowed.
+ * Preview backup throws only for the `production` profile. `testflight` is allowed.
  */
 const { isProductionBuildProfile } = require('./src/config/backupModeGuard.js');
 
 const BACKUP_MODES = ['off', 'preview', 'live'];
 
+function configuredBackupMode(extra) {
+  if (extra && typeof extra.backupMode === 'string' && BACKUP_MODES.includes(extra.backupMode)) {
+    return extra.backupMode;
+  }
+  return 'preview';
+}
+
 module.exports = ({ config }) => {
-  const backupMode = process.env.BACKUP_MODE ?? 'preview';
+  const backupMode = process.env.BACKUP_MODE ?? configuredBackupMode(config.extra);
   if (!BACKUP_MODES.includes(backupMode)) {
     throw new Error(`BACKUP_MODE must be 'off', 'preview', or 'live'. Received '${backupMode}'.`);
   }

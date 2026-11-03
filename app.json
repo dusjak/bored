@@ -67,6 +67,18 @@
     "scheme": "bored",
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "extra": {
+      "backupMode": "preview",
+      "router": {
+        "asyncRoutes": {
+          "web": false
+        }
+      },
+      "eas": {
+        "projectId": "6fb5350f-f6a2-4f6b-ae86-05365f76b9ce"
+      }
+    },
+    "owner": "thekingdule"
   }
 }
