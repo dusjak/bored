@@ -2,7 +2,7 @@
 
 This is how to put bored. on your own iPhone through TestFlight. You do not need Xcode installed. The Apple Developer Program enrollment is still pending. You can install the CLI and read this now. The first build cannot finish until that enrollment is active, because Apple is who signs the app.
 
-Nothing in this repo contains an Apple ID, a team id, or an EAS project id. Do not invent them. `eas init` writes the project id when you run it. On the first build, EAS creates the distribution certificate and the provisioning profile after you sign in with your Apple ID.
+Nothing in this repo contains an Apple ID or a team id. Do not invent them. The Expo account owner (`thekingdule`) and the EAS project id live in `app.json` (`owner`, `extra.eas.projectId`). On the first build, EAS creates the distribution certificate and the provisioning profile after you sign in with your Apple ID.
 
 ## What is already set
 
@@ -40,13 +40,9 @@ eas login
 
 Use the Expo account that should own this project. This is not the Apple ID. Apple sign-in happens later, during the build.
 
-## 3. Create the EAS project
+## 3. EAS project
 
-```sh
-eas init
-```
-
-This creates the project on Expo's servers and writes `extra.eas.projectId` into the app config. Commit that change. If the command prints a project id, that is the real one. Do not paste an id from somewhere else.
+`eas init` has already been run. `app.json` has `owner` set to `thekingdule` and `extra.eas.projectId` set to `6fb5350f-f6a2-4f6b-ae86-05365f76b9ce`. Do not create a second project, and do not paste a different id. `app.config.js` keeps that id: it spreads `extra` from `app.json` and only replaces `backupMode` (default `preview`) and, during a build, `easBuildProfile`.
 
 ## 4. Build for TestFlight
 
@@ -119,6 +115,6 @@ The splash work and the backup preview are both on master. Only the EAS profile 
 
 `app.config.js` defaults `BACKUP_MODE` to `preview`. That is allowed for `testflight`, so a TestFlight build keeps the honest preview backup: the screens are real, and nothing leaves the phone. The same preview mode throws when `EAS_BUILD_PROFILE` is `production`. Use `BACKUP_MODE=off` or `BACKUP_MODE=live` for that profile.
 
-The splash replay on «Jeg har allerede en konto» stays on for `testflight`. It stays off in a release binary whose profile was not baked in. `app.config.js` copies `EAS_BUILD_PROFILE` into `extra.easBuildProfile` and omits the key when it is unset. Do not write `null` there. Expo's serializer turns `null` into `{}`.
+The splash replay on «Jeg har allerede en konto» stays on for `testflight`. It stays off in a release binary whose profile was not baked in, and when that profile cannot be read. A failed read does not crash launch. The missing profile is not production, so preview backup stays available. Preview backup still fails when the profile is `production`. `app.config.js` copies `EAS_BUILD_PROFILE` into `extra.easBuildProfile` and omits the key when it is unset. Do not write `null` there. Expo's serializer turns `null` into `{}`.
 
 The native splash config is the always-dark v4 setup from master. Leave it as it is.

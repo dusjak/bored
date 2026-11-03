@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { easBuildProfile, isDevBuild, isProductionBuildProfile } from './buildProfile.ts';
+import { assertBackupMode } from '../backup/mode.ts';
+import {
+  easBuildProfile,
+  easBuildProfileFromConstants,
+  isDevBuild,
+  isProductionBuildProfile,
+  readEmbeddedEasBuildProfile,
+} from './buildProfile.ts';
 
 function withEnv(values: Record<string, string | undefined>, run: () => void): void {
   const previous = new Map<string, string | undefined>();
@@ -73,5 +80,54 @@ describe('build profile', () => {
 
   it('is not a dev build under the node test runner', () => {
     assert.equal(isDevBuild(), false);
+  });
+
+  it('reads a baked profile and still rejects preview on production', () => {
+    assert.equal(
+      easBuildProfileFromConstants({ expoConfig: { extra: { easBuildProfile: 'testflight' } } }),
+      'testflight',
+    );
+    assert.equal(
+      assertBackupMode(
+        'preview',
+        easBuildProfileFromConstants({ expoConfig: { extra: { easBuildProfile: 'testflight' } } }),
+      ),
+      'preview',
+    );
+    const production = easBuildProfileFromConstants({
+      expoConfig: { extra: { easBuildProfile: 'production' } },
+    });
+    assert.equal(production, 'production');
+    assert.throws(() => assertBackupMode('preview', production), /preview/);
+    assert.equal(assertBackupMode('off', production), 'off');
+    assert.equal(assertBackupMode('live', production), 'live');
+  });
+
+  it('returns null when the manifest cannot be read', () => {
+    const constants = {
+      get expoConfig(): never {
+        throw new Error('Requiring unknown module "expo-constants".');
+      },
+    };
+    assert.equal(easBuildProfileFromConstants(constants), null);
+    assert.equal(assertBackupMode('preview', easBuildProfileFromConstants(constants)), 'preview');
+    assert.equal(
+      readEmbeddedEasBuildProfile(() => {
+        throw new Error('Requiring unknown module "expo-constants".');
+      }),
+      null,
+    );
+    assert.equal(
+      readEmbeddedEasBuildProfile(() => ({ expoConfig: { extra: { easBuildProfile: 'production' } } })),
+      'production',
+    );
+  });
+
+  it('treats an empty baked profile as missing', () => {
+    assert.equal(easBuildProfileFromConstants(null), null);
+    assert.equal(easBuildProfileFromConstants({}), null);
+    assert.equal(easBuildProfileFromConstants({ expoConfig: { extra: { easBuildProfile: '' } } }), null);
+    assert.equal(easBuildProfileFromConstants({ expoConfig: { extra: { easBuildProfile: 1 } } }), null);
+    assert.equal(easBuildProfileFromConstants({ expoConfig: null }), null);
   });
 });
