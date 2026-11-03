@@ -239,6 +239,11 @@ export const fonts = {
   serifItalic: 'DMSerifDisplay_400Regular_Italic',
   monoLight: 'DMMono_300Light',
   mono: 'DMMono_400Regular',
+  /**
+   * Tab labels only, until the typography pass points the rest of `text` at Figtree.
+   * Loaded as `Figtree_500Medium` in fontAssets.
+   */
+  figtreeMedium: 'Figtree_500Medium',
 } as const;
 /** Color-free text styles; combine with a color from the active theme. */
 export const text = {
@@ -252,7 +257,7 @@ export const text = {
   button: { fontFamily: fonts.sansMedium, fontSize: 16, lineHeight: 24 } as TextStyle,
   eyebrow: { fontFamily: fonts.sansMedium, fontSize: 13, lineHeight: 18 } as TextStyle,
   caption: { fontFamily: fonts.sans, fontSize: 13, lineHeight: 18 } as TextStyle,
-  tab: { fontFamily: fonts.sansMedium, fontSize: 10, lineHeight: 12 } as TextStyle,
+  tab: { fontFamily: fonts.figtreeMedium, fontSize: 10, lineHeight: 12 } as TextStyle,
   monoTimer: { fontFamily: fonts.monoLight, fontSize: 88, lineHeight: 96, fontVariant: ['tabular-nums'] } as TextStyle,
   monoHero: { fontFamily: fonts.monoLight, fontSize: 56, lineHeight: 56, fontVariant: ['tabular-nums'] } as TextStyle,
   monoData: { fontFamily: fonts.mono, fontSize: 15, lineHeight: 20, fontVariant: ['tabular-nums'] } as TextStyle,

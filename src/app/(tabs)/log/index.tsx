@@ -6,13 +6,14 @@ import { shouldShowBackupNudge } from '@/backup/nudge';
 import { BackupNudgeCard } from '@/components/backup/BackupNudgeCard';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
-import { TallyMarks } from '@/components/TallyMarks';
+import { SessionKlumps } from '@/components/SessionKlumps';
 import { abortedPhrase, chosenMinutes, formatSessionDate, minutesPhrase, sessionsPhrase } from '@/data/copy';
+import { LOG_KLUMP_SPACING } from '@/data/klumper';
 import { sessionTotals } from '@/data/sessionQueries';
 import { MOODS, type MoodId, type SessionWithJournal } from '@/data/types';
 import { useAppState } from '@/state/AppState';
 import { useBackup } from '@/state/BackupState';
-import { monoHeroFontLineHeight, screenHeaderInset, useTheme } from '@/theme';
+import { monoHeroFontLineHeight, useTheme } from '@/theme';
 
 function moodLabel(id: MoodId | null): string | null {
   if (!id) return null;
@@ -69,14 +70,19 @@ export default function Log() {
             {total === 1 ? 'økt' : 'økter'}
           </Text>
         </View>
-        {total > 0 ? <TallyMarks sessions={sessions} /> : null}
+        {total > 0 ? <SessionKlumps sessions={sessions} /> : null}
         {total === 0 ? (
           <Text style={[theme.text.body, { color: theme.color.text.secondary, marginTop: theme.space['3'] }]}>
             Ingen økter ennå.
           </Text>
         ) : null}
         {aborted > 0 ? (
-          <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginTop: theme.space['2'] }]}>
+          <Text
+            style={[
+              theme.text.caption,
+              { color: theme.color.text.secondary, marginTop: LOG_KLUMP_SPACING.aboveSummary },
+            ]}
+          >
             <Text style={theme.text.monoData}>{completed}</Text>
             {' fullført, '}
             <Text style={theme.text.monoData}>{aborted}</Text>
@@ -184,7 +190,8 @@ export default function Log() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 140, paddingTop: screenHeaderInset },
+  // The count sits on the screen padding. The comp has no reserved «Logg» headline.
+  content: { paddingBottom: 140 },
   countRow: { flexDirection: 'row', alignItems: 'baseline' },
   // Taller than monoHero's 56 so iOS does not clip the top of the digit.
   count: { lineHeight: monoHeroFontLineHeight },
