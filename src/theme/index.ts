@@ -12,6 +12,7 @@ export {
   screenPadding,
   size,
   space,
+  tabularNums,
   text,
   themes,
   type ColorTokens,

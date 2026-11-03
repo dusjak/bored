@@ -17,9 +17,9 @@ export default function Ready() {
   const dur = user.duration ?? '10';
 
   const rows = [
-    { label: 'Daglig varighet', val: `${dur} min` },
-    { label: 'Påminnelse', val: user.notifications === false ? 'Av' : capitalize(time) },
-    { label: 'Mål', val: capitalize(goal) },
+    { label: 'Daglig varighet', val: `${dur} min`, numeric: true },
+    { label: 'Påminnelse', val: user.notifications === false ? 'Av' : capitalize(time), numeric: false },
+    { label: 'Mål', val: capitalize(goal), numeric: false },
   ];
 
   const start = async () => {
@@ -47,7 +47,14 @@ export default function Ready() {
         {rows.map((row) => (
           <View key={row.label} style={[styles.row, { borderBottomColor: theme.color.border.strong }]}>
             <Text style={[theme.text.caption, { color: theme.color.session['text-tertiary'] }]}>{row.label}</Text>
-            <Text style={[theme.text.labelSmall, { color: theme.color.session['text-primary'] }]}>{row.val}</Text>
+            <Text
+              style={[
+                row.numeric ? theme.text.monoData : theme.text.labelSmall,
+                { color: theme.color.session['text-primary'] },
+              ]}
+            >
+              {row.val}
+            </Text>
           </View>
         ))}
       </View>

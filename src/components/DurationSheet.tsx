@@ -9,7 +9,7 @@ import { ScreenTitle } from '@/components/ScreenTitle';
 import { TactileCircle } from '@/components/TactileCircle';
 import { features } from '@/config/features';
 import { minutesPhrase, parseCustomMinutes, PRESET_MINUTES } from '@/data/copy';
-import { screenPadding, useTheme } from '@/theme';
+import { screenPadding, tabularNums, useTheme } from '@/theme';
 
 type Props = {
   visible: boolean;
@@ -213,6 +213,7 @@ export function DurationSheet({ visible, current, sessionCount, onUse, onClose }
                   styles.input,
                   theme.text.body,
                   {
+                    fontVariant: tabularNums,
                     color: theme.color.text.primary,
                     borderColor: theme.color.border.strong,
                     borderRadius: theme.radius.medium,

@@ -105,13 +105,13 @@ export default function Log() {
                 <View style={{ flex: 1 }}>
                   <Text
                     style={[
-                      theme.text.label,
+                      theme.text.monoData,
                       { color: isAborted ? theme.color.text.secondary : theme.color.text.primary },
                     ]}
                   >
                     {title}
                   </Text>
-                  <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginTop: 2 }]}>{when}</Text>
+                  <Text style={[theme.text.monoMeta, { color: theme.color.text.tertiary, marginTop: 2 }]}>{when}</Text>
                 </View>
                 {session.journal?.note ? (
                   <Text
@@ -186,7 +186,7 @@ export default function Log() {
 const styles = StyleSheet.create({
   content: { paddingBottom: 140, paddingTop: screenHeaderInset },
   countRow: { flexDirection: 'row', alignItems: 'baseline' },
-  // Taller than monoHero's 56 so iOS does not clip the top of the digit.
+  // Taller than the hero number's 56 so iOS does not clip the top of the digit.
   count: { lineHeight: monoHeroFontLineHeight },
   row: { borderBottomWidth: 1 },
   rowHit: { minHeight: 44, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },

@@ -269,7 +269,9 @@ export default function Session() {
                 accessibilityElementsHidden={!showDone}
               >
                 <Text style={[theme.text.eyebrow, { color: theme.color.text.primary }]}>Økt fullført</Text>
-                <ScreenTitle align="center">{sentence}</ScreenTitle>
+                <ScreenTitle align="center" variant="display">
+                  {sentence}
+                </ScreenTitle>
               </Animated.View>
             </View>
 

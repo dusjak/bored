@@ -37,7 +37,7 @@ import { appearanceLabel, durationParts, minutesPhrase, reminderSchedule } from 
 import { hasNotificationPermission } from '@/data/notifications';
 import { useAppState } from '@/state/AppState';
 import { useBackup } from '@/state/BackupState';
-import { fonts, screenHeaderInset, useTheme } from '@/theme';
+import { screenHeaderInset, useTheme } from '@/theme';
 
 /** Deg. Preferences, appearance, then a full reset. */
 export default function Profile() {
@@ -143,7 +143,7 @@ export default function Profile() {
         <Text style={[theme.text.label, { color: theme.color.text.primary }]}>Foretrukket varighet</Text>
         <View style={styles.rowRight}>
           <Text style={[theme.text.bodySmall, { color: theme.color.text.secondary }]}>
-            <Text style={styles.monoFigure}>{duration.value}</Text>
+            <Text style={theme.text.monoData}>{duration.value}</Text>
             {` ${duration.unit}`}
           </Text>
           <Icon name="chevronRight" size={16} color={theme.color.text.tertiary} />
@@ -171,7 +171,7 @@ export default function Profile() {
               }}
               style={[styles.reminderTime, { marginTop: theme.space['1'], gap: theme.space['2'] }]}
             >
-              <Text style={[styles.monoFigure, { color: theme.color.text.secondary }]}>{clock.label}</Text>
+              <Text style={[theme.text.monoMeta, { color: theme.color.text.secondary }]}>{clock.label}</Text>
               <Icon name="chevronRight" size={16} color={theme.color.text.tertiary} />
             </Pressable>
           ) : null}
@@ -294,7 +294,7 @@ export default function Profile() {
           }}
           style={{ marginTop: theme.space['10'], minHeight: 44, justifyContent: 'center' }}
         >
-          <Text style={[theme.text.caption, { color: theme.color.text.tertiary }]}>{version}</Text>
+          <Text style={[theme.text.monoMeta, { color: theme.color.text.tertiary }]}>{version}</Text>
         </Pressable>
       ) : null}
 
@@ -329,11 +329,5 @@ const styles = StyleSheet.create({
   rowRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   reminderCopy: { flex: 1, paddingRight: 12 },
   reminderTime: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' },
-  monoFigure: {
-    fontFamily: fonts.mono,
-    fontSize: 14,
-    lineHeight: 20,
-    fontVariant: ['tabular-nums'],
-  },
   reset: { minHeight: 44, justifyContent: 'center' },
 });

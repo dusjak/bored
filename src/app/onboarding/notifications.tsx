@@ -25,7 +25,7 @@ export default function NotificationsStep() {
       />
 
       <View style={[styles.preview, { backgroundColor: theme.color.surface.default }]}>
-        <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginBottom: 8 }]}>{timeLabel}</Text>
+        <Text style={[theme.text.monoMeta, { color: theme.color.text.tertiary, marginBottom: 8 }]}>{timeLabel}</Text>
         <Text style={[theme.text.bodySmall, { color: theme.color.text.primary }]}>
           {user.name ? `${user.name}, ` : ''}Ti minutter. Ingenting skjer her. Det er poenget.
         </Text>
