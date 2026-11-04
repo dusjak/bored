@@ -17,7 +17,7 @@ export default function NotificationsStep() {
   const timeLabel = (user.time && NOTIF_TIME_LABELS[user.time]) || 'Daglig';
 
   return (
-    <Screen contentStyle={{ paddingBottom: 40 }}>
+    <Screen top="none" contentStyle={{ paddingBottom: 40 }}>
       <OnboardingHeader
         step={6}
         title="En stille påminnelse."

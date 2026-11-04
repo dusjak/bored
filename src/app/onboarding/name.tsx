@@ -19,7 +19,7 @@ export default function NameStep() {
   };
 
   return (
-    <Screen contentStyle={{ paddingBottom: 40 }}>
+    <Screen top="none" contentStyle={{ paddingBottom: 40 }}>
       <OnboardingHeader step={5} title="Hva skal vi kalle deg?" sub="Bare fornavn holder." />
       <TextInput
         autoFocus

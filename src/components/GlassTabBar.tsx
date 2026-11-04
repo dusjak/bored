@@ -4,7 +4,7 @@ import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon, type IconName } from '@/components/Icon';
-import { screenPadding, useTheme } from '@/theme';
+import { contentColumn, screenPadding, useTheme } from '@/theme';
 
 const ITEMS: Record<string, { label: string; icon: IconName }> = {
   home: { label: 'Hjem', icon: 'clock' },
@@ -21,10 +21,11 @@ export function GlassTabBar({ state, emitter, navigateToTab }: BottomTabBarProps
   const insets = useSafeAreaInsets();
   const bottom = Math.max(insets.bottom, 26);
   return (
-    <View pointerEvents="box-none" style={[styles.host, { paddingBottom: bottom }]}>
+    <View pointerEvents="box-none" style={[styles.host, { paddingHorizontal: screenPadding, paddingBottom: bottom }]}>
       <View
         style={[
           styles.bar,
+          contentColumn,
           theme.effect.glass,
           {
             height: theme.size['tab-bar'],
@@ -83,8 +84,6 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    // Same side inset as Screen, so the pill stays aligned with screen content.
-    paddingHorizontal: screenPadding,
   },
   bar: {
     flexDirection: 'row',

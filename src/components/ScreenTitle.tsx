@@ -12,7 +12,7 @@ type Props = {
 };
 
 /**
- * Screen title. Stretches to the content column inside the 16pt margin and wraps.
+ * Screen title. Stretches to the content column inside the 24pt margin and wraps.
  * Italic side bearings paint into that margin; the glyph origin stays on it.
  * No line limit, so a long name is never cut down to one letter.
  */

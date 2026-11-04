@@ -5,7 +5,6 @@ import {
   DEFAULT_THEME_PREFERENCE,
   monoHeroFontLineHeight,
   resolveThemeName,
-  screenHeaderInset,
   screenPadding,
   space,
   text,
@@ -18,15 +17,15 @@ describe('theme tokens', () => {
     assert.equal(themes.dark.color.text.destructive, '#FFB4AB');
   });
 
-  it('uses a 16pt screen margin and Automatisk as the default theme', () => {
+  it('uses a 24pt screen margin and Automatisk as the default theme', () => {
     assert.equal(space['4'], 16);
-    assert.equal(space['7'], 28);
-    assert.equal(screenPadding, space['4']);
-    assert.equal(text.headline.lineHeight, 32);
     assert.equal(space['6'], 24);
-    // Removed «Logg» block (32 + 24) on top of the 16pt gutter. Welcome and Deg use the same inset.
-    assert.equal(screenHeaderInset, screenPadding + Number(text.headline.lineHeight) + space['6']);
-    assert.equal(screenHeaderInset, 72);
+    assert.equal(space['7'], 28);
+    assert.equal(space['10'], 40);
+    assert.equal(space['12'], 48);
+    assert.equal(space['32'], 128);
+    assert.equal(screenPadding, space['6']);
+    assert.equal(text.headline.lineHeight, 32);
     assert.equal(text.monoHero.fontSize, 56);
     assert.equal(text.monoHero.lineHeight, 56);
     assert.equal(monoHeroFontLineHeight, 73);

@@ -3,7 +3,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { PREVIEW_MENU_TITLE } from '@/backup/copy';
 import type { PreviewForce } from '@/backup/model';
-import { screenPadding, useTheme } from '@/theme';
+import { ContentColumn } from '@/components/ContentColumn';
+import { useTheme } from '@/theme';
 
 const OPTIONS: { id: PreviewForce | null; label: string }[] = [
   { id: null, label: 'Vanlig tilstand' },
@@ -44,7 +45,7 @@ export function PreviewStateSheet({ visible, onClose, onPick }: Props) {
             },
           ]}
         >
-          <View style={[styles.body, { paddingHorizontal: screenPadding, gap: theme.space['2'] }]}>
+          <ContentColumn style={[styles.body, { gap: theme.space['2'] }]}>
             <Text accessibilityRole="header" style={[theme.text.headline, { color: theme.color.text.primary }]}>
               {PREVIEW_MENU_TITLE}
             </Text>
@@ -59,7 +60,7 @@ export function PreviewStateSheet({ visible, onClose, onPick }: Props) {
                 <Text style={[theme.text.label, { color: theme.color.text.primary }]}>{option.label}</Text>
               </Pressable>
             ))}
-          </View>
+          </ContentColumn>
         </View>
       </View>
     </Modal>
