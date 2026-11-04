@@ -65,6 +65,15 @@ describe('hold to end', () => {
     assert.equal(contourGradient(0.5, '#F6EBD6', 0.4, false).colors[0], 'rgba(246,235,214,0.4)');
   });
 
+  it('lights north before east when the sweep starts at 12 o’clock', () => {
+    // Angle 0 is north. The first 0.6% is the soft start, so the lit sample sits just clockwise of it.
+    assert.equal(arcAlpha(0.02, 0.1), 1);
+    assert.equal(arcAlpha(0.25, 0.1), 0);
+    // NNE is 22.5°. East is a quarter turn, so at 30% the arc has already passed it.
+    assert.equal(arcAlpha(0.0625, 0.3), 1);
+    assert.equal(arcAlpha(0.25, 0.3), 1);
+  });
+
   it('falls the light and the arc back over 300 ms and leaves the copy alone until 120 ms', () => {
     const g: HoldGesture = { pressAt: 0, releaseAt: 2400, doneAt: null };
     const atRelease = sampleHold(g, 2400, plain);

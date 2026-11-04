@@ -3,6 +3,7 @@ import {
   AccessibilityInfo,
   Animated,
   AppState,
+  PixelRatio,
   Platform,
   Pressable,
   StyleSheet,
@@ -14,11 +15,11 @@ import * as Haptics from 'expo-haptics';
 import {
   BlurMask,
   Canvas,
-  Group,
-  LinearGradient,
+  ImageShader,
   Path,
   SweepGradient,
   select,
+  useImage,
   usePathValue,
   vec,
 } from '@shopify/react-native-skia';
@@ -31,7 +32,12 @@ import Reanimated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { KLUMPEN_BOUNDS, writeKlumpenPath } from '@/session/klumpenShape';
+import {
+  KLUMPEN_BOUNDS,
+  sessionStoneScale,
+  sessionTextureRect,
+  writeKlumpenPath,
+} from '@/session/klumpenShape';
 import {
   HOLD,
   HOLD_TO_END_MS,
@@ -59,10 +65,33 @@ import { useTheme } from '@/theme';
  */
 const BLUR_RESPECTS_POINTS = true;
 
-const CANVAS_W = 300;
-const CANVAS_H = 280;
-const CX = 150;
-const CY = 140;
+/** Skia’s sweep 0 is east. Rotating about the centroid puts 0 at north, clockwise. */
+const SWEEP_NORTH = -Math.PI / 2;
+
+const RASTER = (PixelRatio.get() >= 2.5 ? 3 : PixelRatio.get() >= 1.5 ? 2 : 1) as 1 | 2 | 3;
+const REST_SRC = {
+  1: require('../../assets/okt/klumpen-okt-hvile@1x.png'),
+  2: require('../../assets/okt/klumpen-okt-hvile@2x.png'),
+  3: require('../../assets/okt/klumpen-okt-hvile@3x.png'),
+} as const;
+const PRESSED_SRC = {
+  1: require('../../assets/okt/klumpen-okt-trykket@1x.png'),
+  2: require('../../assets/okt/klumpen-okt-trykket@2x.png'),
+  3: require('../../assets/okt/klumpen-okt-trykket@3x.png'),
+} as const;
+
+/**
+ * Canvas fits the 240 pt stone plus the ring and the peak glow.
+ * The outline is drawn around its centroid, which sits at the canvas centre.
+ */
+const MAX_REACH_X = Math.max(-KLUMPEN_BOUNDS.minX, KLUMPEN_BOUNDS.maxX) + RING_OFFSET;
+const MAX_REACH_Y = Math.max(-KLUMPEN_BOUNDS.minY, KLUMPEN_BOUNDS.maxY) + RING_OFFSET;
+const MAX_SCALE = 240 / KLUMPEN_BOUNDS.width;
+const CANVAS_PAD = HOLD.glowRPeak + 16;
+const CANVAS_W = Math.ceil((MAX_REACH_X * MAX_SCALE + CANVAS_PAD) * 2);
+const CANVAS_H = Math.ceil((MAX_REACH_Y * MAX_SCALE + CANVAS_PAD) * 2);
+const CX = CANVAS_W / 2;
+const CY = CANVAS_H / 2;
 /** Caption centre sits 151 pt under the Klumpen centre, as on the 852 pt comp. */
 const HINT_GAP = 2;
 
@@ -86,6 +115,8 @@ type Palette = {
 };
 
 type Props = {
+  /** Chosen length. The stone is 120 / 160 / 200 / 240 pt for 5 / 10 / 15 / 20 minutes. */
+  minutes: number;
   enabled: boolean;
   showHint: boolean;
   fade: SharedValue<number>;
@@ -120,6 +151,7 @@ function gestureOf(press: number, release: number, done: number): HoldGesture {
  * changes are Light, and finishing is Success. That is the same order as the spec.
  */
 export function SessionKlumpen({
+  minutes,
   enabled,
   showHint,
   fade,
@@ -349,24 +381,23 @@ export function SessionKlumpen({
   );
   useFrameCallback(onFrame);
 
+  const scale = sessionStoneScale(minutes);
+  const texture = sessionTextureRect(CX, CY, scale);
+  const restImage = useImage(REST_SRC[RASTER]);
+  const pressedImage = useImage(PRESSED_SRC[RASTER]);
   const fillPath = usePathValue((builder) => {
     'worklet';
     const p = pose.value;
-    writeKlumpenPath(builder, CX, CY, p.sq, p.wob, p.size, p.phase, 0);
+    writeKlumpenPath(builder, CX, CY, p.sq, p.wob, p.size, p.phase, 0, scale);
   });
   const ringPath = usePathValue((builder) => {
     'worklet';
     const p = pose.value;
-    writeKlumpenPath(builder, CX, CY, p.sq, p.wob, p.size, p.phase, RING_OFFSET);
+    writeKlumpenPath(builder, CX, CY, p.sq, p.wob, p.size, p.phase, RING_OFFSET, scale);
   });
 
-  const fillColors = useDerivedValue(() => {
-    const m = fillMix.value;
-    const pal = palette.value;
-    const top = mixHex(pal.rubber, '#FFFFFF', 0.07);
-    const bottom = mixHex(pal.rubber, '#000000', 0.3);
-    return [mixHex(top, pal.done, m), mixHex(pal.rubber, pal.done, m), mixHex(bottom, pal.done, m)];
-  });
+  const restOpacity = useDerivedValue(() => 1 - fillMix.value);
+  const pressedOpacity = useDerivedValue(() => pose.value.pressed * (1 - fillMix.value));
   const litGrad = useDerivedValue(() => {
     const p = pose.value;
     const pal = palette.value;
@@ -384,12 +415,10 @@ export function SessionKlumpen({
   const litWidth = useDerivedValue(() => pose.value.strokeW);
   const glowWidth = useDerivedValue(() => pose.value.strokeW * HOLD.glowGain);
   const glowBlur = useDerivedValue(() => (pose.value.glowR < 0.5 ? 0.5 : pose.value.glowR));
-  const shadowOpacity = useDerivedValue(() => (0.42 + pose.value.pressed * 0.7) * (1 - fillMix.value));
-  const shadowBlur = useDerivedValue(() => 12 + pose.value.pressed * 10);
 
+  // The outline origin is the centroid. At 176 pt it sits about +0.7 / +2.4 pt
+  // from the box centre, and that offset scales because the stone scales around it.
   const center = vec(CX, CY);
-  const fillStart = vec(CX, CY - 80);
-  const fillEnd = vec(CX, CY + 80);
 
   const onPressIn = () => {
     if (reader.current || locked.value === 1 || doneAt.value >= 0 || enabledSv.value === 0) return;
@@ -418,14 +447,33 @@ export function SessionKlumpen({
     <View style={styles.wrap}>
       <View style={styles.canvasBox}>
         <Canvas style={styles.canvas} pointerEvents="none">
-          <Group opacity={shadowOpacity} transform={[{ translateY: 8 }]}>
-            <Path path={fillPath} color="#000000" style="fill">
-              <BlurMask blur={shadowBlur} style="normal" respectCTM={BLUR_RESPECTS_POINTS} />
+          {restImage ? (
+            <Path path={fillPath} style="fill" opacity={restOpacity}>
+              <ImageShader
+                image={restImage}
+                fit="fill"
+                x={texture.x}
+                y={texture.y}
+                width={texture.width}
+                height={texture.height}
+              />
             </Path>
-          </Group>
-          <Path path={fillPath} style="fill">
-            <LinearGradient start={fillStart} end={fillEnd} colors={fillColors} positions={[0, 0.45, 1]} />
-          </Path>
+          ) : (
+            <Path path={fillPath} style="fill" color={theme.color.session.object} opacity={restOpacity} />
+          )}
+          {pressedImage ? (
+            <Path path={fillPath} style="fill" opacity={pressedOpacity}>
+              <ImageShader
+                image={pressedImage}
+                fit="fill"
+                x={texture.x}
+                y={texture.y}
+                width={texture.width}
+                height={texture.height}
+              />
+            </Path>
+          ) : null}
+          <Path path={fillPath} style="fill" color={theme.color.object.fill} opacity={fillMix} />
           <Path
             path={ringPath}
             style="stroke"
@@ -434,18 +482,35 @@ export function SessionKlumpen({
             color={theme.color.session['ring-track']}
           />
           <Path path={ringPath} style="stroke" strokeWidth={glowWidth} strokeJoin="round">
-            {/* 0° is 3 o'clock. −90° puts the arc's start at the top, clockwise. */}
-            <SweepGradient c={center} start={-90} end={270} colors={select(glowGrad, 'colors')} positions={select(glowGrad, 'positions')} />
+            <SweepGradient
+              c={center}
+              start={0}
+              end={360}
+              transform={[{ rotate: SWEEP_NORTH }]}
+              origin={center}
+              colors={select(glowGrad, 'colors')}
+              positions={select(glowGrad, 'positions')}
+            />
             <BlurMask blur={glowBlur} style="normal" respectCTM={BLUR_RESPECTS_POINTS} />
           </Path>
           <Path path={ringPath} style="stroke" strokeWidth={litWidth} strokeJoin="round">
-            <SweepGradient c={center} start={-90} end={270} colors={select(litGrad, 'colors')} positions={select(litGrad, 'positions')} />
+            <SweepGradient
+              c={center}
+              start={0}
+              end={360}
+              transform={[{ rotate: SWEEP_NORTH }]}
+              origin={center}
+              colors={select(litGrad, 'colors')}
+              positions={select(litGrad, 'positions')}
+            />
           </Path>
           <Path path={ringPath} style="stroke" strokeWidth={HOLD.highlightW} strokeJoin="round">
             <SweepGradient
               c={center}
-              start={-90}
-              end={270}
+              start={0}
+              end={360}
+              transform={[{ rotate: SWEEP_NORTH }]}
+              origin={center}
               colors={select(highlightGrad, 'colors')}
               positions={select(highlightGrad, 'positions')}
             />
@@ -469,10 +534,10 @@ export function SessionKlumpen({
           style={[
             styles.hit,
             {
-              left: CX + KLUMPEN_BOUNDS.minX,
-              top: CY - KLUMPEN_BOUNDS.maxY,
-              width: KLUMPEN_BOUNDS.width,
-              height: KLUMPEN_BOUNDS.height,
+              left: CX + KLUMPEN_BOUNDS.minX * scale,
+              top: CY - KLUMPEN_BOUNDS.maxY * scale,
+              width: KLUMPEN_BOUNDS.width * scale,
+              height: KLUMPEN_BOUNDS.height * scale,
             },
           ]}
         />
