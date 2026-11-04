@@ -1,12 +1,14 @@
 import { Component, useCallback, useEffect, useRef, type ReactNode } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import Animated from 'react-native-reanimated';
 
+import { usePlateExit } from '@/components/usePlateExit';
 import { WordmarkImage } from '@/components/WordmarkImage';
 import { SPLASH_BG } from '@/splash/splashTiming';
 
 export type SplashProps = {
-  /** Parent has asked the overlay to leave. The exit is a cut, not a fade. */
+  /** Parent has asked the overlay to leave. fadeMs 0 cuts. Otherwise the plate fades. */
   fading: boolean;
   /** False keeps the plate up without starting the hold (under the native splash, or while backgrounded). */
   armed: boolean;
@@ -49,25 +51,20 @@ function SplashMark({ onFirstPaint }: { onFirstPaint?: () => void }) {
 }
 
 /**
- * Static S6 wordmark. Always #F8F6F2 on #111110, centred on the full window.
- * Hold, then a hard cut. Tap skips. No theme read and no Text.
- * A fade of this dark plate over a light screen would be a grey frame.
+ * Dråpe. Static S6 wordmark, always #F8F6F2 on #111110, centred on the full window.
+ * Hold, then leave: a cut when fadeMs is 0, otherwise a 200 ms fade.
+ * Tap skips. The plate does not read the theme. No Text.
  */
-export function StillSplash({ fading, armed, holdMs, onHandoff, onDismiss, onFirstPaint }: SplashProps) {
+export function StillSplash({ fading, armed, holdMs, fadeMs, onHandoff, onDismiss, onFirstPaint }: SplashProps) {
   const handed = useRef(false);
   const onHandoffRef = useRef(onHandoff);
-  const onDismissRef = useRef(onDismiss);
   onHandoffRef.current = onHandoff;
-  onDismissRef.current = onDismiss;
+  const plate = usePlateExit(fading, fadeMs, onDismiss);
 
   const handoff = useCallback(() => {
     if (handed.current) return;
     handed.current = true;
     onHandoffRef.current('fade');
-  }, []);
-
-  const dismiss = useCallback(() => {
-    onDismissRef.current();
   }, []);
 
   useEffect(() => {
@@ -80,13 +77,8 @@ export function StillSplash({ fading, armed, holdMs, onHandoff, onDismiss, onFir
     return () => clearTimeout(timer);
   }, [armed, fading, handoff, holdMs]);
 
-  useEffect(() => {
-    if (!fading) return;
-    dismiss();
-  }, [dismiss, fading]);
-
   return (
-    <View accessibilityViewIsModal style={[styles.layer, { backgroundColor: SPLASH_BG }]}>
+    <Animated.View accessibilityViewIsModal style={[styles.layer, { backgroundColor: SPLASH_BG }, plate]}>
       <StatusBar style="light" />
       <Pressable
         accessibilityRole="button"
@@ -101,7 +93,7 @@ export function StillSplash({ fading, armed, holdMs, onHandoff, onDismiss, onFir
           <SplashMark onFirstPaint={armed ? onFirstPaint : undefined} />
         </MarkFallback>
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 

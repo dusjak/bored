@@ -7,7 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { SluketSplash } from '@/components/SluketSplash';
 import { StillSplash } from '@/components/StillSplash';
-import { REDUCE_FADE_MS, SPLASH_BG, STILL_HOLD_MS } from '@/splash/splashTiming';
+import { exitFadeMs, SPLASH_BG } from '@/splash/splashTiming';
 import { splashSuppressed } from '@/splash/splashDecision';
 import { AppStateProvider, useAppState } from '@/state/AppState';
 import { BackupProvider } from '@/state/BackupState';
@@ -38,6 +38,7 @@ function ReadyGate() {
     ready,
     introPhase,
     splashOccasion,
+    splashCalm,
     splashHoldArmed,
     setIntroPhase,
     markSplashSeen,
@@ -47,6 +48,7 @@ function ReadyGate() {
   } = useAppState();
   const pathname = usePathname();
   const { ready: themeReady, theme } = useTheme();
+  const darkTheme = theme.name === 'dark';
   const open = ready && themeReady;
   const suppressed = splashSuppressed({
     pathname,
@@ -75,10 +77,10 @@ function ReadyGate() {
   const splash = (
     <SluketSplash
       occasion={splashOccasion}
+      calmSplash={splashCalm}
+      darkTheme={darkTheme}
       fading={introPhase === 'fade'}
       armed={open && splashHoldArmed}
-      holdMs={STILL_HOLD_MS}
-      fadeMs={REDUCE_FADE_MS}
       elapsedMs={() => Math.max(0, Date.now() - startedAt.current)}
       onHandoff={setIntroPhase}
       onDismiss={() => setIntroPhase('off')}
@@ -93,8 +95,8 @@ function ReadyGate() {
         <StillSplash
           fading={false}
           armed={false}
-          holdMs={STILL_HOLD_MS}
-          fadeMs={REDUCE_FADE_MS}
+          holdMs={0}
+          fadeMs={exitFadeMs(darkTheme)}
           onHandoff={() => undefined}
           onDismiss={() => undefined}
         />

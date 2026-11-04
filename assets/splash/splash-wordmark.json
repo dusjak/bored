@@ -4,6 +4,8 @@
   "ink": "#F8F6F2",
   "source": "assets/logo/wordmark-S6-mork.svg",
   "canvas_pt": [148, 46],
+  "native_image": "splash-wordmark-s6-dark.png",
+  "native_canvas_pt": [160, 80],
   "origin": "centre of the plate is the screen centre and the mid x-height",
   "dot_center_pt": [67.2257, 7.1784],
   "dot_width_pt": 13.5487

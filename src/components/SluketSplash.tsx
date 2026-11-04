@@ -4,14 +4,19 @@ import { useReducedMotion } from 'react-native-reanimated';
 import { StillSplash, type SplashProps } from '@/components/StillSplash';
 import { features } from '@/config/features';
 import { decideSplash, type SplashOccasion } from '@/splash/splashDecision';
+import { CRASH_HOLD_MIN_MS, exitFadeMs, PUST_MOTION_MS } from '@/splash/splashTiming';
 
 export type { SplashProps };
 
-type OverlayProps = SplashProps & {
+type OverlayProps = Omit<SplashProps, 'holdMs' | 'fadeMs'> & {
   occasion: SplashOccasion;
-  /** Milliseconds of Sluket already on screen. Read when the player throws. */
+  /** False on a short background return: leave the snapshot plate without Pust. */
+  calmSplash: boolean;
+  /** Dark app fades the plate. Light app cuts. The plate itself stays dark. */
+  darkTheme: boolean;
+  /** Milliseconds of MegaSplash already on screen. Read when the player throws. */
   elapsedMs: () => number;
-  /** Writes bored.splashSeen so a crash cannot replay forever. */
+  /** Writes bored.splashSeen so a MegaSplash crash cannot replay forever. */
   onCrash: () => void;
 };
 
@@ -20,34 +25,50 @@ type BoundaryProps = {
   still: SplashProps;
   elapsedMs: () => number;
   onCrash: () => void;
+  darkTheme: boolean;
+  /** MegaSplash holds the rest of its timeline. Pust holds the rest of the breathe. */
+  kind: 'mega' | 'pust';
 };
 
-type BoundaryState = { failed: boolean; holdMs: number };
+type BoundaryState = { failed: boolean; holdMs: number; fadeMs: number };
 
-/** Catches a render throw from SluketPlay, including a failed Skia import, and shows the still wordmark. */
+/** Catches a render throw, including a failed Skia import, and shows Dråpe. */
 class SplashErrorBoundary extends Component<BoundaryProps, BoundaryState> {
-  state: BoundaryState = { failed: false, holdMs: 0 };
+  state: BoundaryState = { failed: false, holdMs: 0, fadeMs: 0 };
 
   static getDerivedStateFromError(): Partial<BoundaryState> {
     return { failed: true };
   }
 
   componentDidCatch(): void {
-    const decision = decideSplash({
-      occasion: 'first-launch',
-      reduceMotion: false,
-      sluketEnabled: true,
-      animationFailed: true,
-      elapsedMs: this.props.elapsedMs(),
-    });
-    this.setState({ holdMs: decision.holdMs });
-    if (decision.markSeenNow) this.props.onCrash();
+    const elapsed = Math.max(0, this.props.elapsedMs());
+    if (this.props.kind === 'mega') {
+      const decision = decideSplash({
+        occasion: 'first-launch',
+        reduceMotion: false,
+        sluketEnabled: true,
+        animationFailed: true,
+        darkTheme: this.props.darkTheme,
+        elapsedMs: elapsed,
+      });
+      this.setState({ holdMs: decision.holdMs, fadeMs: decision.fadeMs });
+      if (decision.markSeenNow) this.props.onCrash();
+      return;
+    }
+    const left = Math.max(CRASH_HOLD_MIN_MS, PUST_MOTION_MS - elapsed);
+    this.setState({ holdMs: left, fadeMs: exitFadeMs(this.props.darkTheme) });
   }
 
   render() {
     if (!this.state.failed) return this.props.children;
-    // The plate is up immediately. The hold is whatever is left of the rest frame.
-    return <StillSplash {...this.props.still} armed={this.state.holdMs > 0} holdMs={this.state.holdMs || 300} />;
+    return (
+      <StillSplash
+        {...this.props.still}
+        armed={this.state.holdMs > 0}
+        holdMs={this.state.holdMs || CRASH_HOLD_MIN_MS}
+        fadeMs={this.state.fadeMs}
+      />
+    );
   }
 }
 
@@ -56,27 +77,54 @@ function SluketPlayLoader(props: SplashProps) {
   return <play.SluketPlay {...props} />;
 }
 
+function PustPlayLoader(props: SplashProps) {
+  const play = require('./PustPlay') as typeof import('./PustPlay');
+  return <play.PustPlay {...props} />;
+}
+
 /**
- * Full «Sluket» only for a first launch or Nullstill, and only when motion is allowed.
- * Reduce Motion, the kill switch, a later launch, and a crash all use the still wordmark.
- * SluketPlay stays unloaded in those cases.
+ * MegaSplash on a first launch or Nullstill, when motion is allowed.
+ * Pust on a later launch and on a long return from background.
+ * Dråpe for Reduce Motion, the kill switch, a crash, and a short return.
+ * The animated players stay unloaded on Dråpe.
  */
-export function SluketSplash({ occasion, elapsedMs, onCrash, ...still }: OverlayProps) {
+export function SluketSplash({
+  occasion,
+  calmSplash,
+  darkTheme,
+  elapsedMs,
+  onCrash,
+  ...plate
+}: OverlayProps) {
   const reduceMotion = useReducedMotion() === true;
   const decision = decideSplash({
     occasion,
     reduceMotion,
     sluketEnabled: features.sluketAnimation,
     animationFailed: false,
+    darkTheme,
+    calmSplash,
   });
+  const tuned: SplashProps = { ...plate, holdMs: decision.holdMs, fadeMs: decision.fadeMs };
+  // The background snapshot is the rest mark. Keep Pust mounted while that plate is up
+  // so a long return starts the breathe without swapping components.
+  const coverReturn =
+    occasion === 'background-return' && !reduceMotion && features.sluketAnimation && !calmSplash;
 
-  if (decision.mode !== 'sluket') {
-    return <StillSplash {...still} holdMs={decision.holdMs} fadeMs={decision.fadeMs} />;
+  if (decision.mode === 'none') return null;
+  if (decision.mode === 'drape' && !coverReturn) return <StillSplash {...tuned} />;
+  if (decision.mode === 'pust' || coverReturn) {
+    const play = decision.mode === 'pust' && plate.armed;
+    const leaveNow = coverReturn && plate.armed;
+    return (
+      <SplashErrorBoundary still={tuned} elapsedMs={elapsedMs} onCrash={onCrash} darkTheme={darkTheme} kind="pust">
+        <PustPlayLoader {...tuned} armed={play} fading={tuned.fading || leaveNow} />
+      </SplashErrorBoundary>
+    );
   }
-
   return (
-    <SplashErrorBoundary still={still} elapsedMs={elapsedMs} onCrash={onCrash}>
-      <SluketPlayLoader {...still} />
+    <SplashErrorBoundary still={tuned} elapsedMs={elapsedMs} onCrash={onCrash} darkTheme={darkTheme} kind="mega">
+      <SluketPlayLoader {...tuned} />
     </SplashErrorBoundary>
   );
 }

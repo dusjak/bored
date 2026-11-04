@@ -40,6 +40,13 @@ export const SOFT_PT = 28;
 
 const TAIL_MS = SETTLE_MS + Math.max(GLIDE_MS, REVEAL_LEAD * GLIDE_MS + REVEAL_MS) + REST_HOLD_MS;
 export const SPLASH_MS = 3300;
+/**
+ * Native splash is now the S6 wordmark. Preset C itself starts empty, so MegaSplash
+ * spends this long drawing the word into the dot before the v5 clock starts.
+ * The ease is the §3.7 reversal: cubic-bezier(0.55, 0, 1, 0.45).
+ */
+export const WORDMARK_EXIT_MS = 150;
+export const MEGA_MS = WORDMARK_EXIT_MS + SPLASH_MS;
 export const SWIRL_MS = SPLASH_MS - TAIL_MS;
 export const GLIDE_AT = SWIRL_MS + SETTLE_MS;
 export const REVEAL_AT = GLIDE_AT + REVEAL_LEAD * GLIDE_MS;
@@ -566,6 +573,40 @@ export function logoPose(tMs: number, swallowedFraction: number, avg: Rgb, color
     front,
     settled: tMs >= REST_AT ? 1 : 0,
   };
+}
+
+/**
+ * First 150 ms of MegaSplash. t = 0 is the rest mark (the native splash).
+ * The word retracts into the dot and the dot shrinks away, so t = 150
+ * is the empty first frame of preset C.
+ */
+export function wordmarkExitPose(tMs: number): LogoPose {
+  'worklet';
+  const rest = logoPose(REST_AT, 1, INK_RGB);
+  if (tMs <= 0) return rest;
+  const u = cubicBezierY(0.55, 0, 1, 0.45, clamp01(tMs / WORDMARK_EXIT_MS));
+  const front = lerp(rest.front, S6_CLIP_R, u);
+  const kw = S6_DOT_W * (1 - u);
+  const show = kw > 0.2;
+  return {
+    kw: show ? kw : 0,
+    dx: rest.dx,
+    dy: rest.dy,
+    r: INK_RGB[0],
+    g: INK_RGB[1],
+    b: INK_RGB[2],
+    opacity: show ? 1 : 0,
+    clipLeft: Math.max(-120, front),
+    clipRight: S6_CLIP_R,
+    front,
+    settled: 0,
+  };
+}
+
+/** Display clock for MegaSplash. The v5 clock starts once the wordmark has left. */
+export function megaPhase(displayMs: number) {
+  if (displayMs < WORDMARK_EXIT_MS) return 'wordmark';
+  return phaseName(displayMs - WORDMARK_EXIT_MS);
 }
 
 type OutlineBuilder = {

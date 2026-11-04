@@ -29,14 +29,14 @@ import { makeStonePath, renderBlobs } from '@/splash/sluketDraw';
 import {
   colorMixEnabled,
   createStimuli,
-  INK_RGB,
-  logoPose,
+  MEGA_MS,
   MIX_OFF_AT,
   mixCellPt,
   mixShaderUnits,
   SPLASH_BG,
-  SPLASH_MS,
   stimulusLimit,
+  WORDMARK_EXIT_MS,
+  wordmarkExitPose,
 } from '@/splash/sluket';
 
 function blankPicture(): SkPicture {
@@ -67,7 +67,7 @@ export function SluketPlay({ onHandoff, onFirstPaint, armed }: SplashProps) {
   const started = useSharedValue(0);
   const done = useSharedValue(0);
   const painted = useSharedValue(0);
-  const pose = useSharedValue(logoPose(0, 0, INK_RGB));
+  const pose = useSharedValue(wordmarkExitPose(0));
   const blobs = useSharedValue<SkPicture>(blankPicture());
   const stone = useSharedValue<SkPath | null>(null);
   const mixM = useSharedValue(1);
@@ -114,32 +114,37 @@ export function SluketPlay({ onHandoff, onFirstPaint, armed }: SplashProps) {
       t = 0;
     } else {
       t += frame.timeSincePreviousFrame ?? 16;
-      if (t > SPLASH_MS) t = SPLASH_MS;
+      if (t > MEGA_MS) t = MEGA_MS;
     }
     clock.value = t;
-    const recorder = Skia.PictureRecorder();
-    const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, w, h));
-    const drawn = renderBlobs(
-      canvas,
-      stimuli,
-      t,
-      w,
-      h,
-      limitSv.value,
-      mixFlag ? 1 : 0,
-      stone.value,
-    );
-    blobs.value = recorder.finishRecordingAsPicture();
-    pose.value = drawn.logo;
-    const unit = cellSv.value;
-    mixM.value = drawn.mixM;
-    mixR.value = mixShaderUnits(drawn.mixR, unit);
-    sigma.value = mixShaderUnits(drawn.sigma, unit);
+    if (t < WORDMARK_EXIT_MS) {
+      pose.value = wordmarkExitPose(t);
+    } else {
+      const local = t - WORDMARK_EXIT_MS;
+      const recorder = Skia.PictureRecorder();
+      const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, w, h));
+      const drawn = renderBlobs(
+        canvas,
+        stimuli,
+        local,
+        w,
+        h,
+        limitSv.value,
+        mixFlag ? 1 : 0,
+        stone.value,
+      );
+      blobs.value = recorder.finishRecordingAsPicture();
+      pose.value = drawn.logo;
+      const unit = cellSv.value;
+      mixM.value = drawn.mixM;
+      mixR.value = mixShaderUnits(drawn.mixR, unit);
+      sigma.value = mixShaderUnits(drawn.sigma, unit);
+    }
     if (painted.value === 0) {
       painted.value = 1;
       runOnJS(hideNative)();
     }
-    if (t >= SPLASH_MS && done.value === 0) {
+    if (t >= MEGA_MS && done.value === 0) {
       done.value = 1;
       runOnJS(finish)('enter');
     }
@@ -167,7 +172,7 @@ export function SluketPlay({ onHandoff, onFirstPaint, armed }: SplashProps) {
   useFrameCallback(onFrame);
 
   useAnimatedReaction(
-    () => clock.value >= MIX_OFF_AT,
+    () => clock.value >= WORDMARK_EXIT_MS + MIX_OFF_AT,
     (off, prev) => {
       if (off && prev !== true) runOnJS(stopMix)();
     },
