@@ -132,7 +132,13 @@ export function writeKlumpenPath(
   offset: number,
 ): void {
   'worklet';
-  const { xs, ys } = klumpenPoints(sq, wob, size, phase, offset);
+  const { xs, ys } = klumpenPoints(
+    Number.isFinite(sq) ? sq : 0,
+    Number.isFinite(wob) ? wob : 0,
+    Number.isFinite(size) ? size : 0,
+    Number.isFinite(phase) ? phase : 0,
+    Number.isFinite(offset) ? offset : 0,
+  );
   builder.moveTo(cx + xs[0], cy - ys[0]);
   for (let i = 1; i < xs.length; i += 1) builder.lineTo(cx + xs[i], cy - ys[i]);
   builder.close();

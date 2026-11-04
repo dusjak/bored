@@ -5,6 +5,7 @@ import { HOLD_DONE_TEXT, HOLD_PHASE_TEXT, HOLD_TO_END_MS } from '../data/copy.ts
 import {
   HOLD,
   arcAlpha,
+  CONTOUR_STOPS,
   contourGradient,
   easeInOutSine,
   easeOutCubic,
@@ -63,6 +64,29 @@ describe('hold to end', () => {
     assert.equal(stops.positions[0], 0);
     assert.equal(stops.positions[stops.positions.length - 1], 1);
     assert.equal(contourGradient(0.5, '#F6EBD6', 0.4, false).colors[0], 'rgba(246,235,214,0.4)');
+  });
+
+  it('keeps every sweep at a fixed count of strictly increasing stops', () => {
+    for (const arc of [true, false]) {
+      for (let step = 0; step <= 100; step += 1) {
+        for (const alpha of [0, 0.4, 1, Number.NaN]) {
+          const g = contourGradient(step / 100, '#E8C98E', alpha, arc);
+          assert.equal(g.colors.length, CONTOUR_STOPS);
+          assert.equal(g.positions.length, CONTOUR_STOPS);
+          assert.equal(g.positions[0], 0);
+          assert.equal(g.positions[CONTOUR_STOPS - 1], 1);
+          for (let i = 1; i < CONTOUR_STOPS; i += 1) {
+            assert.ok(g.positions[i] > g.positions[i - 1], `${arc} ${step} ${i}`);
+            assert.ok(g.positions[i] >= 0 && g.positions[i] <= 1);
+          }
+        }
+      }
+    }
+    const broken = contourGradient(Number.NaN, '#E8C98E', Number.NaN, true);
+    assert.equal(broken.colors.length, CONTOUR_STOPS);
+    assert.equal(broken.positions.length, CONTOUR_STOPS);
+    assert.equal(broken.positions[0], 0);
+    assert.equal(broken.positions[CONTOUR_STOPS - 1], 1);
   });
 
   it('falls the light and the arc back over 300 ms and leaves the copy alone until 120 ms', () => {
