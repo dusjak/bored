@@ -19,7 +19,8 @@ export function SettingsGroup({ children, footer }: { children: ReactNode; foote
               <View
                 style={{
                   height: deg.separator,
-                  marginHorizontal: deg.rowInset,
+                  // Leading inset only. The reference runs the hairline to the trailing edge.
+                  marginLeft: deg.rowInset,
                   backgroundColor: theme.color.border.separator,
                 }}
               />

@@ -29,6 +29,8 @@ describe('Deg v2.2', () => {
     assert.equal(deg.rowInset, 16);
     assert.equal(deg.separator, 0.5);
     assert.equal(deg.footerGap, 7);
+    // A two-line footer (18 + 18) plus this gap, then the same 32 pt as a group with no footer.
+    assert.equal(deg.footerGap + 18 + 18 + deg.groupGap, 75);
     assert.equal(deg.subtitleGap, 8);
     assert.equal(deg.afterSubtitle, 28);
     assert.equal(deg.resetGap, 30);
