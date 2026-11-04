@@ -3,7 +3,6 @@ import {
   AccessibilityInfo,
   Animated,
   AppState,
-  PixelRatio,
   Platform,
   Pressable,
   StyleSheet,
@@ -68,17 +67,8 @@ const BLUR_RESPECTS_POINTS = true;
 /** Skia’s sweep 0 is east. Rotating about the centroid puts 0 at north, clockwise. */
 const SWEEP_NORTH = -Math.PI / 2;
 
-const RASTER = (PixelRatio.get() >= 2.5 ? 3 : PixelRatio.get() >= 1.5 ? 2 : 1) as 1 | 2 | 3;
-const REST_SRC = {
-  1: require('../../assets/okt/klumpen-okt-hvile@1x.png'),
-  2: require('../../assets/okt/klumpen-okt-hvile@2x.png'),
-  3: require('../../assets/okt/klumpen-okt-hvile@3x.png'),
-} as const;
-const PRESSED_SRC = {
-  1: require('../../assets/okt/klumpen-okt-trykket@1x.png'),
-  2: require('../../assets/okt/klumpen-okt-trykket@2x.png'),
-  3: require('../../assets/okt/klumpen-okt-trykket@3x.png'),
-} as const;
+const REST_SRC = require('../../assets/okt/klumpen-okt-hvile.png');
+const PRESSED_SRC = require('../../assets/okt/klumpen-okt-trykket.png');
 
 /**
  * Canvas fits the 240 pt stone plus the ring and the peak glow.
@@ -386,8 +376,8 @@ export function SessionKlumpen({
 
   const scale = sessionStoneScale(minutes);
   const texture = sessionTextureRect(CX, CY, scale);
-  const restImage = useImage(REST_SRC[RASTER]);
-  const pressedImage = useImage(PRESSED_SRC[RASTER]);
+  const restImage = useImage(REST_SRC);
+  const pressedImage = useImage(PRESSED_SRC);
   const fillPath = usePathValue((builder) => {
     'worklet';
     const p = pose.value;
