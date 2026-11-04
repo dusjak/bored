@@ -56,6 +56,7 @@ import {
   type SpringState,
 } from '@/session/holdToEnd';
 import { HOLD_A11Y_LABEL, HOLD_DONE_TEXT, HOLD_PHASE_TEXT } from '@/data/copy';
+import { drawProgress, strokeOpacity } from '@/session/trackStroke';
 import { useTheme } from '@/theme';
 
 /**
@@ -101,6 +102,10 @@ type Pose = HoldSample & {
   wob: number;
   size: number;
   phase: number;
+  /** Grey track and lit arc. 0 at rest. */
+  track: number;
+  /** Arc fill that waits out the 150 ms fade and does not rewind. */
+  drawProg: number;
 };
 
 type Palette = {
@@ -193,6 +198,8 @@ export function SessionKlumpen({
     wob: 0,
     size: 0,
     phase: 0,
+    track: 0,
+    drawProg: 0,
   });
 
   useEffect(() => {
@@ -345,6 +352,8 @@ export function SessionKlumpen({
         wob: next.wob,
         size: next.size,
         phase: ((now % HOLD.wobbleRotMs) / HOLD.wobbleRotMs) * Math.PI * 2,
+        track: strokeOpacity(press >= 0, sample.holdMs, now, release, doneAt.value, reduce),
+        drawProg: drawProgress(sample.holdMs),
       };
       fade.value = sample.fade;
       if (g.doneAt != null && settleSent.value === 0 && now >= g.doneAt + HOLD.doneFadeAtMs + HOLD.doneFadeMs) {
@@ -396,7 +405,8 @@ export function SessionKlumpen({
     const p = pose.value;
     const pal = palette.value;
     const color = p.solid ? pal.solid : mixHex(pal.track, pal.core, p.litMix);
-    return contourGradient(p.prog, color, p.litAlpha, p.arc === 1);
+    const lit = p.drawProg > 0.001 ? 1 : 0;
+    return contourGradient(p.drawProg, color, lit, true);
   });
   const glowGrad = useDerivedValue(() => {
     const p = pose.value;
@@ -404,7 +414,7 @@ export function SessionKlumpen({
   });
   const highlightGrad = useDerivedValue(() => {
     const p = pose.value;
-    return contourGradient(p.prog, palette.value.highlight, p.solid ? 0 : p.en, p.arc === 1);
+    return contourGradient(p.drawProg, palette.value.highlight, p.solid ? 0 : p.en, true);
   });
   const litWidth = useDerivedValue(() => pose.value.strokeW);
   const glowWidth = useDerivedValue(() => pose.value.strokeW * HOLD.glowGain);

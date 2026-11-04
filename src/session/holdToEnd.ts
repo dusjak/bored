@@ -11,16 +11,7 @@ import { HOLD_TO_END_MS as COPY_HOLD_TO_END_MS } from '../data/copy.ts';
 // ReferenceError and Expo Go aborts.
 export const HOLD_TO_END_MS: number = COPY_HOLD_TO_END_MS;
 
-/**
- * Glow and the phase lines stay on this clock. The finger hold is longer:
- * 150 ms of track fade, then 4 s of arc.
- */
-export const GLOW_CLOCK_MS = 4000;
-export const TRACK_IN_MS = 150;
-export const ARC_FILL_MS = 4000;
-export const TRACK_OUT_MS = 250;
-
-/** 13/40, 27/40 and 40/40 of the glow clock. 1300 / 2700 / 4000 ms. */
+/** 13/40, 27/40 and 40/40 of the hold. 1300 / 2700 / 4000 ms when the hold is 4 s. */
 const PHASE_NUM = [13, 27, 40] as const;
 
 export const GLOW_LEVELS = [0, 0.3, 0.62, 0.9] as const;
@@ -99,8 +90,6 @@ export type HoldSample = {
   textXf: number;
   fade: number;
   held: boolean;
-  /** 0 at rest. The grey track and the arc share this opacity. */
-  track: number;
 };
 
 export type SpringState = {
@@ -145,14 +134,14 @@ export function smoothstep(edge0: number, edge1: number, x: number): number {
 export function phaseEndMs(index: 0 | 1 | 2, totalMs?: number): number {
   'worklet';
   // Worklets do not capture names used only in default parameters, so read it here.
-  const total = totalMs ?? GLOW_CLOCK_MS;
+  const total = totalMs ?? HOLD_TO_END_MS;
   return (PHASE_NUM[index] * total) / 40;
 }
 
 export function phaseIndex(holdMs: number, totalMs?: number): number {
   'worklet';
   // Worklets do not capture names used only in default parameters, so read it here.
-  const total = totalMs ?? GLOW_CLOCK_MS;
+  const total = totalMs ?? HOLD_TO_END_MS;
   if (holdMs < phaseEndMs(0, total)) return 0;
   if (holdMs < phaseEndMs(1, total)) return 1;
   return 2;
@@ -162,7 +151,7 @@ export function phaseIndex(holdMs: number, totalMs?: number): number {
 export function glowLevel(holdMs: number, totalMs?: number): number {
   'worklet';
   // Worklets do not capture names used only in default parameters, so read it here.
-  const total = totalMs ?? GLOW_CLOCK_MS;
+  const total = totalMs ?? HOLD_TO_END_MS;
   const ms = holdMs < 0 ? 0 : holdMs;
   const bounds = [0, phaseEndMs(0, total), phaseEndMs(1, total), phaseEndMs(2, total)];
   for (let i = 0; i < 3; i += 1) {
@@ -270,71 +259,11 @@ export function stepSpring(state: SpringState, target: { sq: number; wob: number
   return { sq, sqV, wob, wobV, size, sizeV };
 }
 
-/** Cubic with endpoints (0,0) and (1,1). `a` and `b` are the inner x or y controls. */
-function unitBezier(t: number, a: number, b: number): number {
-  'worklet';
-  const c = 3 * a;
-  const d = 3 * (b - a) - c;
-  const e = 1 - c - d;
-  return ((e * t + d) * t + c) * t;
-}
-
-function unitBezierSlope(t: number, a: number, b: number): number {
-  'worklet';
-  const c = 3 * a;
-  const d = 3 * (b - a) - c;
-  const e = 1 - c - d;
-  return (3 * e * t + 2 * d) * t + c;
-}
-
-/** CSS cubic-bezier(x1, y1, x2, y2), solved for y at x. */
-export function cubicBezier(x: number, x1: number, y1: number, x2: number, y2: number): number {
-  'worklet';
-  const target = clamp01(x);
-  if (target === 0 || target === 1) return target;
-  let t = target;
-  for (let i = 0; i < 8; i += 1) {
-    const slope = unitBezierSlope(t, x1, x2);
-    if (slope < 1e-6 && slope > -1e-6) break;
-    t -= (unitBezier(t, x1, x2) - target) / slope;
-    if (t < 0) t = 0;
-    else if (t > 1) t = 1;
-  }
-  return unitBezier(t, y1, y2);
-}
-
-/** 0 until the track has faded in, then linear across the 4 s fill. */
-export function arcProgress(holdMs: number): number {
-  'worklet';
-  if (holdMs <= TRACK_IN_MS) return 0;
-  const filled = (holdMs - TRACK_IN_MS) / ARC_FILL_MS;
-  if (filled < 0) return 0;
-  if (filled > 1) return 1;
-  return filled;
-}
-
-/**
- * Shared opacity of the grey track and the lit arc.
- * Ease-out in, ease-in out. An early release fades from whatever opacity
- * the fade-in had reached. Reduce Motion snaps instead of fading.
- */
-export function trackOpacity(g: HoldGesture, now: number, reduceMotion: boolean): number {
-  'worklet';
-  if (g.pressAt == null || now < g.pressAt) return 0;
-  if (g.doneAt != null && now >= g.doneAt) return 1;
-  const released = g.releaseAt != null && g.doneAt == null && now >= g.releaseAt;
-  if (reduceMotion) return released ? 0 : 1;
-  const shown = cubicBezier(Math.min(holdMsAt(g, now), TRACK_IN_MS) / TRACK_IN_MS, 0, 0, 0.58, 1);
-  if (!released || g.releaseAt == null) return shown;
-  const fade = cubicBezier((now - g.releaseAt) / TRACK_OUT_MS, 0.42, 0, 1, 1);
-  return shown * (1 - fade);
-}
-
 export function sampleHold(g: HoldGesture, now: number, options: HoldOptions): HoldSample {
   'worklet';
   const h = holdMsAt(g, now);
   let e = glowLevel(h);
-  let prog = arcProgress(h);
+  let prog = h / HOLD_TO_END_MS;
   let glowR = HOLD.glowRMin + (HOLD.glowRFull - HOLD.glowRMin) * clamp01(e / 0.9);
   let fade = 0;
   const held = isHeld(g, now);
@@ -350,10 +279,11 @@ export function sampleHold(g: HoldGesture, now: number, options: HoldOptions): H
     const k = 1 - easeOutCubic((now - g.releaseAt) / HOLD.releaseMs);
     const radAt = glowR;
     e *= k;
+    prog *= k;
     glowR = HOLD.glowRMin + (radAt - HOLD.glowRMin) * k;
   }
   const en = clamp01(e / 0.9);
-  const arc = 1;
+  const arc = options.reduceMotion ? 0 : 1;
   const litMix = arc ? 0.45 + 0.55 * en : en;
   const litAlpha = arc ? (prog > 0.001 && e > 0.002 ? 1 : 0) : en;
   const glowAlpha = options.solid || e <= 0.002 ? 0 : HOLD.glowAMax * Math.min(1.15, e / 0.9);
@@ -377,7 +307,6 @@ export function sampleHold(g: HoldGesture, now: number, options: HoldOptions): H
     textXf: text.xf,
     fade,
     held,
-    track: trackOpacity(g, now, options.reduceMotion),
   };
 }
 
