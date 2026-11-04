@@ -8,6 +8,7 @@ import {
   switchKnob,
   switchTrack,
   switchTravel,
+  snapReminderClock,
   WHEEL_HOURS,
   WHEEL_MINUTES,
   wheelIndex,
@@ -42,22 +43,32 @@ describe('Deg v2.2', () => {
     assert.equal(deg.rowSize, 17);
   });
 
-  it('snaps the wheel to hours 00–23 and minutes 00–59', () => {
+  it('snaps the wheel to hours 00–23 and minutes 00, 05, … 55', () => {
     assert.equal(deg.wheelHeight, 216);
     assert.equal(deg.wheelRow, 34);
-    assert.equal(deg.wheelMinuteStep, 1);
+    assert.equal(deg.wheelMinuteStep, 5);
     assert.equal(WHEEL_HOURS.length, 24);
     assert.equal(WHEEL_HOURS[0], '00');
     assert.equal(WHEEL_HOURS[23], '23');
-    assert.equal(WHEEL_MINUTES.length, 60);
-    assert.equal(WHEEL_MINUTES[0], '00');
-    assert.equal(WHEEL_MINUTES[1], '01');
-    assert.equal(WHEEL_MINUTES[59], '59');
-    assert.equal(wheelIndex(WHEEL_MINUTES, '30'), 30);
-    assert.equal(wheelIndex(WHEEL_MINUTES, '01'), 1);
-    assert.equal(indexFromOffset(34 * 30, WHEEL_MINUTES.length), 30);
-    assert.equal(indexFromOffset(34 * 30 + 20, WHEEL_MINUTES.length), 31);
+    assert.deepEqual(WHEEL_MINUTES, ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55']);
+    assert.equal(wheelIndex(WHEEL_MINUTES, '30'), 6);
+    assert.equal(wheelIndex(WHEEL_MINUTES, '05'), 1);
+    assert.equal(indexFromOffset(34 * 6, WHEEL_MINUTES.length), 6);
+    assert.equal(indexFromOffset(34 * 6 + 20, WHEEL_MINUTES.length), 7);
     assert.equal(indexFromOffset(-10, WHEEL_MINUTES.length), 0);
     assert.equal(indexFromOffset(9999, WHEEL_MINUTES.length), WHEEL_MINUTES.length - 1);
+  });
+
+  it('rounds a stored reminder onto the 5-minute grid when the wheel opens', () => {
+    assert.deepEqual(snapReminderClock(8, 0), { hour: 8, minute: 0 });
+    assert.deepEqual(snapReminderClock(8, 2), { hour: 8, minute: 0 });
+    assert.deepEqual(snapReminderClock(8, 3), { hour: 8, minute: 5 });
+    assert.deepEqual(snapReminderClock(8, 7), { hour: 8, minute: 5 });
+    assert.deepEqual(snapReminderClock(8, 8), { hour: 8, minute: 10 });
+    assert.deepEqual(snapReminderClock(12, 30), { hour: 12, minute: 30 });
+    assert.deepEqual(snapReminderClock(23, 55), { hour: 23, minute: 55 });
+    assert.deepEqual(snapReminderClock(23, 57), { hour: 23, minute: 55 });
+    assert.deepEqual(snapReminderClock(23, 58), { hour: 0, minute: 0 });
+    assert.deepEqual(snapReminderClock(23, 59), { hour: 0, minute: 0 });
   });
 });
