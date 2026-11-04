@@ -17,7 +17,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="home" />
       <Tabs.Screen name="log" />
-      <Tabs.Screen name="profile" />
+      <Tabs.Screen name="profile" options={{ sceneStyle: { backgroundColor: theme.color.bg.grouped } }} />
     </Tabs>
   );
 }
