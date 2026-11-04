@@ -4,10 +4,9 @@ import { router } from 'expo-router';
 
 import { Button } from '@/components/Button';
 import { DurationSheet } from '@/components/DurationSheet';
+import { HomeKlumpen } from '@/components/Klumpen';
 import { Screen } from '@/components/Screen';
-import { TactileCircle } from '@/components/TactileCircle';
 import { features } from '@/config/features';
-import { minutesPhrase } from '@/data/copy';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
@@ -36,18 +35,11 @@ export default function Home() {
   return (
     <Screen edges={['top']} contentStyle={styles.content}>
       <View style={styles.hero}>
-        <TactileCircle
-          ref={durationRef}
+        <HomeKlumpen
+          minutes={durationMinutes}
           onPress={() => setPickerOpen(true)}
-          accessibilityLabel={minutesPhrase(durationMinutes)}
-          accessibilityHint="Endre lengde"
-        >
-          <Text style={[theme.text.monoHero, { color: theme.color.object.content }]}>{durationMinutes}</Text>
-          <Text style={[theme.text.caption, { color: theme.color.object.content }]}>minutter</Text>
-        </TactileCircle>
-        <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginTop: theme.space['6'] }]}>
-          Trykk for å endre lengde
-        </Text>
+          focusRef={durationRef}
+        />
       </View>
 
       {error ? (
