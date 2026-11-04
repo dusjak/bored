@@ -30,8 +30,11 @@ type Props = {
 const PAD = (deg.wheelHeight - deg.wheelRow) / 2;
 
 /**
- * Inline hour and minute wheel. 5-minute steps. The value is committed
- * when the wheel settles. No extra haptic: a custom wheel has no system tick.
+ * Hour and minute wheels, each its own scroll view. Hours 00–23, minutes 00–59.
+ * A parent responder used to take the first finger, so a column only moved
+ * once a second finger reached the native scroll view, and then both columns
+ * jumped. The value is committed when that column settles.
+ * No extra haptic: a custom wheel has no system tick.
  * Reduce Motion skips the height animation and crossfades the wheel.
  */
 export function TimeWheel({ open, hour, minute, onChange }: Props) {
@@ -87,7 +90,7 @@ export function TimeWheel({ open, hour, minute, onChange }: Props) {
       importantForAccessibility={open ? 'auto' : 'no-hide-descendants'}
       style={[styles.clip, frame]}
     >
-      <View style={styles.wheel} onStartShouldSetResponder={() => true}>
+      <View style={styles.wheel}>
         <View
           pointerEvents="none"
           style={[styles.band, { backgroundColor: theme.color.control.band, borderRadius: theme.radius.medium }]}
@@ -132,20 +135,32 @@ function Column({
   onSelect: (value: string) => void;
 }) {
   const ref = useRef<ScrollViewInstance>(null);
+  const dragging = useRef(false);
   const index = wheelIndex(values, selected);
   const scrollY = useSharedValue(index * deg.wheelRow);
 
   useEffect(() => {
-    if (!open) return;
-    scrollY.value = index * deg.wheelRow;
+    if (!open) {
+      dragging.current = false;
+      return;
+    }
+    // A scrollTo while the finger is down fights the drag and yanks both columns.
+    if (dragging.current) return;
+    const y = index * deg.wheelRow;
+    scrollY.value = y;
     const frame = requestAnimationFrame(() => {
-      ref.current?.scrollTo({ y: index * deg.wheelRow, animated: false });
+      ref.current?.scrollTo({ y, animated: false });
     });
     return () => cancelAnimationFrame(frame);
   }, [index, open, scrollY]);
 
   const settle = (offset: number) => {
-    const next = values[indexFromOffset(offset, values.length)];
+    dragging.current = false;
+    const nextIndex = indexFromOffset(offset, values.length);
+    const next = values[nextIndex];
+    const y = nextIndex * deg.wheelRow;
+    scrollY.value = y;
+    if (Math.abs(offset - y) > 0.5) ref.current?.scrollTo({ y, animated: false });
     if (next && next !== selected) onSelect(next);
   };
 
@@ -156,17 +171,31 @@ function Column({
       contentContainerStyle={{ paddingVertical: PAD }}
       showsVerticalScrollIndicator={false}
       snapToInterval={deg.wheelRow}
+      snapToAlignment="start"
       decelerationRate="fast"
       disableIntervalMomentum
-      nestedScrollEnabled
+      bounces={false}
+      overScrollMode="never"
+      directionalLockEnabled
       scrollEventThrottle={16}
+      onScrollBeginDrag={() => {
+        dragging.current = true;
+      }}
       onLayout={() => {
+        if (dragging.current) return;
         ref.current?.scrollTo({ y: index * deg.wheelRow, animated: false });
       }}
       onScroll={(event) => {
         scrollY.value = event.nativeEvent.contentOffset.y;
       }}
-      onScrollEndDrag={(event) => settle(event.nativeEvent.contentOffset.y)}
+      onScrollEndDrag={(event) => {
+        const velocity = event.nativeEvent.velocity?.y ?? 0;
+        const offset = event.nativeEvent.contentOffset.y;
+        const max = (values.length - 1) * deg.wheelRow;
+        // A flick still has momentum. A release at the end, or with no speed, has settled.
+        if (Math.abs(velocity) > 0.05 && offset > 0.5 && offset < max - 0.5) return;
+        settle(offset);
+      }}
       onMomentumScrollEnd={(event) => settle(event.nativeEvent.contentOffset.y)}
       accessible
       accessibilityRole="adjustable"
@@ -178,7 +207,7 @@ function Column({
       ]}
       onAccessibilityAction={(event) => {
         const step = event.nativeEvent.actionName === 'increment' ? 1 : -1;
-        const next = (index + step + values.length) % values.length;
+        const next = Math.max(0, Math.min(values.length - 1, index + step));
         const value = values[next];
         if (value) onSelect(value);
       }}
