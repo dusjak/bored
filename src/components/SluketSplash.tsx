@@ -46,7 +46,7 @@ class SplashErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 
   render() {
     if (!this.state.failed) return this.props.children;
-    // Image is up immediately. The hold starts once we know how much of the 1850 ms is left.
+    // The plate is up immediately. The hold is whatever is left of the rest frame.
     return <StillSplash {...this.props.still} armed={this.state.holdMs > 0} holdMs={this.state.holdMs || 300} />;
   }
 }

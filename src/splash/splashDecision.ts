@@ -4,17 +4,8 @@
  * Full «Sluket» only on first launch and after Nullstill.
  * Everywhere else is the static wordmark, except an active session or reflection,
  * which shows nothing so the timer is there immediately.
- * Timings match src/splash/splashTiming.ts. Kept local so node can load this file.
  */
-const STILL_HOLD_MS = 300;
-const REDUCE_HOLD_MS = 600;
-const REDUCE_FADE_MS = 200;
-const CRASH_REST_AT = 5700;
-const CRASH_HOLD_MIN_MS = 300;
-
-function crashHoldMs(elapsedMs: number): number {
-  return Math.max(CRASH_HOLD_MIN_MS, CRASH_REST_AT - Math.max(0, elapsedMs));
-}
+import { crashHoldMs, REDUCE_FADE_MS, REDUCE_HOLD_MS, STILL_HOLD_MS } from './splashTiming.ts';
 
 export type IntroPhase = 'off' | 'play' | 'still' | 'fade' | 'enter';
 

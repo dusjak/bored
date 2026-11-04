@@ -1,23 +1,10 @@
 {
-  "canvas_pt": [
-    160,
-    80
-  ],
-  "font_size_pt": 52.0,
-  "font": "DM Serif Display Italic 400",
-  "@1x": {
-    "advance_pt": 143.105,
-    "pen_x_pt": 8.447,
-    "baseline_y_pt": 43.872
-  },
-  "@2x": {
-    "advance_pt": 143.104,
-    "pen_x_pt": 8.448,
-    "baseline_y_pt": 43.872
-  },
-  "@3x": {
-    "advance_pt": 143.107,
-    "pen_x_pt": 8.447,
-    "baseline_y_pt": 43.872
-  }
+  "logo": "S6",
+  "background": "#111110",
+  "ink": "#F8F6F2",
+  "source": "assets/logo/wordmark-S6-mork.svg",
+  "canvas_pt": [148, 46],
+  "origin": "centre of the plate is the screen centre and the mid x-height",
+  "dot_center_pt": [67.2257, 7.1784],
+  "dot_width_pt": 13.5487
 }

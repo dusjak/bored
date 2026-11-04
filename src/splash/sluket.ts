@@ -1,48 +1,67 @@
 /**
- * «Sluket» v4 timeline. Pure numbers, so the motion can be tested without Skia.
- * The draw loop is the v4 testbench (engine v3): shapes become the dot, the dot
- * glides to the logo, then «bored» reveals from the right. Always dark.
- * Functions called from the UI thread are marked 'worklet'.
+ * «Sluket» v5, preset C. Pure numbers, so the motion can be tested without Skia.
+ * The draw loop is the v5 testbench (drawV5 / drawBlobs): pebbles fall into the
+ * dot, the dot glides to the S6 period, then «bored» reveals from the right.
+ * Always dark. Functions called from the UI thread are marked 'worklet'.
  */
+import {
+  S6_CLIP_L,
+  S6_CLIP_R,
+  S6_DOT_W,
+  S6_DOT_X,
+  S6_DOT_Y,
+} from './s6.ts';
+
 export const SPLASH_BG = '#111110';
 export const SPLASH_INK = '#F8F6F2';
 export const INK_RGB = [0xf8, 0xf6, 0xf2] as const;
 
-export const SPLASH_MS = 6000;
+/** Preset C, from the v5 testbench. tail = 250 + max(glide, 0.4·glide + reveal) + 300. */
+export const STIMULUS_COUNT = 130;
+export const LOW_POWER_COUNT = 80;
+export const WOBBLE = 1.4;
+export const MERGE = 1;
+export const EASE_K = 0.95;
+export const TURNS = 1.75;
+export const SWIRL_K = 1.8;
+export const SIZE_K = 0.9;
+export const SHAPE_VAR = 0.85;
+export const SAT = 1;
+export const KLUMP0 = 0;
+export const KLUMP1 = 52;
+export const K_TINT = 0.75;
+export const CALM = 0.85;
 export const SETTLE_MS = 250;
-export const GLIDE_MS = 450;
-export const REVEAL_MS = 500;
+export const GLIDE_MS = 500;
+export const REVEAL_MS = 450;
 export const REST_HOLD_MS = 300;
 export const REVEAL_LEAD = 0.4;
 export const SOFT_PT = 28;
-/** Swirl length. 6000 − (250 + max(450, 0.4·450 + 500) + 300). */
-export const SWIRL_MS = 4770;
+
+const TAIL_MS = SETTLE_MS + Math.max(GLIDE_MS, REVEAL_LEAD * GLIDE_MS + REVEAL_MS) + REST_HOLD_MS;
+export const SPLASH_MS = 3300;
+export const SWIRL_MS = SPLASH_MS - TAIL_MS;
 export const GLIDE_AT = SWIRL_MS + SETTLE_MS;
 export const REVEAL_AT = GLIDE_AT + REVEAL_LEAD * GLIDE_MS;
 export const REST_AT = GLIDE_AT + Math.max(GLIDE_MS, REVEAL_LEAD * GLIDE_MS + REVEAL_MS);
+/** Colour mix leaves the tree once the ink has settled. S + 250 ms. */
+export const MIX_OFF_AT = SWIRL_MS + SETTLE_MS;
 
-export const STIMULUS_COUNT = 160;
-export const LOW_POWER_COUNT = 64;
-export const WOBBLE_SCALE = 1.6;
-export const GOO_SCALE = 0.5;
-export const EASE_K = 1.1;
-export const MAX_TURNS = 2.5;
-export const SPLASH_SEED = 0xb0ed ^ 0x2222;
-
-export const DOT_CX = 62.24;
-export const DOT_CY = 0.31;
-export const WORD_CLIP_RIGHT = 57.5;
-export const WORD_CLIP_LEFT = -80;
-
-export const MIX_START = 0.85;
-export const MIX_END = 0;
-export const MIX_EXP = 3;
-export const MIX_FROM = 0.25;
-export const MIX_TO = 0.99;
-export const MIX_RADIUS_START = 13;
+export const MIX_START = 1;
+export const MIX_END = 0.4;
+export const MIX_EXP = 1.2;
+export const MIX_FROM = 0;
+export const MIX_TO = 0.8;
+export const MIX_RADIUS_START = 20;
 export const MIX_RADIUS_END = 40;
+/** One mix cell is 4 pt. Low Power uses the same mix on an 8 pt grid. */
+export const MIX_CELL_PT = 4;
+export const MIX_CELL_LOW_PT = 8;
 
-/** iOS system colours. Red is one of eight, so exactly 1/8 of the shapes. */
+export const POSITION_SEED = 45293 ^ 8738;
+export const OUTLINE_SEED = 45293 ^ 4711;
+
+/** iOS system colours. Index i gets NOISE[i % 8], then saturation. */
 export const NOISE_HEX = [
   '#FF3B30',
   '#FF9500',
@@ -54,25 +73,41 @@ export const NOISE_HEX = [
   '#FF2D55',
 ] as const;
 
+const NP = 28;
+
+export type Rgb = readonly [number, number, number];
+
 export type Stimulus = {
   size: number;
-  /** Start radius as a fraction of the screen diagonal. */
+  /** Start distance as a fraction of the screen diagonal. */
   r0: number;
   angle: number;
-  kind: number;
-  hex: string;
+  rgb: Rgb;
   phase: number;
   rot0: number;
   flake: number;
-  /** Share of the max revolutions, 0.8–1. */
+  /** Share of the preset's revolutions, 0.8–1. */
   turnU: number;
   delay: number;
-  /** Nearest shapes finish first. Added to the legacy clock, 0–150 ms. */
+  /** Nearest shapes finish first. Added to the model clock, 0–150 ms. */
   shift: number;
+  /** Unit pebble, 28 points: x, y, angle. Built once. */
+  outline: readonly (readonly [number, number, number])[];
 };
 
-const NP = 28;
-const PILL_R = 1 / 2.6 / 2;
+export type LogoPose = {
+  kw: number;
+  dx: number;
+  dy: number;
+  r: number;
+  g: number;
+  b: number;
+  opacity: number;
+  clipLeft: number;
+  clipRight: number;
+  front: number;
+  settled: number;
+};
 
 function clamp01(value: number) {
   'worklet';
@@ -136,7 +171,7 @@ export function springAt(
   return to + decay * (x0 * Math.cos(omegaD * tSec) + b * Math.sin(omegaD * tSec));
 }
 
-/** Integrated spin weight from the v2 clock, normalised so gAt(1250) is 1. */
+/** Integrated spin weight, normalised so gAt(1250) is 1. */
 const SPIN: number[] = (() => {
   const steps: number[] = [0];
   let acc = 0;
@@ -148,47 +183,102 @@ const SPIN: number[] = (() => {
   return steps.map((value) => value / acc);
 })();
 
-function gAt(legacyMs: number) {
+function gAt(modelMs: number) {
   'worklet';
-  if (legacyMs <= 380) return 0;
-  if (legacyMs >= 1250) return 1;
-  return SPIN[Math.round(legacyMs - 380)] ?? 1;
-}
-
-/** v2 clock. The 120–1250 ms shape timeline is stretched over 0–4770 ms. */
-export function legacyTime(tMs: number) {
-  'worklet';
-  if (tMs <= 0) return 120;
-  if (tMs >= SWIRL_MS) return 1250;
-  return 120 + (tMs / SWIRL_MS) * 1130;
+  if (modelMs <= 380) return 0;
+  if (modelMs >= 1250) return 1;
+  return SPIN[Math.round(modelMs - 380)] ?? 1;
 }
 
 /**
- * Paint-mix amount and radius. u = t / 4770.
- * x = clamp((u − 0.25) / 0.74), e = x³, m = 0.85·(1−e), radius = 13 + 27·e.
+ * Model clock. 120–1250 ms of the shape timeline, warped by swirlK.
+ * tl = 120 + (t / S) ^ swirlK · 1130. Above 1 the colours last longer
+ * and the swallow comes later and faster.
  */
+export function modelTime(tMs: number) {
+  'worklet';
+  if (tMs <= 0) return 120;
+  if (tMs >= SWIRL_MS) return 1250;
+  return 120 + Math.pow(tMs / SWIRL_MS, SWIRL_K) * 1130;
+}
+
+export function calmAt(tMs: number) {
+  'worklet';
+  return smoothstep(CALM * SWIRL_MS, SWIRL_MS + SETTLE_MS, tMs);
+}
+
+/** Paint-mix amount and radius across the swirl. */
 export function mixAt(tMs: number) {
   'worklet';
   const u = tMs / SWIRL_MS;
   const x = clamp01((u - MIX_FROM) / (MIX_TO - MIX_FROM));
   const e = Math.pow(x, MIX_EXP);
   return {
-    m: MIX_START * (1 - e) + MIX_END * e,
-    radius: MIX_RADIUS_START + (MIX_RADIUS_END - MIX_RADIUS_START) * e,
+    m: lerp(MIX_START, MIX_END, e),
+    radius: lerp(MIX_RADIUS_START, MIX_RADIUS_END, e),
   };
 }
 
-/** Mixing pass is one flag, and Low Power Mode forces it off. */
-export function colorMixEnabled(flag: boolean, lowPower: boolean) {
-  return flag && !lowPower;
+/** The mix stays on in Low Power Mode. The kill switch is the only off switch. */
+export function colorMixEnabled(flag: boolean) {
+  return flag;
+}
+
+/** Low Power keeps the same picture with fewer pebbles and a coarser grid. */
+export function mixCellPt(lowPower: boolean) {
+  return lowPower ? MIX_CELL_LOW_PT : MIX_CELL_PT;
+}
+
+export function stimulusLimit(lowPower: boolean) {
+  return lowPower ? LOW_POWER_COUNT : STIMULUS_COUNT;
+}
+
+/**
+ * Radius and sigma for the mix shader, in the mix buffer's pixels.
+ * The buffer is one pixel per `cell` pt, so a 20 pt radius is 20/cell pixels
+ * on screen. PixelRatio is already accounted for by the buffer's point size.
+ */
+export function mixShaderUnits(pt: number, cell: number) {
+  'worklet';
+  return pt / Math.max(1, cell);
+}
+
+function sigmaBase(modelMs: number) {
+  'worklet';
+  if (modelMs < 380) return 4;
+  if (modelMs < 800) return lerp(4, 10, (modelMs - 380) / 420);
+  if (modelMs < 1100) return lerp(10, 12, (modelMs - 800) / 300);
+  return 12;
+}
+
+/** Goo σ in pt. Ramps to 0 as the swallow finishes, then stays off. */
+export function gooSigma(modelMs: number) {
+  'worklet';
+  if (modelMs >= 1250) return 0;
+  const sigma = sigmaBase(modelMs) * MERGE;
+  if (modelMs >= 1100) return sigma * ((1250 - modelMs) / 150);
+  return sigma;
+}
+
+function wobbleAmp(modelMs: number) {
+  'worklet';
+  if (modelMs < 380) return 0.04;
+  if (modelMs < 800) return lerp(0.04, 0.16, (modelMs - 380) / 420);
+  if (modelMs < 1100) return lerp(0.16, 0.22, (modelMs - 800) / 300);
+  return 0.22;
+}
+
+export function wobbleAt(modelMs: number) {
+  'worklet';
+  return wobbleAmp(modelMs) * WOBBLE;
 }
 
 export function phaseName(tMs: number) {
-  const legacy = legacyTime(tMs);
+  const model = modelTime(tMs);
   if (tMs < SWIRL_MS) {
-    if (legacy < 380) return 'flood';
-    if (legacy < 800) return 'swirl';
-    if (legacy < 1100) return 'tighten';
+    if (model < 380) return 'arrive';
+    if (model < 800) return 'swirl';
+    if (model < 1100) return 'tighten';
     return 'swallow';
   }
   if (tMs < GLIDE_AT) return 'settle';
@@ -196,24 +286,6 @@ export function phaseName(tMs: number) {
   if (tMs < REST_AT) return 'reveal';
   if (tMs < SPLASH_MS) return 'rest';
   return 'done';
-}
-
-function wobbleAmp(legacyMs: number) {
-  'worklet';
-  let amp = 0.22;
-  if (legacyMs < 380) amp = 0.04;
-  else if (legacyMs < 800) amp = lerp(0.04, 0.16, (legacyMs - 380) / 420);
-  else if (legacyMs < 1100) amp = lerp(0.16, 0.22, (legacyMs - 800) / 300);
-  return amp * WOBBLE_SCALE;
-}
-
-export function gooSigma(legacyMs: number) {
-  'worklet';
-  let sigma = 12;
-  if (legacyMs < 380) sigma = 4;
-  else if (legacyMs < 800) sigma = lerp(4, 10, (legacyMs - 380) / 420);
-  else if (legacyMs < 1100) sigma = lerp(10, 12, (legacyMs - 800) / 300);
-  return sigma * GOO_SCALE;
 }
 
 function mulberry32(seed: number) {
@@ -226,23 +298,72 @@ function mulberry32(seed: number) {
   };
 }
 
-export function createStimuli(count = STIMULUS_COUNT, seed = SPLASH_SEED): Stimulus[] {
-  const rand = mulberry32(seed);
+function hexToRgb(hex: string): Rgb {
+  return [
+    parseInt(hex.slice(1, 3), 16),
+    parseInt(hex.slice(3, 5), 16),
+    parseInt(hex.slice(5, 7), 16),
+  ];
+}
+
+/** One pebble outline. Seed 45293 ^ 4711, 28 points, largest extent = 1. */
+function pebbleOutline(rand: () => number, variation: number) {
+  const asp = lerp(1 - 0.55 * variation, 1, rand());
+  const hm = 0.02 + 0.16 * variation;
+  const a2 = hm * 0.9 * rand();
+  const a3 = hm * 0.55 * rand();
+  const a4 = hm * 0.3 * rand();
+  const p2 = rand() * Math.PI * 2;
+  const p3 = rand() * Math.PI * 2;
+  const p4 = rand() * Math.PI * 2;
+  const rot = rand() * Math.PI * 2;
+  const pts: [number, number][] = [];
+  for (let i = 0; i < NP; i += 1) {
+    const th = (i / NP) * Math.PI * 2;
+    const rr = 1 + a2 * Math.cos(2 * th + p2) + a3 * Math.cos(3 * th + p3) + a4 * Math.cos(4 * th + p4);
+    const x = rr * Math.cos(th);
+    const y = rr * Math.sin(th) * asp;
+    pts.push([x * Math.cos(rot) - y * Math.sin(rot), x * Math.sin(rot) + y * Math.cos(rot)]);
+  }
+  let mx = 0;
+  let my = 0;
+  let x0 = 1e9;
+  let x1 = -1e9;
+  let y0 = 1e9;
+  let y1 = -1e9;
+  for (const q of pts) {
+    mx += q[0] / NP;
+    my += q[1] / NP;
+    x0 = Math.min(x0, q[0]);
+    x1 = Math.max(x1, q[0]);
+    y0 = Math.min(y0, q[1]);
+    y1 = Math.max(y1, q[1]);
+  }
+  const ext = Math.max(x1 - x0, y1 - y0);
+  return pts.map((q) => {
+    const x = (q[0] - mx) / ext;
+    const y = (q[1] - my) / ext;
+    return [x, y, Math.atan2(y, x)] as const;
+  });
+}
+
+export function createStimuli(count = STIMULUS_COUNT): Stimulus[] {
+  const rand = mulberry32(POSITION_SEED);
   const list: Stimulus[] = [];
   for (let i = 0; i < count; i += 1) {
-    const roll = i % 10;
+    const rgb = hexToRgb(NOISE_HEX[i % NOISE_HEX.length]!);
     list.push({
       size: 24 + 466 * rand() ** 3.5,
       r0: 0.15 + 0.6 * rand() ** 1.2,
       angle: rand() * Math.PI * 2,
-      kind: roll < 5 ? 0 : roll < 8 ? 1 : 2,
-      hex: NOISE_HEX[i % NOISE_HEX.length]!,
+      rgb,
       phase: rand() * Math.PI * 2,
       rot0: rand() * Math.PI,
       flake: 2 + 18 * rand(),
       turnU: 0.8 + 0.2 * rand(),
       delay: 0,
       shift: 0,
+      outline: [],
     });
   }
   const bySize = list.map((_, index) => index).sort((a, b) => list[b]!.size - list[a]!.size);
@@ -253,13 +374,29 @@ export function createStimuli(count = STIMULUS_COUNT, seed = SPLASH_SEED): Stimu
   byRadius.forEach((index, rank) => {
     list[index]!.shift = count > 1 ? (1 - rank / (count - 1)) * 150 : 0;
   });
-  return bySize.map((index) => list[index]!);
+  const ordered = bySize.map((index) => list[index]!);
+  const shapeRand = mulberry32(OUTLINE_SEED);
+  for (const item of ordered) {
+    const luma = 0.299 * item.rgb[0] + 0.587 * item.rgb[1] + 0.114 * item.rgb[2];
+    item.rgb = [
+      Math.round(luma + (item.rgb[0] - luma) * SAT),
+      Math.round(luma + (item.rgb[1] - luma) * SAT),
+      Math.round(luma + (item.rgb[2] - luma) * SAT),
+    ];
+    item.size *= SIZE_K;
+    item.outline = pebbleOutline(shapeRand, SHAPE_VAR);
+  }
+  return ordered;
 }
 
+const HIDDEN = [0, 0, 0, 0, 0, 1, 1, 0, 0, 0] as const;
+const SWALLOWED = [0, 1, 0, 0, 0, 1, 1, 0, 0, 0] as const;
+
 /**
- * One shape on the v2 clock.
+ * One pebble on the model clock.
  * [visible, swallowed, x, y, tan, scaleX, scaleY, own, size, inkMix]
- * swallowed is 1 once the shape has entered the hole and is no longer drawn.
+ * swallowed is 1 once the pebble has entered the dot and is no longer drawn.
+ * x and y are screen coordinates.
  */
 export function sampleStimulus(
   index: number,
@@ -267,23 +404,23 @@ export function sampleStimulus(
   angle: number,
   r0: number,
   size: number,
-  phase: number,
   rot0: number,
   flake: number,
   turnU: number,
   shift: number,
-  legacyMs: number,
+  modelMs: number,
   width: number,
   height: number,
-  lowPower: number,
+  limit: number,
+  swallowR: number,
+  calmE: number,
 ) {
   'worklet';
-  const hidden = [0, 0, 0, 0, 0, 1, 1, 0, 0, 0] as const;
-  if (lowPower === 1 && index >= LOW_POWER_COUNT) return hidden;
-  if (legacyMs < 120 + delay) return hidden;
-  const pop = Math.max(0, springAt((legacyMs - 120 - delay) / 1000, 0, 1, 14, 380, 0.6));
-  const te = legacyMs < 380 ? legacyMs : 380 + ((legacyMs - 380) * 870) / (870 - shift);
-  if (te >= 1250) return [0, 1, 0, 0, 0, 1, 1, 0, 0, 0] as const;
+  if (index >= limit) return HIDDEN;
+  if (modelMs < 120 + delay) return HIDDEN;
+  const pop = Math.max(0, springAt((modelMs - 120 - delay) / 1000, 0, 1, 14, 380, 0.6));
+  const te = modelMs < 380 ? modelMs : 380 + ((modelMs - 380) * 870) / (870 - shift);
+  if (te >= 1250) return SWALLOWED;
   let rf = 1;
   let sz = size * pop;
   if (te >= 380 && te < 800) {
@@ -300,9 +437,10 @@ export function sampleStimulus(
     sz = flake * (1 - 0.6 * u) * pop;
   }
   const dist = rf * r0 * Math.hypot(width, height);
-  if (te > 800 && dist < 5) return [0, 1, 0, 0, 0, 1, 1, 0, 0, 0] as const;
-  const th = angle + turnU * MAX_TURNS * Math.PI * 2 * gAt(te);
+  if (te > 800 && dist < swallowR) return SWALLOWED;
+  const th = angle + turnU * TURNS * Math.PI * 2 * gAt(te);
   const stretch = smoothstep(0.6, 1, 1 - rf);
+  const inkMix = smoothstep(0.4, 1, 1 - rf) * lerp(0.35, 1, calmE);
   return [
     1,
     0,
@@ -313,125 +451,121 @@ export function sampleStimulus(
     1 - 0.4 * stretch,
     rot0 + (th - angle),
     sz,
-    smoothstep(0.4, 1, 1 - rf),
+    inkMix,
   ] as const;
 }
 
-export function massIn(stimuli: readonly Stimulus[], legacyMs: number, width: number, height: number, lowPower: number) {
+export function klumpWidth(tMs: number) {
   'worklet';
+  const tl = modelTime(tMs);
+  if (tMs < SWIRL_MS) {
+    const grown = cubicBezierY(0.45, 0, 0.25, 1, clamp01((tl - 380) / 870));
+    const pop = KLUMP0 > 0 ? Math.max(0, springAt((tl - 120) / 1000, 0, 1, 14, 380, 0.6)) : 1;
+    return lerp(KLUMP0, KLUMP1, grown) * pop;
+  }
+  const e = cubicBezierY(0.22, 1, 0.36, 1, clamp01((tMs - SWIRL_MS) / SETTLE_MS));
+  const sprung = springAt((tMs - SWIRL_MS) / 1000, KLUMP1, S6_DOT_W, 12, 300, 0.6);
+  return lerp(sprung, S6_DOT_W, e);
+}
+
+export function swallowRadius(tMs: number) {
+  'worklet';
+  if (tMs >= SWIRL_MS) return 5;
+  return Math.max(5, 0.35 * klumpWidth(tMs));
+}
+
+export type Mass = { fraction: number; avg: Rgb };
+
+/** Swallowed share, and the size-weighted colour of what was swallowed. */
+export function massIn(
+  stimuli: readonly Stimulus[],
+  tMs: number,
+  width: number,
+  height: number,
+  limit: number,
+): Mass {
+  'worklet';
+  const model = modelTime(tMs);
+  const calmE = calmAt(tMs);
+  const swallowR = swallowRadius(tMs);
+  const n = Math.min(limit, stimuli.length);
   let swallowed = 0;
   let total = 0;
-  for (let i = 0; i < stimuli.length; i += 1) {
-    if (lowPower === 1 && i >= LOW_POWER_COUNT) break;
-    total += 1;
+  let ar = 0;
+  let ag = 0;
+  let ab = 0;
+  let aw = 0;
+  for (let i = 0; i < n; i += 1) {
     const item = stimuli[i]!;
+    total += 1;
     const pose = sampleStimulus(
       i,
       item.delay,
       item.angle,
       item.r0,
       item.size,
-      item.phase,
       item.rot0,
       item.flake,
       item.turnU,
       item.shift,
-      legacyMs,
+      model,
       width,
       height,
-      lowPower,
+      limit,
+      swallowR,
+      calmE,
     );
-    swallowed += pose[1];
+    if (pose[1] === 1) {
+      swallowed += 1;
+      ar += item.rgb[0] * item.size;
+      ag += item.rgb[1] * item.size;
+      ab += item.rgb[2] * item.size;
+      aw += item.size;
+    }
   }
-  return total > 0 ? swallowed / total : 1;
+  const fraction = total > 0 ? swallowed / total : 1;
+  const avg: Rgb = aw > 0 ? [ar / aw, ag / aw, ab / aw] : INK_RGB;
+  return { fraction, avg };
 }
 
-export type MarkPose = {
-  circleR: number;
-  showCircle: boolean;
-  glyphA: number;
-  glyphS: number;
-  dx: number;
-  dy: number;
-  front: number;
-  clipLeft: number;
-  clipRight: number;
-  showPng: boolean;
-};
-
-/** Dot, glide and the «bored» reveal. massIn is the swallowed fraction. */
-export function markPose(tMs: number, swallowedFraction: number): MarkPose {
+function mixChannel(from: number, to: number, t: number) {
   'worklet';
-  let circleR = 0;
-  let glyphA = 0;
-  let glyphS = 1;
-  let showCircle = true;
-  if (tMs < SWIRL_MS) {
-    // Testbench: diameter grows with sqrt(swallowed), up to 13.5.
-    circleR = (13.5 * Math.sqrt(Math.max(0, swallowedFraction))) / 2;
-    if (circleR < 0.3) showCircle = false;
-  } else {
-    const diameter = springAt((tMs - SWIRL_MS) / 1000, 13.5, 10, 12, 300, 0.6);
-    const e = cubicBezierY(0.22, 1, 0.36, 1, clamp01((tMs - SWIRL_MS) / SETTLE_MS));
-    circleR = lerp(diameter / 2, 3.8, e);
-    glyphA = e;
-    glyphS = lerp(diameter / 8.7, 1, e);
-    if (e >= 0.999) showCircle = false;
-  }
+  return Math.round(from + (to - from) * clamp01(t));
+}
+
+/**
+ * Dot, glide and the «bored» reveal.
+ * At rest the numbers are the static S6 mark: the dot sits on the period,
+ * not at the screen centre.
+ */
+export function logoPose(tMs: number, swallowedFraction: number, avg: Rgb, colorMix = false): LogoPose {
+  'worklet';
+  const calmE = calmAt(tMs);
+  const kw = klumpWidth(tMs);
   const glide = cubicBezierY(0.22, 1, 0.36, 1, clamp01((tMs - GLIDE_AT) / GLIDE_MS));
-  const dx = DOT_CX * glide;
-  const dy = DOT_CY * glide;
+  const dx = S6_DOT_X * glide;
+  const dy = S6_DOT_Y * glide;
   const reveal = cubicBezierY(0.2, 0.7, 0.2, 1, clamp01((tMs - REVEAL_AT) / REVEAL_MS));
-  const front = lerp(WORD_CLIP_RIGHT, WORD_CLIP_LEFT - SOFT_PT, reveal);
-  const clipRight = Math.min(WORD_CLIP_RIGHT, dx - 4.36 - 0.3);
-  const showPng = tMs >= REST_AT && tMs < SPLASH_MS;
+  const front = lerp(S6_CLIP_R, S6_CLIP_L - SOFT_PT, reveal);
+  const clipRight = Math.min(S6_CLIP_R, dx - kw / 2 - 0.3);
+  const clipLeft = Math.max(-120, front);
+  const tint = K_TINT * (1 - calmE) * smoothstep(0, 0.04, swallowedFraction);
+  const show = kw > 0.2;
+  // The mixed dot is in the picture. This vector fades in on top of it, then stays solid.
+  const sharp = colorMix && tMs < SWIRL_MS ? smoothstep(0.15, 0.85, calmE) : 1;
   return {
-    circleR,
-    showCircle: showCircle && !showPng,
-    glyphA: showPng ? 0 : glyphA,
-    glyphS,
+    kw: show ? kw : 0,
     dx,
     dy,
-    front,
-    clipLeft: Math.max(-120, front),
+    r: mixChannel(INK_RGB[0], avg[0], tint),
+    g: mixChannel(INK_RGB[1], avg[1], tint),
+    b: mixChannel(INK_RGB[2], avg[2], tint),
+    opacity: show ? sharp : 0,
+    clipLeft,
     clipRight,
-    showPng,
+    front,
+    settled: tMs >= REST_AT ? 1 : 0,
   };
-}
-
-function outlinePoint(kind: number, k: number) {
-  'worklet';
-  const angle = k * Math.PI * 2;
-  if (kind === 0) return [0.5 * Math.cos(angle), 0.5 * Math.sin(angle)] as const;
-  if (kind === 2) {
-    const c = Math.cos(angle);
-    const s = Math.sin(angle);
-    const sign = (v: number) => (v < 0 ? -1 : 1);
-    return [0.5 * sign(c) * Math.pow(Math.abs(c), 0.4), 0.5 * sign(s) * Math.pow(Math.abs(s), 0.4)] as const;
-  }
-  const r = PILL_R;
-  const straight = 0.5 - r;
-  const perimeter = 4 * straight + Math.PI * 2 * r;
-  let s = (k - Math.floor(k)) * perimeter;
-  if (s < 2 * straight) return [-straight + s, -r] as const;
-  s -= 2 * straight;
-  if (s < Math.PI * r) {
-    const a = -Math.PI / 2 + s / r;
-    return [straight + r * Math.cos(a), r * Math.sin(a)] as const;
-  }
-  s -= Math.PI * r;
-  if (s < 2 * straight) return [straight - s, r] as const;
-  s -= 2 * straight;
-  const a = Math.PI / 2 + s / r;
-  return [-straight + r * Math.cos(a), r * Math.sin(a)] as const;
-}
-
-function wobblePoint(kind: number, index: number, amp: number, phase: number) {
-  'worklet';
-  const base = outlinePoint(kind, index / NP);
-  const angle = Math.atan2(base[1], base[0]);
-  const scale = 1 + amp * Math.sin(3 * angle + phase);
-  return [base[0] * scale, base[1] * scale] as const;
 }
 
 type OutlineBuilder = {
@@ -440,21 +574,33 @@ type OutlineBuilder = {
   close(): void;
 };
 
-/** Unit outline, 28 quadratics, wobble included. The view scales and places it. */
-export function writeOutline(builder: OutlineBuilder, kind: number, amp: number, phase: number) {
+/** Unit outline, 28 quadratics. Wobble is a radial scale of the baked pebble. */
+export function writeOutline(
+  builder: OutlineBuilder,
+  outline: readonly (readonly [number, number, number])[],
+  amp: number,
+  phase: number,
+) {
   'worklet';
-  const first = wobblePoint(kind, 0, amp, phase);
-  const last = wobblePoint(kind, NP - 1, amp, phase);
-  builder.moveTo((last[0] + first[0]) / 2, (last[1] + first[1]) / 2);
-  for (let i = 0; i < NP; i += 1) {
-    const current = i === 0 ? first : wobblePoint(kind, i, amp, phase);
-    const next = i === NP - 1 ? first : wobblePoint(kind, i + 1, amp, phase);
-    builder.quadTo(current[0], current[1], (current[0] + next[0]) / 2, (current[1] + next[1]) / 2);
+  const n = outline.length;
+  const xs: number[] = [];
+  const ys: number[] = [];
+  for (let i = 0; i < n; i += 1) {
+    const p = outline[i]!;
+    const f = 1 + amp * Math.sin(3 * p[2] + phase);
+    xs.push(p[0] * f);
+    ys.push(p[1] * f);
+  }
+  const last = n - 1;
+  builder.moveTo(((xs[last] ?? 0) + (xs[0] ?? 0)) / 2, ((ys[last] ?? 0) + (ys[0] ?? 0)) / 2);
+  for (let i = 0; i < n; i += 1) {
+    const j = (i + 1) % n;
+    builder.quadTo(xs[i] ?? 0, ys[i] ?? 0, ((xs[i] ?? 0) + (xs[j] ?? 0)) / 2, ((ys[i] ?? 0) + (ys[j] ?? 0)) / 2);
   }
   builder.close();
 }
 
-export function wobbleAtLegacy(legacyMs: number) {
+export function outlinePhase(modelMs: number, phase: number) {
   'worklet';
-  return wobbleAmp(legacyMs);
+  return (9 * modelMs) / 1000 + phase;
 }

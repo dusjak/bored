@@ -12,8 +12,9 @@ export const features = {
   sluketAnimation: true,
   aiCard,
   /**
-   * Paint-mix pass (Kubelka–Munk + OKLab). Flip this off to keep goo only
-   * after measuring on an older iPhone. Low Power Mode also forces it off.
+   * Paint-mix pass (Kubelka–Munk + OKLab) on a 4 pt grid.
+   * Flip this off to keep goo only. Low Power Mode keeps the mix,
+   * with fewer pebbles and an 8 pt grid.
    */
   sluketColorMix: true,
 } as const;

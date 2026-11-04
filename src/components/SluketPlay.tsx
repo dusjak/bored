@@ -1,95 +1,91 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PixelRatio, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useLowPowerMode } from 'expo-battery';
-import Animated, {
-  interpolateColor,
+import {
   runOnJS,
   useAnimatedReaction,
-  useAnimatedStyle,
   useDerivedValue,
   useFrameCallback,
   useSharedValue,
   type SharedValue,
 } from 'react-native-reanimated';
 import {
-  Circle,
-  Group,
-  LinearGradient,
-  Paint,
-  Path,
-  Rect,
-  RuntimeShader,
-  Blur,
-  ColorMatrix,
   Canvas,
+  Group,
+  Paint,
+  Picture,
+  RuntimeShader,
   Skia,
-  select,
-  usePathValue,
-  vec,
-  type Transforms3d,
+  type SkPath,
+  type SkPicture,
 } from '@shopify/react-native-skia';
 
-import { WordmarkImage } from '@/components/WordmarkImage';
+import { SplashLogo } from '@/components/S6Mark';
 import type { SplashProps } from '@/components/StillSplash';
 import { features } from '@/config/features';
 import { sluketMixEffect } from '@/splash/sluketMix';
+import { makeStonePath, renderBlobs } from '@/splash/sluketDraw';
 import {
   colorMixEnabled,
   createStimuli,
-  DOT_CX,
-  DOT_CY,
-  gooSigma,
-  legacyTime,
-  markPose,
-  massIn,
-  mixAt,
-  sampleStimulus,
-  SOFT_PT,
+  INK_RGB,
+  logoPose,
+  MIX_OFF_AT,
+  mixCellPt,
+  mixShaderUnits,
   SPLASH_BG,
-  SPLASH_INK,
   SPLASH_MS,
-  wobbleAtLegacy,
-  writeOutline,
-  type Stimulus,
+  stimulusLimit,
 } from '@/splash/sluket';
-import { DOT_D, WORD_D } from '@/splash/wordmarkPaths';
 
-const GOO = [1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 18, -7];
-const MIX_STOPS = [0, 1];
-
-type PoseValue = { color: string; opacity: number };
+function blankPicture(): SkPicture {
+  const recorder = Skia.PictureRecorder();
+  recorder.beginRecording(Skia.XYWHRect(0, 0, 1, 1));
+  return recorder.finishRecordingAsPicture();
+}
 
 /**
- * «Sluket» v4. Always #111110 / #F8F6F2. No theme read.
- * Shapes become the dot; the dot glides; «bored» reveals from the right.
- * The paint mix is one shader, skipped when the flag is off or Low Power Mode is on.
+ * «Sluket» v5 preset C. Always #111110 / #F8F6F2.
+ * Pebbles are one picture per frame. The colour mix runs on a 4 pt grid
+ * (8 pt in Low Power Mode) and is removed once the ink has settled.
+ * The clock starts at the first drawn frame, after fonts and hydration.
  */
-export function SluketPlay({ onHandoff }: SplashProps) {
+export function SluketPlay({ onHandoff, onFirstPaint, armed }: SplashProps) {
   const { width, height } = useWindowDimensions();
   const batteryLow = useLowPowerMode();
-  const lowPower = useSharedValue(batteryLow ? 1 : 0);
-  const mixOn = colorMixEnabled(features.sluketColorMix, batteryLow) && sluketMixEffect != null;
+  const mixFlag = colorMixEnabled(features.sluketColorMix) && sluketMixEffect != null;
   const stimuli = useMemo(() => createStimuli(), []);
-  const wordPath = useMemo(() => Skia.Path.MakeFromSVGString(WORD_D), []);
-  const dotPath = useMemo(() => Skia.Path.MakeFromSVGString(DOT_D), []);
-  const clock = useSharedValue(0);
-  const sigma = useSharedValue(2);
-  const mixM = useSharedValue(0.85);
-  const mixR = useSharedValue(13);
-  const mass = useSharedValue(0);
+  const [showMix, setShowMix] = useState(mixFlag);
+  const cell = mixCellPt(batteryLow);
+  const cellSv = useSharedValue(cell);
+  const limitSv = useSharedValue(stimulusLimit(batteryLow));
+  const armedSv = useSharedValue(armed ? 1 : 0);
   const widthSv = useSharedValue(width);
   const heightSv = useSharedValue(height);
-  const ended = useSharedValue(0);
+  const clock = useSharedValue(0);
+  const started = useSharedValue(0);
+  const done = useSharedValue(0);
+  const painted = useSharedValue(0);
+  const pose = useSharedValue(logoPose(0, 0, INK_RGB));
+  const blobs = useSharedValue<SkPicture>(blankPicture());
+  const stone = useSharedValue<SkPath | null>(null);
+  const mixM = useSharedValue(1);
+  const mixR = useSharedValue(mixShaderUnits(20, cell));
+  const sigma = useSharedValue(mixShaderUnits(4, cell));
   const handed = useRef(false);
   const onHandoffRef = useRef(onHandoff);
+  const onFirstPaintRef = useRef(onFirstPaint);
   onHandoffRef.current = onHandoff;
+  onFirstPaintRef.current = onFirstPaint;
 
   useEffect(() => {
     widthSv.value = width;
     heightSv.value = height;
-    lowPower.value = batteryLow ? 1 : 0;
-  }, [batteryLow, height, heightSv, lowPower, width, widthSv]);
+    armedSv.value = armed ? 1 : 0;
+    cellSv.value = cell;
+    limitSv.value = stimulusLimit(batteryLow);
+  }, [armed, armedSv, batteryLow, cell, cellSv, height, heightSv, limitSv, width, widthSv]);
 
   const finish = useCallback((mode: 'enter' | 'fade') => {
     if (handed.current) return;
@@ -97,116 +93,117 @@ export function SluketPlay({ onHandoff }: SplashProps) {
     onHandoffRef.current(mode);
   }, []);
 
-  const onFrame = useCallback(
-    (frame: { timestamp: number; timeSincePreviousFrame: number | null; timeSinceFirstFrame: number }) => {
-      'worklet';
-      let t = frame.timeSinceFirstFrame;
+  const hideNative = useCallback(() => {
+    onFirstPaintRef.current?.();
+  }, []);
+
+  const stopMix = useCallback(() => {
+    setShowMix(false);
+  }, []);
+
+  const onFrame = useCallback((frame: { timeSincePreviousFrame: number | null }) => {
+    'worklet';
+    if (armedSv.value === 0 || done.value === 1) return;
+    const w = widthSv.value;
+    const h = heightSv.value;
+    if (w < 2 || h < 2) return;
+    if (stone.value == null) stone.value = makeStonePath();
+    let t = clock.value;
+    if (started.value === 0) {
+      started.value = 1;
+      t = 0;
+    } else {
+      t += frame.timeSincePreviousFrame ?? 16;
       if (t > SPLASH_MS) t = SPLASH_MS;
-      const legacy = legacyTime(t);
-      mass.value = massIn(stimuli, legacy, widthSv.value, heightSv.value, lowPower.value);
-      const mix = mixAt(t);
-      mixM.value = mix.m;
-      mixR.value = mix.radius;
-      sigma.value = gooSigma(legacy);
-      clock.value = t;
-      if (t >= SPLASH_MS && ended.value === 0) {
-        ended.value = 1;
-        runOnJS(finish)('enter');
-      }
-    },
-    [clock, ended, finish, heightSv, lowPower, mass, mixM, mixR, sigma, stimuli, widthSv],
-  );
+    }
+    clock.value = t;
+    const recorder = Skia.PictureRecorder();
+    const canvas = recorder.beginRecording(Skia.XYWHRect(0, 0, w, h));
+    const drawn = renderBlobs(
+      canvas,
+      stimuli,
+      t,
+      w,
+      h,
+      limitSv.value,
+      mixFlag ? 1 : 0,
+      stone.value,
+    );
+    blobs.value = recorder.finishRecordingAsPicture();
+    pose.value = drawn.logo;
+    const unit = cellSv.value;
+    mixM.value = drawn.mixM;
+    mixR.value = mixShaderUnits(drawn.mixR, unit);
+    sigma.value = mixShaderUnits(drawn.sigma, unit);
+    if (painted.value === 0) {
+      painted.value = 1;
+      runOnJS(hideNative)();
+    }
+    if (t >= SPLASH_MS && done.value === 0) {
+      done.value = 1;
+      runOnJS(finish)('enter');
+    }
+  }, [
+    armedSv,
+    blobs,
+    cellSv,
+    clock,
+    done,
+    finish,
+    heightSv,
+    hideNative,
+    limitSv,
+    mixFlag,
+    mixM,
+    mixR,
+    painted,
+    pose,
+    sigma,
+    started,
+    stone,
+    stimuli,
+    widthSv,
+  ]);
   useFrameCallback(onFrame);
 
-  const skip = () => {
-    if (ended.value === 1) return;
-    ended.value = 1;
-    finish('enter');
-  };
+  useAnimatedReaction(
+    () => clock.value >= MIX_OFF_AT,
+    (off, prev) => {
+      if (off && prev !== true) runOnJS(stopMix)();
+    },
+  );
 
   const uniforms = useDerivedValue(() => ({
-    m: lowPower.value === 1 || !features.sluketColorMix ? 0 : mixM.value,
+    m: mixM.value,
     radius: mixR.value,
     sigma: sigma.value,
   }));
-  const pngStyle = useAnimatedStyle(() => {
-    'worklet';
-    const pose = markPose(clock.value, mass.value);
-    return { opacity: pose.showPng ? 1 : 0 };
-  });
-  const wordOpacity = useDerivedValue(() => (markPose(clock.value, mass.value).showPng ? 0 : 1));
-  const clip = useDerivedValue(() => {
-    const pose = markPose(clock.value, mass.value);
-    return {
-      x: pose.clipLeft,
-      y: -80,
-      width: Math.max(0, pose.clipRight - pose.clipLeft),
-      height: 160,
-    };
-  });
-  const fadeStart = useDerivedValue(() => vec(markPose(clock.value, mass.value).front, -60));
-  const fadeEnd = useDerivedValue(() => vec(markPose(clock.value, mass.value).front + SOFT_PT, -60));
-  const fadeX = useDerivedValue(() => markPose(clock.value, mass.value).front);
-  const circleCx = useDerivedValue(() => widthSv.value / 2 + markPose(clock.value, mass.value).dx);
-  const circleCy = useDerivedValue(() => heightSv.value / 2 + markPose(clock.value, mass.value).dy);
-  const circleR = useDerivedValue(() => {
-    const pose = markPose(clock.value, mass.value);
-    return pose.showCircle ? pose.circleR : 0;
-  });
-  const glyphOpacity = useDerivedValue(() => markPose(clock.value, mass.value).glyphA);
-  const glyphTransform = useDerivedValue<Transforms3d>(() => {
-    const pose = markPose(clock.value, mass.value);
-    return [
-      { translateX: widthSv.value / 2 + pose.dx },
-      { translateY: heightSv.value / 2 + pose.dy },
-      { scale: pose.glyphS },
-      { translateX: -DOT_CX },
-      { translateY: -DOT_CY },
-    ];
-  });
 
-  const blobs = stimuli.map((stimulus, index) => (
-    <BlobView
-      key={index}
-      stimulus={stimulus}
-      index={index}
-      clock={clock}
-      widthSv={widthSv}
-      heightSv={heightSv}
-      lowPower={lowPower}
-    />
-  ));
+  const skip = () => {
+    if (done.value === 1) return;
+    done.value = 1;
+    finish('enter');
+  };
 
   return (
     <View accessibilityViewIsModal style={[styles.layer, { backgroundColor: SPLASH_BG }]}>
       <StatusBar style="light" />
-      <Canvas style={styles.fill} pointerEvents="none">
-        <Rect x={0} y={0} width={width} height={height} color={SPLASH_BG} />
-        {mixOn && sluketMixEffect ? (
-          <Group layer={<Paint><RuntimeShader source={sluketMixEffect} uniforms={uniforms} /></Paint>}>
-            {blobs}
-          </Group>
-        ) : (
-          <Group layer={<Paint><Blur blur={sigma} /><ColorMatrix matrix={GOO} /></Paint>}>
-            {blobs}
-          </Group>
-        )}
-        <Group transform={[{ translateX: width / 2 }, { translateY: height / 2 }]} clip={clip} opacity={wordOpacity}>
-          {wordPath ? <Path path={wordPath} color={SPLASH_INK} /> : null}
-          <Rect x={fadeX} y={-60} width={SOFT_PT} height={120}>
-            <LinearGradient start={fadeStart} end={fadeEnd} colors={[SPLASH_BG, 'rgba(17,17,16,0)']} />
-          </Rect>
+      {showMix && sluketMixEffect ? (
+        <MixCanvas
+          picture={blobs}
+          width={width}
+          height={height}
+          cell={cell}
+          uniforms={uniforms}
+          source={sluketMixEffect}
+        />
+      ) : null}
+      <Canvas style={[styles.fill, styles.clear]} pointerEvents="none">
+        {showMix ? null : <Picture picture={blobs} />}
+        <Group transform={[{ translateX: width / 2 }, { translateY: height / 2 }]}>
+          <SplashLogo pose={pose} />
         </Group>
-        <Circle cx={circleCx} cy={circleCy} r={circleR} color={SPLASH_INK} />
-        {dotPath ? (
-          <Group transform={glyphTransform} opacity={glyphOpacity}>
-            <Path path={dotPath} color={SPLASH_INK} />
-          </Group>
-        ) : null}
       </Canvas>
-      <Animated.View pointerEvents="none" style={[styles.fill, pngStyle]}>
-        <WordmarkImage />
-      </Animated.View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="bored"
@@ -218,83 +215,48 @@ export function SluketPlay({ onHandoff }: SplashProps) {
   );
 }
 
-function BlobView({
-  stimulus,
-  index,
-  clock,
-  widthSv,
-  heightSv,
-  lowPower,
+function MixCanvas({
+  picture,
+  width,
+  height,
+  cell,
+  uniforms,
+  source,
 }: {
-  stimulus: Stimulus;
-  index: number;
-  clock: SharedValue<number>;
-  widthSv: SharedValue<number>;
-  heightSv: SharedValue<number>;
-  lowPower: SharedValue<number>;
+  picture: SharedValue<SkPicture>;
+  width: number;
+  height: number;
+  cell: number;
+  uniforms: SharedValue<{ m: number; radius: number; sigma: number }>;
+  source: NonNullable<typeof sluketMixEffect>;
 }) {
-  const hex = stimulus.hex;
-  const delay = stimulus.delay;
-  const angle = stimulus.angle;
-  const r0 = stimulus.r0;
-  const size = stimulus.size;
-  const phase = stimulus.phase;
-  const rot0 = stimulus.rot0;
-  const flake = stimulus.flake;
-  const turnU = stimulus.turnU;
-  const shift = stimulus.shift;
-  const kind = stimulus.kind;
-  const colors = useMemo(() => [hex, SPLASH_INK], [hex]);
-  const pose = useSharedValue<PoseValue>({ color: hex, opacity: 0 });
-  const transform = useSharedValue<Transforms3d>([{ translateX: 0 }, { translateY: 0 }]);
-  useAnimatedReaction(
-    () => clock.value,
-    () => {
-      'worklet';
-      const motion = sampleStimulus(
-        index,
-        delay,
-        angle,
-        r0,
-        size,
-        phase,
-        rot0,
-        flake,
-        turnU,
-        shift,
-        legacyTime(clock.value),
-        widthSv.value,
-        heightSv.value,
-        lowPower.value,
-      );
-      pose.value = {
-        color: interpolateColor(motion[9], MIX_STOPS, colors),
-        opacity: motion[0],
-      };
-      transform.value = [
-        { translateX: motion[2] },
-        { translateY: motion[3] },
-        { rotate: motion[4] },
-        { scaleX: motion[5] },
-        { scaleY: motion[6] },
-        { rotate: motion[7] - motion[4] },
-        { scale: motion[8] },
-      ];
-    },
-  );
-  const path = usePathValue((builder) => {
-    'worklet';
-    const legacy = legacyTime(clock.value);
-    writeOutline(builder, kind, wobbleAtLegacy(legacy), (9 * legacy) / 1000 + phase);
-  });
+  const ratio = PixelRatio.get();
+  const bufW = Math.max(1, width / (cell * ratio));
+  const bufH = Math.max(1, height / (cell * ratio));
+  const fit = bufW / Math.max(1, width);
   return (
-    <Group transform={transform} opacity={select(pose, 'opacity')}>
-      <Path path={path} color={select(pose, 'color')} />
-    </Group>
+    <View pointerEvents="none" style={styles.fill}>
+      <Canvas
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          width: bufW,
+          height: bufH,
+          transformOrigin: 'left top',
+          transform: [{ scale: width / bufW }],
+        }}
+      >
+        <Group layer={<Paint><RuntimeShader source={source} uniforms={uniforms} /></Paint>} transform={[{ scale: fit }]}>
+          <Picture picture={picture} />
+        </Group>
+      </Canvas>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   layer: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 20 },
   fill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  clear: { backgroundColor: 'transparent' },
 });

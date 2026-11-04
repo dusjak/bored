@@ -2,11 +2,12 @@ import { Image, type ImageSourcePropType } from 'react-native';
 
 const dark = require('../../assets/splash/splash-wordmark-dark.png') as ImageSourcePropType;
 
-/** Always the dark wordmark. The splash does not follow the app theme. */
+/** S6 on the dark plate. The splash does not follow the app theme. Raster fallback when Skia cannot draw the vector. */
 export const wordmarkSource = dark;
 
-export const WORDMARK_W = 160;
-export const WORDMARK_H = 80;
+/** Same plate as the S6 vector: 148 × 46 pt, origin at the image centre. */
+export const WORDMARK_W = 148;
+export const WORDMARK_H = 46;
 
 /**
  * Centred on the full window, not the safe area.

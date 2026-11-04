@@ -8,8 +8,8 @@ export const SPLASH_INK = '#F8F6F2';
 export const STILL_HOLD_MS = 300;
 export const REDUCE_HOLD_MS = 600;
 export const REDUCE_FADE_MS = 200;
-/** Rest frame of Sluket v4 (5700 ms). A crash fallback holds whatever is left of this, at least 300 ms. */
-export const CRASH_REST_AT = 5700;
+/** Rest frame of Sluket v5 preset C (3000 ms). A crash fallback holds whatever is left of this, at least 300 ms. */
+export const CRASH_REST_AT = 3000;
 export const CRASH_HOLD_MIN_MS = 300;
 
 export function crashHoldMs(elapsedMs: number): number {
