@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState as AppActivity } from 'react-native';
 
-import { clampDurationMinutes, DEFAULT_DURATION_MINUTES, reminderSchedule } from '@/data/copy';
+import { clampDurationMinutes, DEFAULT_DURATION_MINUTES, earliestIso, formatClock, resolveReminderClock } from '@/data/copy';
 import {
   cancelAllScheduledNotifications,
   cancelDailyReminder,
@@ -18,7 +18,9 @@ import {
   deleteJournal,
   deleteSession as deleteStoredSession,
   DURATION_KEY,
+  earliestStoredUse,
   finishSession,
+  FIRST_USED_KEY,
   getActiveSession,
   getProfile,
   getSetting,
@@ -74,7 +76,11 @@ type AppStateValue = {
   showCountdown: boolean;
   setShowCountdown: (on: boolean) => Promise<void>;
   setDailyReminder: (on: boolean) => Promise<'on' | 'off' | 'denied'>;
+  /** Saves the wheel time and reschedules when the reminder is on. */
+  setReminderClock: (hour: number, minute: number) => Promise<void>;
   refreshDailyReminder: () => Promise<void>;
+  /** ISO instant of first use. Null until storage has been read. */
+  firstUsedAt: string | null;
   /** Wipes local data and scheduled alerts. Does not change the OS notification permission. */
   resetLocalData: () => Promise<void>;
   /**
@@ -112,6 +118,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<SessionWithJournal[]>([]);
   const [activeSession, setActiveSession] = useState<SessionRecord | null>(null);
   const [showCountdown, setShowCountdownState] = useState(true);
+  const [firstUsedAt, setFirstUsedAt] = useState<string | null>(null);
   const [introPhase, setIntroPhaseState] = useState<IntroPhase>('off');
   const [splashOccasion, setSplashOccasion] = useState<SplashOccasion>('later-launch');
   const [splashHoldArmed, setSplashHoldArmed] = useState(true);
@@ -162,11 +169,24 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         setSessions(finished);
         try {
           if (profile.notifications === true && (await hasNotificationPermission())) {
-            const clock = reminderSchedule(profile.time);
+            const clock = resolveReminderClock(profile.time, profile.reminderClock);
             await scheduleDailyReminder(clock.hour, clock.minute);
           }
         } catch {
           // A reminder failure must not block the first screen.
+        }
+        try {
+          const storedFirst = await getSetting(FIRST_USED_KEY);
+          const known = storedFirst && !Number.isNaN(Date.parse(storedFirst)) ? storedFirst : null;
+          if (known) {
+            setFirstUsedAt(known);
+          } else {
+            const first = earliestIso([await earliestStoredUse()]);
+            await setSetting(FIRST_USED_KEY, first);
+            setFirstUsedAt(first);
+          }
+        } catch {
+          // The since-line falls back to this month until the next launch.
         }
 
         if (active) {
@@ -228,6 +248,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       const next = clampDurationMinutes(chosen);
       setDurationState(next);
       await setSetting(DURATION_KEY, String(next));
+    }
+    const existingFirst = await getSetting(FIRST_USED_KEY);
+    if (!existingFirst) {
+      const first = new Date().toISOString();
+      await setSetting(FIRST_USED_KEY, first);
+      setFirstUsedAt(first);
     }
     setOnboarded(true);
   }, []);
@@ -303,7 +329,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const refreshDailyReminder = useCallback(async () => {
     if (userRef.current.notifications !== true) return;
     if (!(await hasNotificationPermission())) return;
-    const clock = reminderSchedule(userRef.current.time);
+    const clock = resolveReminderClock(userRef.current.time, userRef.current.reminderClock);
     await scheduleDailyReminder(clock.hour, clock.minute);
   }, []);
 
@@ -317,12 +343,22 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
     const granted = await requestNotificationPermission();
     if (!granted) return 'denied';
-    const clock = reminderSchedule(userRef.current.time);
+    const clock = resolveReminderClock(userRef.current.time, userRef.current.reminderClock);
     await scheduleDailyReminder(clock.hour, clock.minute);
     const next = { ...userRef.current, notifications: true };
     setUser(next);
     await saveProfile(next);
     return 'on';
+  }, []);
+
+  const setReminderClock = useCallback(async (hour: number, minute: number) => {
+    const reminderClock = formatClock(hour, minute);
+    const next = { ...userRef.current, reminderClock };
+    setUser(next);
+    await saveProfile(next);
+    if (next.notifications === true && (await hasNotificationPermission())) {
+      await scheduleDailyReminder(hour, minute);
+    }
   }, []);
 
   const beginIntroSplash = useCallback(() => {
@@ -386,6 +422,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setOnboarded(false);
     setDurationState(DEFAULT_DURATION_MINUTES);
     setShowCountdownState(true);
+    setFirstUsedAt(null);
     setSessions([]);
     setActiveSession(null);
     setReflectionSessionId(null);
@@ -428,7 +465,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       showCountdown,
       setShowCountdown,
       setDailyReminder,
+      setReminderClock,
       refreshDailyReminder,
+      firstUsedAt,
       resetLocalData,
       introPhase,
       splashOccasion,
@@ -463,7 +502,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       showCountdown,
       setShowCountdown,
       setDailyReminder,
+      setReminderClock,
       refreshDailyReminder,
+      firstUsedAt,
       resetLocalData,
       introPhase,
       splashOccasion,
