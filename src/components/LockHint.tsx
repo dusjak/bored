@@ -420,8 +420,11 @@ export function LockHint({ enabled, sessionId, labelOpacity, flowAnchorY }: Prop
     }
     const next = builder.build();
     bulgePath.value = next;
-    // Skia's reconciler reads `_value`. Assigning `.value` alone does not invalidate the path.
-    (bulgePath as SharedValue<typeof next> & { _value: typeof next })._value = next;
+    // useDerivedValue runs once on the JS thread. `_value` can only be written on the UI runtime.
+    if (_WORKLET) {
+      // Skia's reconciler reads `_value`. Assigning `.value` alone does not invalidate the path.
+      (bulgePath as SharedValue<typeof next> & { _value: typeof next })._value = next;
+    }
     return t;
   });
 
