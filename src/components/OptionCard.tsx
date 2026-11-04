@@ -2,12 +2,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
 import { useTheme } from '@/theme';
+import { FyllingIcon } from './FyllingIcon';
+import type { FyllingName } from '../data/fylling';
 import { Icon } from './Icon';
 
 type Props = {
   label: string;
   sub?: string;
-  icon?: string;
+  icon?: FyllingName;
   selected: boolean;
   onPress: () => void;
 };
@@ -33,18 +35,12 @@ export function OptionCard({ label, sub, icon, selected, onPress }: Props) {
         pressed && { opacity: 0.75 },
       ]}
     >
-      {icon != null && (
-        <View
-          style={[
-            styles.iconBox,
-            { backgroundColor: selected ? theme.color.glass.selected : theme.color.button['tertiary-bg'] },
-          ]}
-        >
-          <Text style={[styles.iconText, { color: selected ? theme.color.button['primary-text'] : theme.color.text.tertiary }]}>
-            {icon}
-          </Text>
-        </View>
-      )}
+      {icon != null ? (
+        <FyllingIcon
+          name={icon}
+          color={selected ? theme.color.button['primary-text'] : theme.color.text.primary}
+        />
+      ) : null}
       <View style={{ flex: 1 }}>
         <Text style={[theme.text.label, { color: selected ? theme.color.button['primary-text'] : theme.color.text.primary }]}>
           {label}
@@ -76,12 +72,4 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     minHeight: 44,
   },
-  iconBox: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 2,
-  },
-  iconText: { fontSize: 18 },
 });
