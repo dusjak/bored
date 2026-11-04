@@ -131,21 +131,27 @@ export function smoothstep(edge0: number, edge1: number, x: number): number {
   return t * t * (3 - 2 * t);
 }
 
-export function phaseEndMs(index: 0 | 1 | 2, total = HOLD_TO_END_MS): number {
+export function phaseEndMs(index: 0 | 1 | 2, totalMs?: number): number {
   'worklet';
+  // Worklets do not capture names used only in default parameters, so read it here.
+  const total = totalMs ?? HOLD_TO_END_MS;
   return (PHASE_NUM[index] * total) / 40;
 }
 
-export function phaseIndex(holdMs: number, total = HOLD_TO_END_MS): number {
+export function phaseIndex(holdMs: number, totalMs?: number): number {
   'worklet';
+  // Worklets do not capture names used only in default parameters, so read it here.
+  const total = totalMs ?? HOLD_TO_END_MS;
   if (holdMs < phaseEndMs(0, total)) return 0;
   if (holdMs < phaseEndMs(1, total)) return 1;
   return 2;
 }
 
 /** Glow level e at a hold time. Ease-in-out sine inside each phase, so the boundaries step. */
-export function glowLevel(holdMs: number, total = HOLD_TO_END_MS): number {
+export function glowLevel(holdMs: number, totalMs?: number): number {
   'worklet';
+  // Worklets do not capture names used only in default parameters, so read it here.
+  const total = totalMs ?? HOLD_TO_END_MS;
   const ms = holdMs < 0 ? 0 : holdMs;
   const bounds = [0, phaseEndMs(0, total), phaseEndMs(1, total), phaseEndMs(2, total)];
   for (let i = 0; i < 3; i += 1) {
