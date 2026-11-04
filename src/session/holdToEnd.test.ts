@@ -3,9 +3,15 @@ import { describe, it } from 'node:test';
 
 import { HOLD_DONE_TEXT, HOLD_PHASE_TEXT, HOLD_TO_END_MS } from '../data/copy.ts';
 import {
+  ARC_FILL_MS,
+  GLOW_CLOCK_MS,
   HOLD,
+  TRACK_IN_MS,
+  TRACK_OUT_MS,
   arcAlpha,
+  arcProgress,
   contourGradient,
+  cubicBezier,
   easeInOutSine,
   easeOutCubic,
   glowLevel,
@@ -15,6 +21,7 @@ import {
   sampleHold,
   springTargets,
   stepSpring,
+  trackOpacity,
   type HoldGesture,
   type SpringState,
 } from './holdToEnd.ts';
@@ -24,7 +31,11 @@ const plain = { reduceMotion: false, solid: false };
 
 describe('hold to end', () => {
   it('keeps the phase boundaries as fractions of the one hold length', () => {
-    assert.equal(HOLD_TO_END_MS, 4000);
+    assert.equal(HOLD_TO_END_MS, 4150);
+    assert.equal(GLOW_CLOCK_MS, 4000);
+    assert.equal(TRACK_IN_MS, 150);
+    assert.equal(ARC_FILL_MS, 4000);
+    assert.equal(TRACK_OUT_MS, 250);
     assert.equal(phaseEndMs(0), 1300);
     assert.equal(phaseEndMs(1), 2700);
     assert.equal(phaseEndMs(2), 4000);
@@ -74,28 +85,30 @@ describe('hold to end', () => {
     assert.equal(arcAlpha(0.25, 0.3), 1);
   });
 
-  it('falls the light and the arc back over 300 ms and leaves the copy alone until 120 ms', () => {
+  it('falls the light over 300 ms and fades the track without rewinding the arc', () => {
     const g: HoldGesture = { pressAt: 0, releaseAt: 2400, doneAt: null };
     const atRelease = sampleHold(g, 2400, plain);
     const halfway = sampleHold(g, 2550, plain);
     const gone = sampleHold(g, 2700, plain);
     const k = 1 - easeOutCubic(0.5);
+    const frozen = arcProgress(2400);
     assert.ok(Math.abs(halfway.e - atRelease.e * k) < 1e-9);
-    assert.ok(Math.abs(halfway.prog - 0.6 * k) < 1e-9);
+    assert.ok(Math.abs(atRelease.prog - frozen) < 1e-9);
+    assert.ok(Math.abs(halfway.prog - frozen) < 1e-9);
+    assert.ok(Math.abs(gone.prog - frozen) < 1e-9);
     assert.ok(gone.e < 1e-9);
-    assert.equal(gone.prog, 0);
     assert.equal(sampleHold(g, 2519, plain).textCur, 1);
     assert.equal(sampleHold(g, 2520, plain).textCur, 0);
     assert.equal(sampleHold(g, 2400, plain).glowAlpha > 0, true);
   });
 
   it('peaks the confirmation and then fades the screen toward reflection', () => {
-    const g: HoldGesture = { pressAt: 0, releaseAt: null, doneAt: 4000 };
-    const peak = sampleHold(g, 4140, plain);
-    const settled = sampleHold(g, 4600, plain);
-    const beforeFade = sampleHold(g, 4650, plain);
-    const midFade = sampleHold(g, 4800, plain);
-    const gone = sampleHold(g, 4950, plain);
+    const g: HoldGesture = { pressAt: 0, releaseAt: null, doneAt: 4150 };
+    const peak = sampleHold(g, 4290, plain);
+    const settled = sampleHold(g, 4750, plain);
+    const beforeFade = sampleHold(g, 4800, plain);
+    const midFade = sampleHold(g, 4950, plain);
+    const gone = sampleHold(g, 5100, plain);
     assert.ok(Math.abs(peak.e - 1) < 1e-9);
     assert.ok(Math.abs(peak.glowR - HOLD.glowRPeak) < 1e-9);
     assert.equal(peak.textCur, 3);
@@ -105,8 +118,8 @@ describe('hold to end', () => {
     assert.equal(beforeFade.fade, 0);
     assert.ok(Math.abs(midFade.fade - easeInOutSine(0.5)) < 1e-9);
     assert.ok(Math.abs(gone.fade - 1) < 1e-9);
-    assert.equal(sampleHold(g, 4000, plain).textXf, 0);
-    assert.equal(sampleHold(g, 4180, plain).textXf, 1);
+    assert.equal(sampleHold(g, 4150, plain).textXf, 0);
+    assert.equal(sampleHold(g, 4330, plain).textXf, 1);
   });
 
   it('crossfades copy and keeps Reduce Motion to opacity, without a radius pulse', () => {
@@ -116,14 +129,16 @@ describe('hold to end', () => {
     assert.equal(atBoundary.textPrev, 0);
     assert.equal(atBoundary.textXf, 0);
     assert.ok(Math.abs(sampleHold(holding, 1390, plain).textXf - easeInOutSine(0.5)) < 1e-9);
-    const done: HoldGesture = { pressAt: 0, releaseAt: null, doneAt: 4000 };
-    const reduced = sampleHold(done, 4140, { reduceMotion: true, solid: false });
-    assert.equal(reduced.arc, 0);
+    const done: HoldGesture = { pressAt: 0, releaseAt: null, doneAt: 4150 };
+    const reduced = sampleHold(done, 4290, { reduceMotion: true, solid: false });
+    assert.equal(reduced.arc, 1);
+    assert.equal(reduced.track, 1);
     assert.equal(reduced.glowR, HOLD.glowRFull);
     assert.ok(Math.abs(reduced.e - 1) < 1e-9);
     assert.equal(reduced.pressed, 0);
     const mid = sampleHold(holding, 2000, { reduceMotion: true, solid: true });
-    assert.equal(mid.arc, 0);
+    assert.equal(mid.arc, 1);
+    assert.equal(mid.track, 1);
     assert.equal(mid.glowAlpha, 0);
     assert.equal(mid.solid, 1);
     assert.equal(mid.pressed, 0);
@@ -157,5 +172,34 @@ describe('hold to end', () => {
     assert.equal(full.litMix, 1);
     assert.equal(sampleHold(idle, 0, plain).textCur, 0);
     assert.equal(sampleHold(idle, 0, plain).litAlpha, 0);
+    assert.equal(sampleHold(idle, 0, plain).track, 0);
+  });
+
+  it('fades the track in before the arc, and out without rewinding it', () => {
+    const idleSample = sampleHold(idle, 0, plain);
+    assert.equal(idleSample.track, 0);
+    assert.equal(idleSample.prog, 0);
+    const holding: HoldGesture = { pressAt: 0, releaseAt: null, doneAt: null };
+    const at75 = cubicBezier(0.5, 0, 0, 0.58, 1);
+    assert.ok(Math.abs(at75 - 0.68) < 0.02, `in ${at75}`);
+    assert.ok(Math.abs(trackOpacity(holding, 75, false) - at75) < 1e-9);
+    assert.equal(arcProgress(150), 0);
+    assert.equal(sampleHold(holding, 150, plain).prog, 0);
+    assert.ok(Math.abs(sampleHold(holding, 150, plain).track - 1) < 1e-9);
+    assert.ok(Math.abs(arcProgress(2150) - 0.5) < 1e-9);
+    assert.equal(arcProgress(4150), 1);
+    assert.equal(sampleHold(holding, 4150, plain).prog, 1);
+    const early: HoldGesture = { pressAt: 0, releaseAt: 75, doneAt: null };
+    const outAtHalf = cubicBezier(0.5, 0.42, 0, 1, 1);
+    assert.ok(Math.abs(1 - outAtHalf - 0.68) < 0.02, `out ${1 - outAtHalf}`);
+    assert.ok(Math.abs(sampleHold(early, 75, plain).track - at75) < 1e-9);
+    assert.ok(Math.abs(sampleHold(early, 200, plain).track - at75 * (1 - outAtHalf)) < 1e-6);
+    assert.equal(sampleHold(early, 75 + TRACK_OUT_MS, plain).track, 0);
+    assert.equal(sampleHold(early, 200, plain).prog, 0);
+    const reduced = { reduceMotion: true, solid: false };
+    assert.equal(sampleHold(holding, 10, reduced).track, 1);
+    assert.equal(sampleHold(early, 76, reduced).track, 0);
+    assert.equal(sampleHold(holding, 2150, reduced).arc, 1);
+    assert.ok(Math.abs(sampleHold(holding, 2150, reduced).prog - 0.5) < 1e-9);
   });
 });

@@ -5,10 +5,11 @@ export const MIN_CUSTOM_MINUTES = 5;
 export const MAX_CUSTOM_MINUTES = 20;
 export const DEFAULT_DURATION_MINUTES = 10;
 /**
- * Hold-to-end length. Phase boundaries are 13/40, 27/40 and 40/40 of this
- * (1.3s, 2.7s and 4.0s at the current length).
+ * How long the finger must stay down. The track fades in for 150 ms, then
+ * the arc fills for 4 s, so the hold completes at 4.15 s. Glow and the
+ * phase lines stay on the original 4 s clock.
  */
-export const HOLD_TO_END_MS = 4000;
+export const HOLD_TO_END_MS = 4150;
 
 /**
  * Placeholder lines for the hold, in phase order, then the completed line.

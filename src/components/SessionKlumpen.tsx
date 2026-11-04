@@ -408,6 +408,7 @@ export function SessionKlumpen({
   });
   const litWidth = useDerivedValue(() => pose.value.strokeW);
   const glowWidth = useDerivedValue(() => pose.value.strokeW * HOLD.glowGain);
+  const trackOpacitySv = useDerivedValue(() => pose.value.track);
   const glowBlur = useDerivedValue(() => (pose.value.glowR < 0.5 ? 0.5 : pose.value.glowR));
 
   // The outline origin is the centroid. At 176 pt it sits about +0.7 / +2.4 pt
@@ -474,6 +475,7 @@ export function SessionKlumpen({
             strokeWidth={HOLD.trackW}
             strokeJoin="round"
             color={theme.color.session['ring-track']}
+            opacity={trackOpacitySv}
           />
           <Path path={ringPath} style="stroke" strokeWidth={glowWidth} strokeJoin="round">
             <SweepGradient
@@ -487,7 +489,7 @@ export function SessionKlumpen({
             />
             <BlurMask blur={glowBlur} style="normal" respectCTM={BLUR_RESPECTS_POINTS} />
           </Path>
-          <Path path={ringPath} style="stroke" strokeWidth={litWidth} strokeJoin="round">
+          <Path path={ringPath} style="stroke" strokeWidth={litWidth} strokeJoin="round" opacity={trackOpacitySv}>
             <SweepGradient
               c={center}
               start={0}
@@ -498,7 +500,7 @@ export function SessionKlumpen({
               positions={select(litGrad, 'positions')}
             />
           </Path>
-          <Path path={ringPath} style="stroke" strokeWidth={HOLD.highlightW} strokeJoin="round">
+          <Path path={ringPath} style="stroke" strokeWidth={HOLD.highlightW} strokeJoin="round" opacity={trackOpacitySv}>
             <SweepGradient
               c={center}
               start={0}
