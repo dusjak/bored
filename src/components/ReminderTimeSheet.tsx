@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SymbolView } from 'expo-symbols';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -16,8 +16,10 @@ type Props = {
 };
 
 /**
- * iOS Clock-style editor. The pill opens this sheet; nothing is saved until
- * the check. The wheel is not inside the Deg scroll view, so the columns can move.
+ * Same presentation as Utseende on this screen: a transparent modal that fades,
+ * a dimmed backdrop, a grabber, and drag-to-dismiss on the grabber only.
+ * The wheel keeps its own one-finger pans, so the sheet gesture stays off the columns.
+ * Nothing is saved until the check.
  */
 export function ReminderTimeSheet({ visible, hour, minute, onCancel, onConfirm }: Props) {
   const { theme } = useTheme();
@@ -28,22 +30,53 @@ export function ReminderTimeSheet({ visible, hour, minute, onCancel, onConfirm }
     if (visible) setDraft({ hour, minute });
   }, [hour, minute, visible]);
 
+  const cancelRef = useRef(onCancel);
+  cancelRef.current = onCancel;
+  const drag = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_event, gesture) => gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
+      onPanResponderRelease: (_event, gesture) => {
+        if (gesture.dy > 32) cancelRef.current();
+      },
+    }),
+  ).current;
+
   return (
-    <Modal animationType="slide" onRequestClose={onCancel} transparent visible={visible}>
-      <View style={styles.fill}>
-        <Pressable accessibilityLabel="Lukk" accessibilityRole="button" onPress={onCancel} style={styles.fill}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+      <View style={styles.wrap}>
+        <Pressable
+          accessibilityLabel="Lukk"
+          accessibilityRole="button"
+          onPress={onCancel}
+          style={StyleSheet.absoluteFill}
+        >
           <View style={[styles.backdrop, { backgroundColor: theme.color.bg.overlay }]} />
         </Pressable>
         <View
+          accessibilityActions={[{ name: 'close', label: 'Lukk' }]}
           accessibilityViewIsModal
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === 'close') onCancel();
+          }}
           style={[
             styles.sheet,
             {
               backgroundColor: theme.color.surface.sheet,
-              paddingBottom: Math.max(insets.bottom, 16),
+              paddingBottom: Math.max(insets.bottom, theme.space['6']),
+              borderTopLeftRadius: theme.radius.large,
+              borderTopRightRadius: theme.radius.large,
             },
           ]}
         >
+          <Pressable
+            accessibilityLabel="Lukk"
+            accessibilityRole="button"
+            onPress={onCancel}
+            style={styles.handleHit}
+            {...drag.panHandlers}
+          >
+            <View style={[styles.handle, { backgroundColor: theme.color.control.off }]} />
+          </Pressable>
           <View style={styles.header}>
             <Pressable
               accessibilityLabel="Avbryt"
@@ -58,15 +91,15 @@ export function ReminderTimeSheet({ visible, hour, minute, onCancel, onConfirm }
               accessibilityLabel="Bekreft tidspunkt"
               accessibilityRole="button"
               onPress={() => onConfirm(draft.hour, draft.minute)}
-              style={[styles.round, { backgroundColor: theme.color.accent.default }]}
+              style={[styles.round, { backgroundColor: theme.color.button['primary-bg'] }]}
             >
-              <SymbolView name="checkmark" size={16} tintColor={theme.color.text.primary} weight="bold" />
+              <SymbolView name="checkmark" size={16} tintColor={theme.color.button['primary-text']} weight="bold" />
             </Pressable>
           </View>
           <TimeWheel
             hour={draft.hour}
             minute={draft.minute}
-            open
+            open={visible}
             onChange={(nextHour, nextMinute) => setDraft({ hour: nextHour, minute: nextMinute })}
           />
         </View>
@@ -76,9 +109,11 @@ export function ReminderTimeSheet({ visible, hour, minute, onCancel, onConfirm }
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1, justifyContent: 'flex-end' },
+  wrap: { flex: 1, justifyContent: 'flex-end' },
   backdrop: { flex: 1 },
-  sheet: { borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingTop: 12 },
+  sheet: {},
+  handleHit: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  handle: { width: 36, height: 4, borderRadius: 2 },
   header: { minHeight: 44, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center' },
   title: { flex: 1, textAlign: 'center', fontSize: 17, lineHeight: 22 },
   round: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },

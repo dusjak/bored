@@ -42,18 +42,21 @@ describe('Deg v2.2', () => {
     assert.equal(deg.rowSize, 17);
   });
 
-  it('snaps the inline wheel to hours and 5-minute steps', () => {
+  it('snaps the wheel to hours 00–23 and minutes 00–59', () => {
     assert.equal(deg.wheelHeight, 216);
     assert.equal(deg.wheelRow, 34);
-    assert.equal(deg.wheelMinuteStep, 5);
+    assert.equal(deg.wheelMinuteStep, 1);
     assert.equal(WHEEL_HOURS.length, 24);
     assert.equal(WHEEL_HOURS[0], '00');
     assert.equal(WHEEL_HOURS[23], '23');
-    assert.deepEqual(WHEEL_MINUTES, ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55']);
-    assert.equal(wheelIndex(WHEEL_MINUTES, '30'), 6);
-    assert.equal(wheelIndex(WHEEL_MINUTES, '01'), 0);
-    assert.equal(indexFromOffset(34 * 6, WHEEL_MINUTES.length), 6);
-    assert.equal(indexFromOffset(34 * 6 + 20, WHEEL_MINUTES.length), 7);
+    assert.equal(WHEEL_MINUTES.length, 60);
+    assert.equal(WHEEL_MINUTES[0], '00');
+    assert.equal(WHEEL_MINUTES[1], '01');
+    assert.equal(WHEEL_MINUTES[59], '59');
+    assert.equal(wheelIndex(WHEEL_MINUTES, '30'), 30);
+    assert.equal(wheelIndex(WHEEL_MINUTES, '01'), 1);
+    assert.equal(indexFromOffset(34 * 30, WHEEL_MINUTES.length), 30);
+    assert.equal(indexFromOffset(34 * 30 + 20, WHEEL_MINUTES.length), 31);
     assert.equal(indexFromOffset(-10, WHEEL_MINUTES.length), 0);
     assert.equal(indexFromOffset(9999, WHEEL_MINUTES.length), WHEEL_MINUTES.length - 1);
   });

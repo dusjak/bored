@@ -138,17 +138,16 @@ export function reminderSchedule(time: string | undefined): { hour: number; minu
 
 const CLOCK = /^(\d{1,2}):(\d{2})$/;
 
-/** "8:00" / "08:00" on a 5-minute grid. Anything else is not a clock. */
+/** "8:00" / "08:00", with the minute kept as saved (00–59). Anything else is not a clock. */
 export function parseClock(value: string | undefined): { hour: number; minute: number } | null {
   if (!value) return null;
   const match = CLOCK.exec(value.trim());
   if (!match) return null;
   const hour = Number(match[1]);
   const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
   if (hour > 23 || minute > 59) return null;
-  const snapped = Math.round(minute / 5) * 5;
-  if (snapped === 60) return { hour: (hour + 1) % 24, minute: 0 };
-  return { hour, minute: snapped };
+  return { hour, minute };
 }
 
 export function formatClock(hour: number, minute: number): string {

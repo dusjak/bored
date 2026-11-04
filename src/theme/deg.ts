@@ -42,7 +42,8 @@ export const deg = {
   wheelHeight: 216,
   wheelRow: 34,
   wheelInset: 8,
-  wheelMinuteStep: 5,
+  /** One row per minute, 00–59, same as the iOS alarm picker. */
+  wheelMinuteStep: 1,
   /** Height animation. cubic-bezier(0.32, 0.72, 0, 1). Reduce Motion crossfades. */
   wheelDuration: 300,
   wheelBezier: [0.32, 0.72, 0, 1] as const,

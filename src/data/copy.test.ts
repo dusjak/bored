@@ -115,8 +115,10 @@ describe('copy', () => {
 
   it('prefers a saved clock and otherwise uses the onboarding answer', () => {
     assert.deepEqual(parseClock('8:00'), { hour: 8, minute: 0 });
-    assert.deepEqual(parseClock('12:32'), { hour: 12, minute: 30 });
-    assert.deepEqual(parseClock('23:58'), { hour: 0, minute: 0 });
+    assert.deepEqual(parseClock('12:32'), { hour: 12, minute: 32 });
+    assert.deepEqual(parseClock('23:58'), { hour: 23, minute: 58 });
+    assert.equal(parseClock('24:00'), null);
+    assert.equal(parseClock('12:60'), null);
     assert.equal(parseClock('morgen'), null);
     assert.equal(parseClock(undefined), null);
     assert.equal(formatClock(8, 0), '08:00');
