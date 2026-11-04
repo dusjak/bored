@@ -29,9 +29,9 @@ import { BottomFade } from '@/components/BottomFade';
 import { DurationSheet } from '@/components/DurationSheet';
 import { PreviewStateSheet } from '@/components/backup/PreviewStateSheet';
 import { RowChevron, SettingsGroup } from '@/components/SettingsGroup';
+import { ReminderTimeSheet } from '@/components/ReminderTimeSheet';
 import { Screen } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
-import { TimeWheel } from '@/components/TimeWheel';
 import { Toggle } from '@/components/Toggle';
 import { features } from '@/config/features';
 import { appearanceLabel, boredSinceLine, durationParts, minutesPhrase, resolveReminderClock } from '@/data/copy';
@@ -234,8 +234,7 @@ export default function Profile() {
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`Tidspunkt, ${clock.label}`}
-                  accessibilityState={{ expanded: timeOpen }}
-                  onPress={() => setTimeOpen((open) => !open)}
+                  onPress={() => setTimeOpen(true)}
                   style={styles.row}
                 >
                   <Text style={label}>Tidspunkt</Text>
@@ -249,22 +248,13 @@ export default function Profile() {
                       style={[
                         theme.text.body,
                         styles.capsuleText,
-                        { color: timeOpen ? theme.color.text.link : theme.color.text.primary },
+                        { color: theme.color.text.primary },
                       ]}
                     >
                       {clock.label}
                     </Text>
                   </View>
                 </Pressable>
-                <TimeWheel
-                  open={timeOpen}
-                  hour={clock.hour}
-                  minute={clock.minute}
-                  onChange={(hour, minute) => {
-                    if (hour === clock.hour && minute === clock.minute) return;
-                    setReminderClock(hour, minute).catch(() => setError('noe gikk galt. prøv igjen.'));
-                  }}
-                />
               </View>
             ) : null}
           </SettingsGroup>
@@ -351,6 +341,17 @@ export default function Profile() {
       </Screen>
       <BottomFade color={canvas} />
 
+      <ReminderTimeSheet
+        visible={timeOpen}
+        hour={clock.hour}
+        minute={clock.minute}
+        onCancel={() => setTimeOpen(false)}
+        onConfirm={(hour, minute) => {
+          setTimeOpen(false);
+          if (hour === clock.hour && minute === clock.minute) return;
+          setReminderClock(hour, minute).catch(() => setError('noe gikk galt. prøv igjen.'));
+        }}
+      />
       <DurationSheet
         visible={pickerOpen}
         current={durationMinutes}
