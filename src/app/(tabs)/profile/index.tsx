@@ -31,10 +31,9 @@ import { PreviewStateSheet } from '@/components/backup/PreviewStateSheet';
 import { RowChevron, SettingsGroup } from '@/components/SettingsGroup';
 import { ReminderTimeSheet } from '@/components/ReminderTimeSheet';
 import { Screen } from '@/components/Screen';
-import { ScreenTitle } from '@/components/ScreenTitle';
 import { Toggle } from '@/components/Toggle';
 import { features } from '@/config/features';
-import { appearanceLabel, boredSinceLine, durationParts, minutesPhrase, resolveReminderClock } from '@/data/copy';
+import { appearanceLabel, durationParts, minutesPhrase, resolveReminderClock } from '@/data/copy';
 import { hasNotificationPermission } from '@/data/notifications';
 import { useAppState } from '@/state/AppState';
 import { useBackup } from '@/state/BackupState';
@@ -53,7 +52,6 @@ export default function Profile() {
     setDailyReminder,
     setReminderClock,
     refreshDailyReminder,
-    firstUsedAt,
     resetLocalData,
     beginIntroSplash,
     sessions,
@@ -137,7 +135,6 @@ export default function Profile() {
     backupValue === 'on' ? DEG_ON : backupValue === 'onTest' ? DEG_ON_TEST : backupValue === 'stale' ? DEG_STALE : DEG_OFF;
   const honesty = showHonestyLine(backup.mode, backup.preview);
   const version = Constants.expoConfig?.version ?? '1.0.0';
-  const since = boredSinceLine(firstUsedAt ? new Date(firstUsedAt) : new Date());
 
   const label = [theme.text.body, styles.rowLabel, { color: theme.color.text.primary }];
   const value = [theme.text.body, styles.rowValue, { color: theme.color.text.tertiary }];
@@ -145,13 +142,19 @@ export default function Profile() {
 
   return (
     <View style={[styles.fill, { backgroundColor: canvas }]}>
-      <Screen scroll edges={['top']} top="app" background={canvas} contentStyle={styles.content}>
-        <Pressable accessible={false} onPress={closeTime}>
-          {user.name ? (
-            <ScreenTitle variant="display">{user.name}</ScreenTitle>
-          ) : null}
-          <Text style={[theme.text.body, styles.since, { color: theme.color.text.tertiary }]}>{since}</Text>
-        </Pressable>
+      <Screen scroll edges={['top']} top="none" background={canvas} contentStyle={styles.content}>
+        {user.name ? (
+          <Pressable accessible={false} onPress={closeTime}>
+            <Text
+              style={[
+                styles.title,
+                { fontFamily: theme.fonts.serifItalic, color: theme.color.text.primary },
+              ]}
+            >
+              {user.name}
+            </Text>
+          </Pressable>
+        ) : null}
 
         <View style={styles.groups}>
           <SettingsGroup>
@@ -383,12 +386,11 @@ export default function Profile() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  content: { paddingBottom: 160 },
-  since: {
-    marginTop: deg.subtitleGap,
-    marginBottom: deg.afterSubtitle,
-    fontSize: deg.subtitleSize,
-    lineHeight: deg.subtitleLine,
+  content: { paddingTop: deg.titleTop, paddingBottom: 160 },
+  title: {
+    fontSize: deg.titleSize,
+    lineHeight: deg.titleLine,
+    marginBottom: deg.afterTitle,
   },
   groups: { gap: deg.groupGap },
   row: {

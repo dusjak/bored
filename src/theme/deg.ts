@@ -21,10 +21,16 @@ export const deg = {
   rowInset: 16,
   separator: 0.5,
   footerGap: 7,
-  subtitleGap: 8,
-  subtitleSize: 15,
-  subtitleLine: 20,
-  afterSubtitle: 28,
+  /**
+   * «Dusan» is DM Serif Display Italic 44.
+   * The font's own line box is 44 × 1371/1000 = 60, so the ascender sits 34 pt
+   * under the safe area and the first card is 24 pt under that line box.
+   * The reference has no «Kjedet deg siden» line in this gap.
+   */
+  titleSize: 44,
+  titleLine: 60,
+  titleTop: 34,
+  afterTitle: 24,
   rowSize: 17,
   rowLine: 22,
   resetGap: 30,
