@@ -60,6 +60,7 @@ export default function Profile() {
   const versionTaps = useRef(0);
   const durationRef = useRef<HostInstance>(null);
   const appearanceRef = useRef<HostInstance>(null);
+  const timeRef = useRef<HostInstance>(null);
   const previewRef = useRef<HostInstance>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -239,6 +240,7 @@ export default function Profile() {
             {reminderOn ? (
               <View>
                 <Pressable
+                  ref={timeRef}
                   accessibilityRole="button"
                   accessibilityLabel={`Tidspunkt, ${clock.label}`}
                   onPress={() => setTimeOpen(true)}
@@ -354,6 +356,7 @@ export default function Profile() {
         visible={timeOpen}
         hour={clock.hour}
         minute={clock.minute}
+        returnFocusRef={timeRef}
         onCancel={() => setTimeOpen(false)}
         onConfirm={(hour, minute) => {
           setTimeOpen(false);
