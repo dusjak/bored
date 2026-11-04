@@ -6,6 +6,7 @@ import { crashHoldMs, REDUCE_FADE_MS, REDUCE_HOLD_MS, STILL_HOLD_MS } from './sp
 import {
   decideSplash,
   initialSplash,
+  isFirstPlay,
   reduceSplashAppState,
   shouldPersistSplashSeen,
   splashAfterReset,
@@ -20,6 +21,14 @@ const base = {
 };
 
 describe('splash decision', () => {
+  it('treats first launch and Nullstill as the only full plays', () => {
+    assert.equal(isFirstPlay('first-launch'), true);
+    assert.equal(isFirstPlay('after-reset'), true);
+    assert.equal(isFirstPlay('later-launch'), false);
+    assert.equal(isFirstPlay('background-return'), false);
+    assert.equal(isFirstPlay('session'), false);
+  });
+
   it('plays Sluket on first launch', () => {
     const boot = initialSplash({ splashSeen: false, inSessionOrReflection: false });
     assert.deepEqual(boot, { occasion: 'first-launch', phase: 'play' });
@@ -157,10 +166,10 @@ describe('splash decision', () => {
     assert.equal(decision.mode, 'still');
     assert.equal(decision.markSeenNow, true);
     assert.equal(decision.holdMs, crashHoldMs(400));
-    assert.equal(decision.holdMs, 5300);
-    assert.equal(crashHoldMs(0), 5700);
-    assert.equal(crashHoldMs(5600), 300);
-    assert.equal(crashHoldMs(6000), 300);
+    assert.equal(decision.holdMs, 2600);
+    assert.equal(crashHoldMs(0), 3000);
+    assert.equal(crashHoldMs(2700), 300);
+    assert.equal(crashHoldMs(3300), 300);
     assert.equal(shouldPersistSplashSeen({ phase: 'play', crashed: true }), true);
     assert.equal(shouldPersistSplashSeen({ phase: 'play', crashed: false }), false);
     assert.equal(shouldPersistSplashSeen({ phase: 'fade', crashed: false }), true);
@@ -185,30 +194,41 @@ describe('splash assets', () => {
     const config = plugin[1];
     assert.equal(config.backgroundColor, '#111110');
     assert.equal(config.image, './assets/splash/splash-wordmark-dark.png');
-    assert.equal(config.imageWidth, 160);
+    assert.equal(config.imageWidth, 148);
     assert.equal(config.resizeMode, 'contain');
     const dark = config.dark as { backgroundColor: string; image: string };
     assert.equal(dark.backgroundColor, '#111110');
     assert.equal(dark.image, './assets/splash/splash-wordmark-dark.png');
+    const appIos = (JSON.parse(readFileSync(new URL('../../app.json', import.meta.url), 'utf8')) as {
+      expo: { ios: { infoPlist: { CADisableMinimumFrameDurationOnPhone: boolean } } };
+    }).expo.ios.infoPlist;
+    assert.equal(appIos.CADisableMinimumFrameDurationOnPhone, true);
   });
 
-  it('ships the wordmark at 1x, 2x and 3x and the iPhone 16 Pro references', () => {
+  it('ships the S6 plate at 1x, 2x and 3x, centred on the x-height', () => {
     const root = new URL('../../assets/splash/', import.meta.url);
-    assert.deepEqual(pngSize(new URL('splash-wordmark-dark.png', root)), { width: 160, height: 80 });
-    assert.deepEqual(pngSize(new URL('splash-wordmark-dark@2x.png', root)), { width: 320, height: 160 });
-    assert.deepEqual(pngSize(new URL('splash-wordmark-dark@3x.png', root)), { width: 480, height: 240 });
+    assert.deepEqual(pngSize(new URL('splash-wordmark-dark.png', root)), { width: 148, height: 46 });
+    assert.deepEqual(pngSize(new URL('splash-wordmark-dark@2x.png', root)), { width: 296, height: 92 });
+    assert.deepEqual(pngSize(new URL('splash-wordmark-dark@3x.png', root)), { width: 444, height: 138 });
     assert.equal(existsSync(new URL('splash-wordmark-light.png', root)), false);
+    const mork = readFileSync(new URL('../../assets/logo/wordmark-S6-mork.svg', import.meta.url), 'utf8');
+    const lys = readFileSync(new URL('../../assets/logo/wordmark-S6-lys.svg', import.meta.url), 'utf8');
+    assert.equal(mork.includes('fill="#F8F6F2"'), true);
+    assert.equal(lys.includes('fill="#111110"'), true);
+    assert.equal(mork.replaceAll('#F8F6F2', ''), lys.replaceAll('#111110', ''));
     assert.deepEqual(pngSize(new URL('ref/preview-dark-402x874@2x.png', root)), { width: 804, height: 1748 });
     const meta = JSON.parse(readFileSync(new URL('splash-wordmark.json', root), 'utf8')) as {
       canvas_pt: number[];
-      font_size_pt: number;
-      '@1x': { pen_x_pt: number; baseline_y_pt: number };
+      background: string;
+      ink: string;
+      dot_center_pt: number[];
+      dot_width_pt: number;
     };
-    assert.deepEqual(meta.canvas_pt, [160, 80]);
-    assert.equal(meta.font_size_pt, 52);
-    // Pen start on the canvas is the window centre minus 71.55. Baseline is 3.87 below the centre.
-    assert.ok(Math.abs(meta['@1x'].pen_x_pt - (80 - 71.55)) < 0.02);
-    assert.ok(Math.abs(meta['@1x'].baseline_y_pt - (40 + 3.87)) < 0.02);
+    assert.deepEqual(meta.canvas_pt, [148, 46]);
+    assert.equal(meta.background, '#111110');
+    assert.equal(meta.ink, '#F8F6F2');
+    assert.deepEqual(meta.dot_center_pt, [67.2257, 7.1784]);
+    assert.equal(meta.dot_width_pt, 13.5487);
   });
 });
 

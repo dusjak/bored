@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { Stack, usePathname } from 'expo-router';
@@ -61,11 +61,16 @@ function ReadyGate() {
     if (introPhase === 'play') startedAt.current = Date.now();
   }, [introPhase]);
 
-  // The wordmark overlay is already in this commit. Hide the native splash after it mounts.
-  useLayoutEffect(() => {
-    if (!open) return;
+  const hideNative = useCallback(() => {
     SplashScreen.hideAsync().catch(() => undefined);
-  }, [open]);
+  }, []);
+
+  // No overlay (a session or reflection): nothing will paint a plate, so hide now.
+  // Otherwise wait until that plate has drawn, or the native logo cuts to an empty frame.
+  useEffect(() => {
+    if (!open || cover) return;
+    hideNative();
+  }, [cover, hideNative, open]);
 
   const splash = (
     <SluketSplash
@@ -78,6 +83,7 @@ function ReadyGate() {
       onHandoff={setIntroPhase}
       onDismiss={() => setIntroPhase('off')}
       onCrash={markSplashSeen}
+      onFirstPaint={hideNative}
     />
   );
 
