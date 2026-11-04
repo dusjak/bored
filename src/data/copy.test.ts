@@ -12,6 +12,10 @@ import {
   durationParts,
   minutesPhrase,
   parseCustomMinutes,
+  LOCK_HINT_WITH_NOTIFICATION,
+  LOCK_HINT_WITHOUT_NOTIFICATION,
+  lockHintCopy,
+  lockHintSpeech,
   reminderSchedule,
   sessionsPhrase,
 } from './copy.ts';
@@ -74,6 +78,15 @@ describe('copy', () => {
     assert.deepEqual(reminderSchedule('lunsj'), { hour: 12, minute: 30, label: '12:30' });
     assert.deepEqual(reminderSchedule('kveld'), { hour: 20, minute: 0, label: '20:00' });
     assert.deepEqual(reminderSchedule(undefined), { hour: 8, minute: 0, label: '08:00' });
+  });
+
+  it('keeps the lock-hint variants in one place', () => {
+    assert.equal(lockHintCopy(true), LOCK_HINT_WITH_NOTIFICATION);
+    assert.equal(lockHintCopy(false), LOCK_HINT_WITHOUT_NOTIFICATION);
+    assert.equal(LOCK_HINT_WITH_NOTIFICATION, 'Lås skjermen, vi gir deg\net varsel når tiden har gått ut.');
+    assert.equal(LOCK_HINT_WITHOUT_NOTIFICATION, 'Lås skjermen. Økten går videre i bakgrunnen.');
+    assert.equal(lockHintSpeech(true), 'Lås skjermen, vi gir deg et varsel når tiden har gått ut.');
+    assert.equal(lockHintSpeech(false), LOCK_HINT_WITHOUT_NOTIFICATION);
   });
 
   it('resets a stored length outside 5–20 to the default', () => {

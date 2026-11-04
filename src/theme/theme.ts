@@ -119,6 +119,15 @@ const lightColor = {
     default: prim.neutral['900'],
     interrupted: prim.neutral['450'],
   },
+  /**
+   * Warm light shared by the lock-button bulge and the hold-to-end glow on the Klumpen.
+   * `core` is the hot center, `halo` is the amber glow. `matte` is the bulge before the glow ramps.
+   */
+  glow: {
+    core: '#F6EBD6',
+    halo: '#E8C98E',
+    matte: '#D8CCB6',
+  },
 } as const;
 
 const darkColor = {
@@ -182,6 +191,12 @@ const darkColor = {
   tally: {
     default: prim.neutral['50'],
     interrupted: prim.neutral['500'],
+  },
+  /** Same on both themes. The session screen is always dark. See the light `glow` note. */
+  glow: {
+    core: '#F6EBD6',
+    halo: '#E8C98E',
+    matte: '#D8CCB6',
   },
 } as const;
 

@@ -31,6 +31,11 @@ describe('theme tokens', () => {
     assert.equal(text.monoHero.lineHeight, 56);
     assert.equal(monoHeroFontLineHeight, 73);
     assert.ok(monoHeroFontLineHeight > Number(text.monoHero.lineHeight));
+    assert.equal(themes.light.color.glow.core, '#F6EBD6');
+    assert.equal(themes.light.color.glow.halo, '#E8C98E');
+    assert.equal(themes.light.color.glow.matte, '#D8CCB6');
+    assert.equal(themes.dark.color.glow.core, themes.light.color.glow.core);
+    assert.equal(themes.dark.color.glow.halo, themes.light.color.glow.halo);
     assert.equal(DEFAULT_THEME_PREFERENCE, 'system');
     assert.equal(resolveThemeName('system', 'dark'), 'dark');
     assert.equal(resolveThemeName('system', 'light'), 'light');

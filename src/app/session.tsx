@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, AppState, Easing, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Animated, AppState, Easing, StyleSheet, Text, View, type ViewInstance } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
+import Reanimated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { LockHint } from '@/components/LockHint';
 import { ScreenTitle } from '@/components/ScreenTitle';
 import { TactileCircle } from '@/components/TactileCircle';
 import { HOLD_TO_END_MS, chosenMinutes, completionSentence } from '@/data/copy';
@@ -17,6 +19,7 @@ export default function Session() {
   const { theme } = useTheme();
   const {
     activeSession,
+    lockHintSessionId,
     completeActiveSession,
     abortActiveSession,
     noteBackground,
@@ -49,6 +52,11 @@ export default function Session() {
   const holdScale = useRef(new Animated.Value(1)).current;
   const holding = useRef(false);
   const holdHaptics = useRef<ReturnType<typeof setInterval> | null>(null);
+  const holdRef = useRef<ViewInstance>(null);
+  const [holdWindowY, setHoldWindowY] = useState<number | null>(null);
+  const lockHintLabel = useSharedValue(1);
+  const lockHintLabelStyle = useAnimatedStyle(() => ({ opacity: lockHintLabel.value }));
+  const freshLockHint = session != null && session.id === lockHintSessionId;
   const minutesRef = useRef(minutes);
   if (session) minutesRef.current = minutes;
 
@@ -260,7 +268,11 @@ export default function Session() {
                   >
                     {mm}:{ss}
                   </Text>
-                  <Text style={[theme.text.caption, { color: theme.color.session['text-secondary'] }]}>gjenstår</Text>
+                  <Reanimated.Text
+                    style={[theme.text.caption, { color: theme.color.session['text-secondary'] }, lockHintLabelStyle]}
+                  >
+                    gjenstår
+                  </Reanimated.Text>
                 </Animated.View>
               ) : null}
               <Animated.View
@@ -310,13 +322,29 @@ export default function Session() {
             </TactileCircle>
             </Animated.View>
 
-            <Animated.Text style={[theme.text.caption, styles.hint, { color: hintColor, opacity: runningOpacity }]}>
-              Hold inne sirkelen for å avslutte
-            </Animated.Text>
+            <View
+              ref={holdRef}
+              collapsable={false}
+              onLayout={() => {
+                holdRef.current?.measureInWindow((_x, y) => {
+                  if (y > 0) setHoldWindowY(y);
+                });
+              }}
+            >
+              <Animated.Text style={[theme.text.caption, styles.hint, { color: hintColor, opacity: runningOpacity }]}>
+                Hold inne sirkelen for å avslutte
+              </Animated.Text>
+            </View>
             {error ? <Text style={[theme.text.caption, { color: theme.color.session['text-secondary'] }]}>{error}</Text> : null}
           </View>
         </Animated.View>
       </SafeAreaView>
+      <LockHint
+        enabled={freshLockHint}
+        sessionId={session?.id ?? null}
+        labelOpacity={lockHintLabel}
+        flowAnchorY={holdWindowY}
+      />
     </Animated.View>
   );
 }
