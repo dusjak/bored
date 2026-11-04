@@ -6,9 +6,12 @@
  */
 import { S6_DOT_W } from './s6.ts';
 import { INK_RGB, logoPose, REST_AT, type LogoPose } from './sluket.ts';
-import { PUST_MOTION_MS, PUST_MS } from './splashTiming.ts';
+import { PUST_MOTION_MS as COPY_PUST_MOTION_MS, PUST_MS } from './splashTiming.ts';
 
-export { PUST_MOTION_MS, PUST_MS };
+// `export { PUST_MOTION_MS }` is a getter on the module object. The Pust
+// frame worklet captures that object and cannot read the getter.
+export const PUST_MOTION_MS: number = COPY_PUST_MOTION_MS;
+export { PUST_MS };
 
 export const PUST_FROM_MS = 80;
 export const PUST_TO_MS = 620;
