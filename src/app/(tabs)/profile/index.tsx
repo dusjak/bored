@@ -426,6 +426,7 @@ const styles = StyleSheet.create({
     fontSize: deg.rowSize,
     lineHeight: deg.rowLine,
     fontVariant: ['tabular-nums'],
+    transform: [{ translateY: deg.rowTextShift }],
   },
   // Touch target grows with hitSlop. A 32 pt min height would push the next card 14 pt too far.
   linkHit: { alignSelf: 'flex-start', justifyContent: 'center' },
