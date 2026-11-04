@@ -4,9 +4,12 @@
  * clockwise from the top, and a rubber spring on the shape only.
  * Light falls back with ease-out cubic. The shape does not.
  */
-import { HOLD_TO_END_MS } from '../data/copy.ts';
+import { HOLD_TO_END_MS as COPY_HOLD_TO_END_MS } from '../data/copy.ts';
 
-export { HOLD_TO_END_MS };
+// `export { HOLD_TO_END_MS }` is a getter on the module object. Worklets
+// capture that object and cannot read the getter, so the UI thread throws
+// ReferenceError and Expo Go aborts.
+export const HOLD_TO_END_MS: number = COPY_HOLD_TO_END_MS;
 
 /** 13/40, 27/40 and 40/40 of the hold. 1300 / 2700 / 4000 ms when the hold is 4 s. */
 const PHASE_NUM = [13, 27, 40] as const;
