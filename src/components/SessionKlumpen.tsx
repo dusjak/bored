@@ -37,6 +37,7 @@ import {
   sessionTextureRect,
   writeKlumpenPath,
 } from '@/session/klumpenShape';
+import { SESSION_HINT_BOX, sessionCanvasBox, sessionKlumpenMargins } from '@/session/sessionLayout';
 import {
   HOLD,
   HOLD_TO_END_MS,
@@ -73,17 +74,13 @@ const PRESSED_SRC = require('../../assets/okt/klumpen-okt-trykket.png');
 /**
  * Canvas fits the 240 pt stone plus the ring and the peak glow.
  * The outline is drawn around its centroid, which sits at the canvas centre.
+ * Copied out of the layout module so the worklet closes over plain numbers.
  */
-const MAX_REACH_X = Math.max(-KLUMPEN_BOUNDS.minX, KLUMPEN_BOUNDS.maxX) + RING_OFFSET;
-const MAX_REACH_Y = Math.max(-KLUMPEN_BOUNDS.minY, KLUMPEN_BOUNDS.maxY) + RING_OFFSET;
-const MAX_SCALE = 240 / KLUMPEN_BOUNDS.width;
-const CANVAS_PAD = HOLD.glowRPeak + 16;
-const CANVAS_W = Math.ceil((MAX_REACH_X * MAX_SCALE + CANVAS_PAD) * 2);
-const CANVAS_H = Math.ceil((MAX_REACH_Y * MAX_SCALE + CANVAS_PAD) * 2);
-const CX = CANVAS_W / 2;
-const CY = CANVAS_H / 2;
-/** Caption centre sits 151 pt under the Klumpen centre, as on the 852 pt comp. */
-const HINT_GAP = 2;
+const CANVAS = sessionCanvasBox();
+const CANVAS_W = CANVAS.width;
+const CANVAS_H = CANVAS.height;
+const CX = CANVAS.cx;
+const CY = CANVAS.cy;
 
 const LINES = [...HOLD_PHASE_TEXT, HOLD_DONE_TEXT] as const;
 
@@ -117,6 +114,11 @@ type Props = {
   onComplete: () => void;
   onSettled: () => void;
   onAccessibilityEnd: () => void;
+  /**
+   * Space from the previous sibling to the outer edge of the track stroke.
+   * 0 when the timer is hidden, so the ring and the hint centre as a pair.
+   */
+  gapAbove: number;
   /** Window Y of the hold caption. The lock hint uses it at large type. */
   hintAnchorRef?: RefObject<ViewInstance | null>;
   onHintLayout?: () => void;
@@ -152,6 +154,7 @@ export function SessionKlumpen({
   onComplete,
   onSettled,
   onAccessibilityEnd,
+  gapAbove,
   hintAnchorRef,
   onHintLayout,
   children,
@@ -372,6 +375,7 @@ export function SessionKlumpen({
   useFrameCallback(onFrame);
 
   const scale = sessionStoneScale(minutes);
+  const margins = sessionKlumpenMargins(minutes, CY, gapAbove);
   const texture = sessionTextureRect(CX, CY, scale);
   const restImage = useImage(REST_SRC);
   const pressedImage = useImage(PRESSED_SRC);
@@ -434,7 +438,7 @@ export function SessionKlumpen({
   };
 
   return (
-    <View style={styles.wrap}>
+    <View style={[styles.wrap, { marginTop: margins.marginTop }]}>
       <View style={styles.canvasBox}>
         <Canvas style={styles.canvas} pointerEvents="none">
           {restImage ? (
@@ -536,7 +540,7 @@ export function SessionKlumpen({
         <View
           ref={hintAnchorRef}
           onLayout={onHintLayout}
-          style={styles.hint}
+          style={[styles.hint, { marginTop: margins.hintMarginTop }]}
           accessible={false}
           importantForAccessibility="no-hide-descendants"
           accessibilityElementsHidden
@@ -546,7 +550,7 @@ export function SessionKlumpen({
           ))}
         </View>
       ) : (
-        <View style={styles.hint} />
+        <View style={[styles.hint, { marginTop: margins.hintMarginTop }]} />
       )}
     </View>
   );
@@ -590,6 +594,6 @@ const styles = StyleSheet.create({
   canvas: { width: CANVAS_W, height: CANVAS_H },
   dotSlot: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   hit: { position: 'absolute' },
-  hint: { marginTop: HINT_GAP, height: 18, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
+  hint: { height: SESSION_HINT_BOX, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
   phase: { position: 'absolute', left: 0, right: 0, textAlign: 'center' },
 });
