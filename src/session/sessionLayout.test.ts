@@ -34,15 +34,20 @@ describe('session column', () => {
         assert.ok(column.ringTop >= column.timerBottom);
         assert.ok(column.hintTop >= column.ringBottom);
         const reach = sessionRingReach(minutes);
-        assert.ok(reach.width + screenPadding * 2 <= screen.width, `${minutes} ring wider than ${screen.width}`);
+        assert.ok(
+          reach.width + screenPadding * 2 <= screen.width,
+          `${minutes} ring ${reach.width} wider than the content on ${screen.width}`,
+        );
       }
     }
   });
 
   it('fits the canvas, and the margins land on the ring rather than the canvas edge', () => {
     const canvas = sessionCanvasBox();
-    assert.ok(canvas.width + screenPadding * 2 <= 375);
-    assert.ok(canvas.height < 852);
+    for (const screen of SESSION_LAYOUT_SCREENS) {
+      assert.ok(canvas.width <= screen.width, `canvas ${canvas.width} wider than ${screen.width}`);
+      assert.ok(canvas.height < screen.height);
+    }
     for (const minutes of PRESET_MINUTES) {
       const reach = sessionRingReach(minutes);
       const margins = sessionKlumpenMargins(minutes, canvas.cy, SESSION_RING_GAP);
