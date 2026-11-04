@@ -1,8 +1,10 @@
+import { PRESET_MINUTES } from '../data/copy.ts';
+
 /**
- * Session Klumpen («Småstein»), 176 pt wide.
- * Radii are the tab-bar Klumpen silhouette (klumpen-aktiv.svg) sampled around
- * its centroid. Angle 0 is the top and increases clockwise, which is how the
- * hold arc is measured. The same outline is what the reference video strokes.
+ * Session Klumpen («Småstein»). The radii are the 176 pt silhouette sampled
+ * around its centroid. A session draws that outline at `120 + 40·index` pt,
+ * the same stops as Hjem (5 / 10 / 15 / 20 minutes).
+ * Angle 0 is the top and increases clockwise, which is how the hold arc is measured.
  *
  * Deformation uses the reference angle TH (0 at the right, clockwise in
  * screen space): r × (1 + size + squash·cos 2θ + wobble·cos(3θ − φ)).
@@ -120,6 +122,59 @@ export function outlineBounds(xs: number[], ys: number[]): OutlineBounds {
 const rest = klumpenPoints(0, 0, 0, 0, 0);
 export const KLUMPEN_BOUNDS = outlineBounds(rest.xs, rest.ys);
 
+/** Sampled silhouette. Session widths are `120 + 40·index`, then scaled from this. */
+export const SESSION_STONE_BASE = KLUMPEN_BOUNDS.width;
+export const SESSION_STONE_MIN = 120;
+export const SESSION_STONE_STEP = 40;
+
+/**
+ * Rest texture canvas. The 176 pt stone is centred in it, so the image centre
+ * is the bounding-box centre. The lip light outside the edge lives in the alpha.
+ */
+export const SESSION_TEXTURE_PT = { width: 192, height: 164 } as const;
+
+/** Nearest of 5 / 10 / 15 / 20. Anything off the stops rounds to the closer index. */
+export function sessionStoneIndex(minutes: number): number {
+  if (!Number.isFinite(minutes)) return 1;
+  const step = PRESET_MINUTES[1] - PRESET_MINUTES[0];
+  const raw = (minutes - PRESET_MINUTES[0]) / step;
+  const last = PRESET_MINUTES.length - 1;
+  return Math.min(last, Math.max(0, Math.round(raw)));
+}
+
+export function sessionStoneWidth(minutes: number): number {
+  return SESSION_STONE_MIN + SESSION_STONE_STEP * sessionStoneIndex(minutes);
+}
+
+export function sessionStoneScale(minutes: number): number {
+  return sessionStoneWidth(minutes) / SESSION_STONE_BASE;
+}
+
+/**
+ * Screen-space offset of the centroid from the bounding-box centre.
+ * At the sampled 176 pt size this is about +0.7 pt x and +2.4 pt y.
+ * Scaling the outline around the centroid grows the offset with the stone.
+ */
+export function centroidOffset(scale: number): { x: number; y: number } {
+  const boxCx = (KLUMPEN_BOUNDS.minX + KLUMPEN_BOUNDS.maxX) / 2;
+  const boxCy = (KLUMPEN_BOUNDS.minY + KLUMPEN_BOUNDS.maxY) / 2;
+  return { x: -boxCx * scale, y: boxCy * scale };
+}
+
+/** Texture rect. Its centre sits on the box centre, which is not the centroid. */
+export function sessionTextureRect(
+  cx: number,
+  cy: number,
+  scale: number,
+): { x: number; y: number; width: number; height: number } {
+  const shift = centroidOffset(scale);
+  const shapeCx = cx - shift.x;
+  const shapeCy = cy - shift.y;
+  const width = SESSION_TEXTURE_PT.width * scale;
+  const height = SESSION_TEXTURE_PT.height * scale;
+  return { x: shapeCx - width / 2, y: shapeCy - height / 2, width, height };
+}
+
 /** Screen y grows downward. The contour uses the same deformed outline as the fill. */
 export function writeKlumpenPath(
   builder: PathBuilder,
@@ -130,10 +185,11 @@ export function writeKlumpenPath(
   size: number,
   phase: number,
   offset: number,
+  scale: number,
 ): void {
   'worklet';
   const { xs, ys } = klumpenPoints(sq, wob, size, phase, offset);
-  builder.moveTo(cx + xs[0], cy - ys[0]);
-  for (let i = 1; i < xs.length; i += 1) builder.lineTo(cx + xs[i], cy - ys[i]);
+  builder.moveTo(cx + xs[0] * scale, cy - ys[0] * scale);
+  for (let i = 1; i < xs.length; i += 1) builder.lineTo(cx + xs[i] * scale, cy - ys[i] * scale);
   builder.close();
 }
