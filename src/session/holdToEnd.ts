@@ -328,6 +328,17 @@ export function withAlpha(color: string, alpha: number): string {
   return `rgba(${parts[0]},${parts[1]},${parts[2]},${base * a})`;
 }
 
+/**
+ * Declared above `mixHex` on purpose. The worklet plugin turns a `'worklet'`
+ * function into a non-hoisted assignment and captures its closure then, so a
+ * helper declared below is still undefined.
+ */
+function hexByte(n: number): string {
+  'worklet';
+  const s = n.toString(16);
+  return s.length === 1 ? `0${s}` : s;
+}
+
 export function mixHex(from: string, to: string, t: number): string {
   'worklet';
   const a = parseInt(from.slice(1), 16);
@@ -337,12 +348,6 @@ export function mixHex(from: string, to: string, t: number): string {
   const g = Math.round(((a >> 8) & 255) + (((b >> 8) & 255) - ((a >> 8) & 255)) * k);
   const bl = Math.round((a & 255) + ((b & 255) - (a & 255)) * k);
   return `#${hexByte(r)}${hexByte(g)}${hexByte(bl)}`;
-}
-
-function hexByte(n: number): string {
-  'worklet';
-  const s = n.toString(16);
-  return s.length === 1 ? `0${s}` : s;
 }
 
 function sortedStops(raw: number[]): number[] {
