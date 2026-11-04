@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions, type HostInstance, type RefObject, type TextStyle } from 'react-native';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions, type HostInstance, type TextStyle } from 'react-native';
 import Svg, { Path as SvgPath } from 'react-native-svg';
 import {
   Blur,
@@ -163,7 +163,7 @@ export function KlumpenBody({ index, minutes, reduce, reduceMotion, fade, ghost 
   const { fontScale } = useWindowDimensions();
   const type = durationType(fontScale);
   const path = useMemo(() => Skia.Path.MakeFromSVGString(KLUMPEN_PATH), []);
-  // Tabular number token. On master this is DM Mono Light; typography system F points it at Figtree Light.
+  // Tabular hero number. System F is Figtree Light with tabular-nums.
   const hero = theme.text.monoHero;
   const fontSize = (Number(hero.fontSize) || 56) * type.numberScale;
   const rim = theme.name === 'dark';

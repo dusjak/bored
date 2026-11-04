@@ -63,6 +63,8 @@ type AppStateValue = {
   setDurationMinutes: (minutes: number) => Promise<void>;
   sessions: SessionWithJournal[];
   activeSession: SessionRecord | null;
+  /** Set only when this launch created the session. A restored session does not nudge. */
+  lockHintSessionId: string | null;
   beginSession: (minutes: number) => Promise<void>;
   completeActiveSession: () => Promise<string | null>;
   abortActiveSession: () => Promise<string | null>;
@@ -118,6 +120,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [durationMinutes, setDurationState] = useState(DEFAULT_DURATION_MINUTES);
   const [sessions, setSessions] = useState<SessionWithJournal[]>([]);
   const [activeSession, setActiveSession] = useState<SessionRecord | null>(null);
+  const [lockHintSessionId, setLockHintSessionId] = useState<string | null>(null);
   const [showCountdown, setShowCountdownState] = useState(true);
   const [introPhase, setIntroPhaseState] = useState<IntroPhase>('off');
   const [splashOccasion, setSplashOccasion] = useState<SplashOccasion>('later-launch');
@@ -252,6 +255,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       return;
     }
     const session = await insertActiveSession(next);
+    setLockHintSessionId(session.id);
     const endsAt = new Date(Date.parse(session.startedAt) + session.chosenDurationSeconds * 1000);
     const notificationId = await scheduleSessionEndNotification(endsAt);
     if (notificationId) {
@@ -439,6 +443,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setDurationMinutes,
       sessions,
       activeSession,
+      lockHintSessionId,
       beginSession,
       completeActiveSession,
       abortActiveSession,
@@ -475,6 +480,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setDurationMinutes,
       sessions,
       activeSession,
+      lockHintSessionId,
       beginSession,
       completeActiveSession,
       abortActiveSession,

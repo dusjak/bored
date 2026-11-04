@@ -35,6 +35,12 @@ describe('theme tokens', () => {
     // Figtree Light typo box at 56pt: ceil(56 × 1200 / 1000) = 68.
     assert.equal(monoHeroFontLineHeight, 68);
     assert.ok(monoHeroFontLineHeight > Number(text.monoHero.lineHeight));
+    assert.equal(themes.light.color.glow.core, '#F6EBD6');
+    assert.equal(themes.light.color.glow.amber, '#E8C98E');
+    assert.equal(themes.light.color.glow.matte, '#D8CCB6');
+    assert.equal(themes.dark.color.glow.core, themes.light.color.glow.core);
+    assert.equal(themes.dark.color.glow.amber, themes.light.color.glow.amber);
+    assert.equal(themes.dark.color.glow.matte, themes.light.color.glow.matte);
     assert.equal(DEFAULT_THEME_PREFERENCE, 'system');
     assert.equal(resolveThemeName('system', 'dark'), 'dark');
     assert.equal(resolveThemeName('system', 'light'), 'light');
@@ -47,6 +53,7 @@ describe('theme tokens', () => {
       assert.equal(theme.color.glow.amber, '#E8C98E');
       assert.equal(theme.color.glow.highlight, 'rgba(255,255,255,0.35)');
       assert.equal(theme.color.glow.solid, '#F8F6F2');
+      assert.equal(theme.color.glow.matte, '#D8CCB6');
       assert.equal(theme.color.session['ring-track'], '#66635D');
     }
   });

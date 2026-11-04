@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import {
   AccessibilityInfo,
   Animated,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   View,
   type AccessibilityActionEvent,
+  type ViewInstance,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import {
@@ -95,6 +96,9 @@ type Props = {
   onComplete: () => void;
   onSettled: () => void;
   onAccessibilityEnd: () => void;
+  /** Window Y of the hold caption. The lock hint uses it at large type. */
+  hintAnchorRef?: RefObject<ViewInstance | null>;
+  onHintLayout?: () => void;
   children?: ReactNode;
 };
 
@@ -126,6 +130,8 @@ export function SessionKlumpen({
   onComplete,
   onSettled,
   onAccessibilityEnd,
+  hintAnchorRef,
+  onHintLayout,
   children,
 }: Props) {
   const { theme } = useTheme();
@@ -473,6 +479,8 @@ export function SessionKlumpen({
       </View>
       {showHint ? (
         <View
+          ref={hintAnchorRef}
+          onLayout={onHintLayout}
           style={styles.hint}
           accessible={false}
           importantForAccessibility="no-hide-descendants"

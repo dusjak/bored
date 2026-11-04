@@ -119,8 +119,8 @@ const lightColor = {
     'ring-track': prim.neutral['600'],
   },
   /**
-   * BD-1 glow, shared with the lock hint.
-   * `core` is the lit contour, `amber` is the blur around it.
+   * Warm light shared by the hold contour and the lock-button bulge.
+   * `amber` is #E8C98E. `matte` is the bulge before the glow ramps.
    */
   glow: {
     core: '#F6EBD6',
@@ -128,6 +128,8 @@ const lightColor = {
     highlight: prim.alpha['white-35'],
     /** Increase Contrast and Reduce Transparency. Solid stroke, no blur. */
     solid: prim.neutral['50'],
+    /** Bulge surface before the glow ramps. */
+    matte: '#D8CCB6',
   },
   tally: {
     default: prim.neutral['900'],
@@ -196,14 +198,14 @@ const darkColor = {
     'ring-track': prim.neutral['600'],
   },
   /**
-   * BD-1 glow, shared with the lock hint.
-   * Same in both themes: the session screen is always dark.
+   * Same on both themes. The session screen is always dark.
    */
   glow: {
     core: '#F6EBD6',
     amber: '#E8C98E',
     highlight: prim.alpha['white-35'],
     solid: prim.neutral['50'],
+    matte: '#D8CCB6',
   },
   tally: {
     default: prim.neutral['50'],

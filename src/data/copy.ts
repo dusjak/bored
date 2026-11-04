@@ -111,6 +111,24 @@ export function emptyProfile(): OnboardingProfile {
   return {};
 }
 
+/**
+ * Lock-hint copy. Placeholders pending UX copy review — keep every variant here.
+ * The notification line promises a local alert, so it is only true when permission is granted.
+ */
+export const LOCK_HINT_WITH_NOTIFICATION = 'Lås skjermen, vi gir deg\net varsel når tiden har gått ut.';
+
+/** Used when notification permission is missing. Does not promise an alert. */
+export const LOCK_HINT_WITHOUT_NOTIFICATION = 'Lås skjermen. Økten går videre i bakgrunnen.';
+
+export function lockHintCopy(notificationsGranted: boolean): string {
+  return notificationsGranted ? LOCK_HINT_WITH_NOTIFICATION : LOCK_HINT_WITHOUT_NOTIFICATION;
+}
+
+/** One sentence for VoiceOver. The on-screen copy may break across two lines. */
+export function lockHintSpeech(notificationsGranted: boolean): string {
+  return lockHintCopy(notificationsGranted).replace('\n', ' ');
+}
+
 /** Clock for the daily reminder. An unset or varying time uses 08:00. */
 export function reminderSchedule(time: string | undefined): { hour: number; minute: number; label: string } {
   if (time === 'lunsj') return { hour: 12, minute: 30, label: '12:30' };
