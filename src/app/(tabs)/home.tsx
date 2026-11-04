@@ -39,6 +39,9 @@ export default function Home() {
           minutes={durationMinutes}
           onPress={() => setPickerOpen(true)}
           focusRef={durationRef}
+          onChange={(next) => {
+            setDurationMinutes(next).catch(() => setError('fikk ikke lagret. prøv igjen.'));
+          }}
         />
       </View>
 

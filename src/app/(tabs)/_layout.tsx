@@ -42,7 +42,7 @@ export default function TabsLayout() {
             <NativeTabs.Trigger.Label>Logg</NativeTabs.Trigger.Label>
             <NativeTabs.Trigger.Icon src={logg} renderingMode="template" />
           </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="profile" contentStyle={{ backgroundColor: background }}>
+          <NativeTabs.Trigger name="profile" contentStyle={{ backgroundColor: theme.color.bg.grouped }}>
             <NativeTabs.Trigger.Label>Deg</NativeTabs.Trigger.Label>
             <NativeTabs.Trigger.Icon src={deg} renderingMode="template" />
           </NativeTabs.Trigger>

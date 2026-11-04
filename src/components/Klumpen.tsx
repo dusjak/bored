@@ -1,19 +1,23 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions, type HostInstance, type TextStyle } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, Text, View, useWindowDimensions, type HostInstance, type TextStyle } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import Svg, { Path as SvgPath } from 'react-native-svg';
 import {
   Blur,
   Canvas,
   Group,
-  LinearGradient,
+  ImageShader,
   Path,
   Skia,
-  vec,
+  useImage,
   type Transforms3d,
 } from '@shopify/react-native-skia';
 import Animated, {
   Easing,
+  cancelAnimation,
+  runOnJS,
   runOnUI,
+  useAnimatedReaction,
   useAnimatedStyle,
   useDerivedValue,
   useReducedMotion,
@@ -35,6 +39,7 @@ import {
   HOME_STONE_CENTER_Y,
   KLUMP_ASPECT,
   KLUMP_WIDTH_MIN,
+  NUMBER_UNIT_GAP,
   KLUMP_WIDTH_STEP,
   KLUMPEN_BOUNDS,
   ROLL_DISTANCE,
@@ -47,11 +52,20 @@ import {
   STONE_UNIT_COLOR,
   durationType,
   homeKlumpenLabel,
+  SWIPE_ACTIVATION,
+  SWIPE_STEP,
+  VERTICAL_YIELD,
+  indexFromSwipe,
+  indexVelocity,
   klumpHeight,
   klumpWidth,
   minutesToIndex,
+  presetIndex,
   rollTravel,
+  selectionFromIndex,
+  snapIndex,
 } from '@/duration/klumpen';
+import { PRESET_MINUTES } from '@/data/copy';
 import { screenPadding, useTheme } from '@/theme';
 
 const PAD = 36;
@@ -163,6 +177,19 @@ export function KlumpenBody({ index, minutes, reduce, reduceMotion, fade, ghost 
   const { fontScale } = useWindowDimensions();
   const type = durationType(fontScale);
   const path = useMemo(() => Skia.Path.MakeFromSVGString(KLUMPEN_PATH), []);
+  const gummi120 = useImage(require('../../assets/hjem/klumpen-gummi-120pt@3x.png'));
+  const gummi160 = useImage(require('../../assets/hjem/klumpen-gummi-160pt@3x.png'));
+  const gummi200 = useImage(require('../../assets/hjem/klumpen-gummi-200pt@3x.png'));
+  const gummi240 = useImage(require('../../assets/hjem/klumpen-gummi-240pt@3x.png'));
+  const gummi = [gummi120, gummi160, gummi200, gummi240];
+  const [band, setBand] = useState(() => Math.max(0, Math.min(3, Math.ceil(index.value - 1e-3))));
+  useAnimatedReaction(
+    () => Math.max(0, Math.min(3, Math.ceil(index.value - 1e-3))),
+    (next, prev) => {
+      if (next !== prev) runOnJS(setBand)(next);
+    },
+  );
+  const gummiImage = gummi[band] ?? null;
   // Tabular hero number. System F is Figtree Light with tabular-nums.
   const hero = theme.text.monoHero;
   const fontSize = (Number(hero.fontSize) || 56) * type.numberScale;
@@ -196,8 +223,8 @@ export function KlumpenBody({ index, minutes, reduce, reduceMotion, fade, ghost 
               <Path path={path} style="stroke" strokeWidth={OUTLINE_STROKE} color={OUTLINE} />
             </Group>
           ) : null}
-          <StoneLayer path={path} transform={backTransform} opacity={backOpacity} rim={rim} />
-          <StoneLayer path={path} transform={frontTransform} opacity={frontOpacity} rim={rim} />
+          <StoneLayer path={path} transform={backTransform} opacity={backOpacity} rim={rim} image={gummiImage} />
+          <StoneLayer path={path} transform={frontTransform} opacity={frontOpacity} rim={rim} image={gummiImage} />
         </Canvas>
       ) : (
         <View style={styles.fallback} />
@@ -229,11 +256,13 @@ function StoneLayer({
   transform,
   opacity,
   rim,
+  image,
 }: {
   path: NonNullable<ReturnType<typeof Skia.Path.MakeFromSVGString>>;
   transform: SharedValue<Transforms3d>;
   opacity: SharedValue<number>;
   rim: boolean;
+  image: ReturnType<typeof useImage>;
 }) {
   return (
     <Group transform={transform} opacity={opacity}>
@@ -242,12 +271,17 @@ function StoneLayer({
           <Blur blur={70} />
         </Path>
       </Group>
-      <Path path={path}>
-        <LinearGradient
-          start={vec(ORIGIN_X, KLUMPEN_BOUNDS.y)}
-          end={vec(ORIGIN_X, KLUMPEN_BOUNDS.y + KLUMPEN_BOUNDS.height)}
-          colors={['#32312F', '#141413', '#0A0A09']}
-        />
+      <Path path={path} color={STONE_COLOR}>
+        {image ? (
+          <ImageShader
+            image={image}
+            fit="fill"
+            x={KLUMPEN_BOUNDS.x}
+            y={KLUMPEN_BOUNDS.y}
+            width={KLUMPEN_BOUNDS.width}
+            height={KLUMPEN_BOUNDS.height}
+          />
+        ) : null}
       </Path>
       {rim ? <Path path={path} style="stroke" strokeWidth={6} color="rgba(255,255,255,0.22)" /> : null}
     </Group>
@@ -369,10 +403,13 @@ function useDelayedValue<T>(value: T, delay: number): T {
 export function HomeKlumpen({
   minutes,
   onPress,
+  onChange,
   focusRef,
 }: {
   minutes: number;
   onPress: () => void;
+  /** Swipe commits 5 / 10 / 15 / 20 directly. Same step as the sheet. */
+  onChange: (minutes: number) => void;
   /** Focus returns here when the duration sheet closes. */
   focusRef?: RefObject<HostInstance | null>;
 }) {
@@ -389,13 +426,83 @@ export function HomeKlumpen({
   const ready = useRef(false);
   const reduceRef = useRef(reduceMotion);
   reduceRef.current = reduceMotion;
+  const dragging = useRef(false);
+  const minutesRef = useRef(minutes);
+  minutesRef.current = minutes;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const [display, setDisplay] = useState(minutes);
   const [heroHeight, setHeroHeight] = useState(0);
+  const axis = useRef<'x' | null>(null);
+  const startIndex = useRef(presetIndex(minutes));
+
+  const showStop = (next: number) => {
+    const picked = PRESET_MINUTES[next] ?? PRESET_MINUTES[1];
+    setDisplay((current) => {
+      if (current !== picked) void Haptics.selectionAsync();
+      return picked;
+    });
+  };
+  const api = useRef({ showStop });
+  api.current.showStop = showStop;
+
+  const pan = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        Math.abs(gesture.dx) > SWIPE_ACTIVATION && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: () => {
+        axis.current = 'x';
+        dragging.current = true;
+        startIndex.current = presetIndex(minutesRef.current);
+        cancelAnimation(index);
+      },
+      onPanResponderMove: (_, gesture) => {
+        if (axis.current !== 'x') return;
+        if (Math.abs(gesture.dy) > VERTICAL_YIELD && Math.abs(gesture.dy) > Math.abs(gesture.dx)) return;
+        if (reduceRef.current) {
+          api.current.showStop(selectionFromIndex(startIndex.current + gesture.dx / SWIPE_STEP));
+          return;
+        }
+        const next = indexFromSwipe(startIndex.current, gesture.dx);
+        index.value = next;
+        api.current.showStop(selectionFromIndex(next));
+      },
+      onPanResponderRelease: (_, gesture) => {
+        const raw = indexFromSwipe(startIndex.current, gesture.dx);
+        const snapped = snapIndex(raw, gesture.vx);
+        const picked = PRESET_MINUTES[snapped] ?? PRESET_MINUTES[1];
+        setDisplay(picked);
+        if (reduceRef.current) crossfadeTo(fade, snapped);
+        else {
+          index.value = withSpring(snapped, {
+            mass: SIZE_SPRING.mass,
+            stiffness: SIZE_SPRING.stiffness,
+            damping: SIZE_SPRING.damping,
+            velocity: indexVelocity(gesture.vx),
+          });
+        }
+        dragging.current = false;
+        axis.current = null;
+        onChangeRef.current(picked);
+      },
+      onPanResponderTerminate: () => {
+        dragging.current = false;
+        axis.current = null;
+      },
+    }),
+  ).current;
 
   useEffect(() => {
     reduce.value = reduceMotion ? 1 : 0;
   }, [reduce, reduceMotion]);
 
   useEffect(() => {
+    if (!dragging.current) setDisplay(shown);
+  }, [shown]);
+
+  useEffect(() => {
+    if (dragging.current) return;
     const target = minutesToIndex(shown);
     if (!ready.current) {
       ready.current = true;
@@ -421,14 +528,24 @@ export function HomeKlumpen({
 
   return (
     <View style={styles.hero} onLayout={(event) => setHeroHeight(event.nativeEvent.layout.height)}>
-      <View style={[styles.homeSlot, { top: center - MAX_H / 2 }]}>
+      <View style={[styles.homeSlot, { top: center - MAX_H / 2 }]} {...pan.panHandlers}>
         <Pressable
           ref={focusRef}
           accessibilityRole="button"
-          accessibilityLabel={homeKlumpenLabel(shown)}
+          accessibilityLabel={homeKlumpenLabel(display)}
+          accessibilityActions={[
+            { name: 'increment', label: 'Øk' },
+            { name: 'decrement', label: 'Senk' },
+          ]}
+          onAccessibilityAction={(event) => {
+            const dir = event.nativeEvent.actionName === 'increment' ? 1 : -1;
+            const next = Math.max(0, Math.min(PRESET_MINUTES.length - 1, presetIndex(minutesRef.current) + dir));
+            const picked = PRESET_MINUTES[next] ?? PRESET_MINUTES[1];
+            onChangeRef.current(picked);
+          }}
           onPress={onPress}
         >
-          <KlumpenBody index={index} minutes={shown} reduce={reduce} reduceMotion={reduceMotion} fade={fade} />
+          <KlumpenBody index={index} minutes={display} reduce={reduce} reduceMotion={reduceMotion} fade={fade} />
         </Pressable>
       </View>
       <Animated.Text
@@ -452,7 +569,7 @@ const styles = StyleSheet.create({
     backgroundColor: STONE_COLOR,
   },
   face: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
-  unit: { marginTop: 2, fontSize: 13, lineHeight: 16, color: STONE_UNIT_COLOR },
+  unit: { marginTop: NUMBER_UNIT_GAP, fontSize: 13, lineHeight: 16, color: STONE_UNIT_COLOR },
   incoming: { position: 'absolute', left: 0, right: 0 },
   hero: { flex: 1 },
   homeSlot: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
