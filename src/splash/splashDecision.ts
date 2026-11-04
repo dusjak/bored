@@ -1,11 +1,20 @@
 /**
- * When the splash plays. Pure, so the launch rules can be tested without React.
+ * Which splash tier plays. Pure, so the launch rules can be tested without React.
  *
- * Full «Sluket» only on first launch and after Nullstill.
- * Everywhere else is the static wordmark, except an active session or reflection,
- * which shows nothing so the timer is there immediately.
+ * MegaSplash («Sluket» v5 C) only on first launch and after Nullstill.
+ * Splash (D2 Pust) on a later launch, and on a return from background that lasted
+ * long enough to be worth a breath. Dråpe is the static wordmark: Reduce Motion,
+ * the kill switch, a crash, and a short background return.
+ * An active session or reflection shows nothing, so the timer is there immediately.
  */
-import { crashHoldMs, REDUCE_FADE_MS, REDUCE_HOLD_MS, STILL_HOLD_MS } from './splashTiming.ts';
+import {
+  BACKGROUND_RETURN_MIN_MS,
+  crashHoldMs,
+  exitFadeMs,
+  PUST_MOTION_MS,
+  REDUCE_HOLD_MS,
+  STILL_HOLD_MS,
+} from './splashTiming.ts';
 
 export type IntroPhase = 'off' | 'play' | 'still' | 'fade' | 'enter';
 
@@ -16,7 +25,7 @@ export type SplashOccasion =
   | 'background-return'
   | 'session';
 
-export type SplashMode = 'sluket' | 'still' | 'none';
+export type SplashMode = 'mega' | 'pust' | 'drape' | 'none';
 
 export type AppStateEvent = 'active' | 'background' | 'inactive' | 'unknown' | 'extension';
 
@@ -39,30 +48,42 @@ export function decideSplash(input: {
   reduceMotion: boolean;
   sluketEnabled: boolean;
   animationFailed: boolean;
-  /** Milliseconds of Sluket already played when it crashed. */
+  /** Resolved app theme. Dark fades the plate out. Light cuts. */
+  darkTheme: boolean;
+  /**
+   * Background return only. False skips Pust and the Reduce Motion hold:
+   * the plate was only there for the iOS snapshot.
+   */
+  calmSplash?: boolean;
+  /** Milliseconds of MegaSplash already played when it crashed. */
   elapsedMs?: number;
 }): SplashDecision {
+  const fadeMs = exitFadeMs(input.darkTheme);
   if (input.occasion === 'session') {
     return { mode: 'none', holdMs: 0, fadeMs: 0, markSeenNow: false };
   }
   if (input.animationFailed) {
     return {
-      mode: 'still',
+      mode: 'drape',
       holdMs: crashHoldMs(input.elapsedMs ?? 0),
-      fadeMs: REDUCE_FADE_MS,
+      fadeMs,
       markSeenNow: true,
     };
   }
-  if (input.reduceMotion || !input.sluketEnabled || !isFirstPlay(input.occasion)) {
-    const firstReduce = input.reduceMotion && isFirstPlay(input.occasion);
-    return {
-      mode: 'still',
-      holdMs: firstReduce ? REDUCE_HOLD_MS : STILL_HOLD_MS,
-      fadeMs: REDUCE_FADE_MS,
-      markSeenNow: false,
-    };
+  // A short return leaves at once, even under Reduce Motion. The plate is already up.
+  if (input.occasion === 'background-return' && input.calmSplash === false) {
+    return { mode: 'drape', holdMs: 0, fadeMs, markSeenNow: false };
   }
-  return { mode: 'sluket', holdMs: 0, fadeMs: 0, markSeenNow: false };
+  if (input.reduceMotion) {
+    return { mode: 'drape', holdMs: REDUCE_HOLD_MS, fadeMs, markSeenNow: false };
+  }
+  if (!input.sluketEnabled) {
+    return { mode: 'drape', holdMs: STILL_HOLD_MS, fadeMs, markSeenNow: false };
+  }
+  if (isFirstPlay(input.occasion)) {
+    return { mode: 'mega', holdMs: 0, fadeMs: 0, markSeenNow: false };
+  }
+  return { mode: 'pust', holdMs: PUST_MOTION_MS, fadeMs, markSeenNow: false };
 }
 
 /** Cold start, after storage has been read. */
@@ -88,11 +109,23 @@ export function splashReplay(): { occasion: SplashOccasion; phase: IntroPhase } 
   return { occasion: 'first-launch', phase: 'play' };
 }
 
+export type SplashAppReduction = {
+  sawBackground: boolean;
+  phase: IntroPhase;
+  occasion: SplashOccasion;
+  armHold: boolean;
+  backgroundAtMs: number | null;
+  /** True when this return should play Pust. False leaves the snapshot plate immediately. */
+  calm: boolean;
+};
+
 /**
  * AppState changes.
  * 'inactive' (Control Center, notification shade) is ignored.
  * 'background' shows the wordmark so the iOS snapshot is the splash, unless a
- * session or reflection is on screen. 'active' after that holds, then fades.
+ * session or reflection is on screen. 'active' after that plays Pust only when
+ * the app was away for BACKGROUND_RETURN_MIN_MS. Otherwise the plate leaves.
+ * A first play that has not handed off is not marked seen by this return.
  */
 export function reduceSplashAppState(input: {
   event: AppStateEvent;
@@ -101,25 +134,39 @@ export function reduceSplashAppState(input: {
   phase: IntroPhase;
   occasion: SplashOccasion;
   armHold: boolean;
-}): {
-  sawBackground: boolean;
-  phase: IntroPhase;
-  occasion: SplashOccasion;
-  armHold: boolean;
-} {
+  nowMs: number;
+  backgroundAtMs: number | null;
+  calm: boolean;
+}): SplashAppReduction {
   if (input.event === 'inactive' || input.event === 'unknown' || input.event === 'extension') {
     return {
       sawBackground: input.sawBackground,
       phase: input.phase,
       occasion: input.occasion,
       armHold: input.armHold,
+      backgroundAtMs: input.backgroundAtMs,
+      calm: input.calm,
     };
   }
   if (input.event === 'background') {
     if (input.inSessionOrReflection) {
-      return { sawBackground: true, phase: 'off', occasion: 'session', armHold: false };
+      return {
+        sawBackground: true,
+        phase: 'off',
+        occasion: 'session',
+        armHold: false,
+        backgroundAtMs: input.nowMs,
+        calm: false,
+      };
     }
-    return { sawBackground: true, phase: 'still', occasion: 'background-return', armHold: false };
+    return {
+      sawBackground: true,
+      phase: 'still',
+      occasion: 'background-return',
+      armHold: false,
+      backgroundAtMs: input.nowMs,
+      calm: false,
+    };
   }
   if (!input.sawBackground) {
     return {
@@ -127,12 +174,30 @@ export function reduceSplashAppState(input: {
       phase: input.phase,
       occasion: input.occasion,
       armHold: input.armHold,
+      backgroundAtMs: input.backgroundAtMs,
+      calm: input.calm,
     };
   }
   if (input.inSessionOrReflection) {
-    return { sawBackground: false, phase: 'off', occasion: 'session', armHold: false };
+    return {
+      sawBackground: false,
+      phase: 'off',
+      occasion: 'session',
+      armHold: false,
+      backgroundAtMs: null,
+      calm: false,
+    };
   }
-  return { sawBackground: false, phase: 'still', occasion: 'background-return', armHold: true };
+  const away = input.backgroundAtMs == null ? BACKGROUND_RETURN_MIN_MS : input.nowMs - input.backgroundAtMs;
+  const calm = away >= BACKGROUND_RETURN_MIN_MS;
+  return {
+    sawBackground: false,
+    phase: 'still',
+    occasion: 'background-return',
+    armHold: true,
+    backgroundAtMs: null,
+    calm,
+  };
 }
 
 /** True while the user should see the timer or the reflection, not a splash. */
@@ -149,7 +214,16 @@ export function splashSuppressed(input: {
   return false;
 }
 
-/** bored.splashSeen is written on fade/enter, and immediately if the player crashed. */
-export function shouldPersistSplashSeen(input: { phase: IntroPhase; crashed: boolean }): boolean {
-  return input.crashed || input.phase === 'fade' || input.phase === 'enter';
+/**
+ * bored.splashSeen is written when MegaSplash hands off, and immediately if the
+ * player crashed. A fade (Dråpe, Pust, or a background return) does not write it,
+ * so a first play that never finished still plays next launch.
+ */
+export function shouldPersistSplashSeen(input: {
+  phase: IntroPhase;
+  crashed: boolean;
+  occasion: SplashOccasion;
+}): boolean {
+  if (input.crashed) return true;
+  return input.phase === 'enter' && isFirstPlay(input.occasion);
 }

@@ -39,6 +39,7 @@ import type { MoodId, OnboardingProfile, SessionRecord, SessionWithJournal } fro
 import {
   initialSplash,
   reduceSplashAppState,
+  shouldPersistSplashSeen,
   splashAfterReset,
   splashReplay,
   type IntroPhase,
@@ -78,12 +79,18 @@ type AppStateValue = {
   /** Wipes local data and scheduled alerts. Does not change the OS notification permission. */
   resetLocalData: () => Promise<void>;
   /**
-   * play = full «Sluket». still = static wordmark. fade = wordmark fading out.
-   * enter = welcome rises in. off = no overlay.
+   * play = MegaSplash. still = Pust or Dråpe (the plate is up).
+   * fade = the plate is leaving. enter = MegaSplash handed off and welcome rises.
+   * off = no overlay.
    */
   introPhase: IntroPhase;
-  /** Why the overlay is up. The player picks Sluket vs the still wordmark from this. */
+  /** Why the overlay is up. The player picks MegaSplash, Pust, or Dråpe from this. */
   splashOccasion: SplashOccasion;
+  /**
+   * Background return only. False means the plate was the iOS snapshot and should leave
+   * without Pust. True on a cold start.
+   */
+  splashCalm: boolean;
   /** False while the app is backgrounded: the wordmark stays, and the hold waits for active. */
   splashHoldArmed: boolean;
   /** Latest session/reflection flag for the AppState listener. Ref write, no render. */
@@ -114,6 +121,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [showCountdown, setShowCountdownState] = useState(true);
   const [introPhase, setIntroPhaseState] = useState<IntroPhase>('off');
   const [splashOccasion, setSplashOccasion] = useState<SplashOccasion>('later-launch');
+  const [splashCalm, setSplashCalm] = useState(true);
   const [splashHoldArmed, setSplashHoldArmed] = useState(true);
   const userRef = useRef(user);
   const activeRef = useRef(activeSession);
@@ -121,11 +129,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   activeRef.current = activeSession;
   const suppressedRef = useRef(false);
   const sawBackgroundRef = useRef(false);
+  const backgroundAtRef = useRef<number | null>(null);
   const phaseRef = useRef(introPhase);
   const occasionRef = useRef(splashOccasion);
+  const calmRef = useRef(splashCalm);
   const holdRef = useRef(splashHoldArmed);
   phaseRef.current = introPhase;
   occasionRef.current = splashOccasion;
+  calmRef.current = splashCalm;
   holdRef.current = splashHoldArmed;
 
   const refreshSessions = useCallback(async () => {
@@ -328,22 +339,26 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const beginIntroSplash = useCallback(() => {
     const splash = splashAfterReset();
     setSplashOccasion(splash.occasion);
+    setSplashCalm(true);
     setIntroPhaseState(splash.phase);
     setSplashHoldArmed(true);
     sawBackgroundRef.current = false;
+    backgroundAtRef.current = null;
   }, []);
 
   const replayIntroSplash = useCallback(() => {
     const splash = splashReplay();
     setSplashOccasion(splash.occasion);
+    setSplashCalm(true);
     setIntroPhaseState(splash.phase);
     setSplashHoldArmed(true);
     sawBackgroundRef.current = false;
+    backgroundAtRef.current = null;
   }, []);
 
   const setIntroPhase = useCallback((phase: IntroPhase) => {
     setIntroPhaseState(phase);
-    if (phase === 'fade' || phase === 'enter') {
+    if (shouldPersistSplashSeen({ phase, crashed: false, occasion: occasionRef.current })) {
       void setSetting(SPLASH_SEEN_KEY, '1').catch(() => undefined);
     }
   }, []);
@@ -365,15 +380,22 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         phase: phaseRef.current,
         occasion: occasionRef.current,
         armHold: holdRef.current,
+        nowMs: Date.now(),
+        backgroundAtMs: backgroundAtRef.current,
+        calm: calmRef.current,
       });
       const phaseChanged = reduced.phase !== phaseRef.current;
       const occasionChanged = reduced.occasion !== occasionRef.current;
+      const calmChanged = reduced.calm !== calmRef.current;
       sawBackgroundRef.current = reduced.sawBackground;
+      backgroundAtRef.current = reduced.backgroundAtMs;
       phaseRef.current = reduced.phase;
       occasionRef.current = reduced.occasion;
+      calmRef.current = reduced.calm;
       holdRef.current = reduced.armHold;
       if (phaseChanged) setIntroPhaseState(reduced.phase);
       if (occasionChanged) setSplashOccasion(reduced.occasion);
+      if (calmChanged) setSplashCalm(reduced.calm);
       setSplashHoldArmed(reduced.armHold);
     });
     return () => sub.remove();
@@ -432,6 +454,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       resetLocalData,
       introPhase,
       splashOccasion,
+      splashCalm,
       splashHoldArmed,
       setSplashSuppressed,
       beginIntroSplash,
@@ -467,6 +490,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       resetLocalData,
       introPhase,
       splashOccasion,
+      splashCalm,
       splashHoldArmed,
       setSplashSuppressed,
       beginIntroSplash,

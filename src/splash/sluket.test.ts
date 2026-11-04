@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { describe, it } from 'node:test';
 
 import { S6_DOT_W, S6_DOT_X, S6_DOT_Y, S6_WORD_LEFT, S6_WORD_RIGHT } from './s6.ts';
-import { SPLASH_BG as PLATE, SPLASH_INK as INK } from './splashTiming.ts';
+import { CRASH_REST_AT, SPLASH_BG as PLATE, SPLASH_INK as INK } from './splashTiming.ts';
 import {
   CALM,
   colorMixEnabled,
@@ -17,6 +17,8 @@ import {
   klumpWidth,
   logoPose,
   LOW_POWER_COUNT,
+  MEGA_MS,
+  megaPhase,
   massIn,
   MERGE,
   mixAt,
@@ -37,6 +39,8 @@ import {
   SPLASH_INK,
   SPLASH_MS,
   STIMULUS_COUNT,
+  WORDMARK_EXIT_MS,
+  wordmarkExitPose,
   stimulusLimit,
   SWIRL_K,
   SWIRL_MS,
@@ -61,6 +65,9 @@ describe('sluket v5 preset C', () => {
       '../components/S6Mark.tsx',
       '../components/WordmarkImage.tsx',
       '../components/SluketSplash.tsx',
+      '../components/PustPlay.tsx',
+      '../components/usePlateExit.ts',
+      'pust.ts',
     ]) {
       const source = readFileSync(new URL(file, import.meta.url), 'utf8');
       assert.equal(source.includes('useTheme'), false, file);
@@ -126,6 +133,33 @@ describe('sluket v5 preset C', () => {
     assert.equal(phaseName(REVEAL_AT + 1), 'reveal');
     assert.equal(phaseName(REST_AT + 1), 'rest');
     assert.equal(phaseName(SPLASH_MS), 'done');
+    assert.equal(WORDMARK_EXIT_MS, 150);
+    assert.equal(MEGA_MS, 3450);
+    assert.equal(CRASH_REST_AT, WORDMARK_EXIT_MS + REST_AT);
+    assert.equal(megaPhase(0), 'wordmark');
+    assert.equal(megaPhase(WORDMARK_EXIT_MS - 1), 'wordmark');
+    assert.equal(megaPhase(WORDMARK_EXIT_MS), 'arrive');
+    assert.equal(megaPhase(WORDMARK_EXIT_MS + REST_AT), 'rest');
+    assert.equal(megaPhase(MEGA_MS), 'done');
+  });
+
+  it('draws the native wordmark into the dot before preset C starts empty', () => {
+    const rest = logoPose(REST_AT, 1, INK_RGB);
+    const opened = wordmarkExitPose(0);
+    assert.deepEqual(opened, rest);
+    assert.equal(opened.opacity, 1);
+    assert.equal(opened.kw, S6_DOT_W);
+    const mid = wordmarkExitPose(WORDMARK_EXIT_MS / 2);
+    assert.ok(mid.kw < opened.kw);
+    assert.ok(mid.kw > 0);
+    assert.ok(mid.front > opened.front);
+    assert.equal(mid.dx, S6_DOT_X);
+    assert.equal(mid.dy, S6_DOT_Y);
+    const gone = wordmarkExitPose(WORDMARK_EXIT_MS);
+    assert.equal(gone.kw, 0);
+    assert.equal(gone.opacity, 0);
+    assert.ok(gone.clipLeft >= gone.clipRight - 0.001);
+    assert.equal(logoPose(0, 0, INK_RGB).kw, 0);
   });
 
   it('ramps the paint mix from full to 0.4 and keeps it on in Low Power Mode', () => {
@@ -256,6 +290,9 @@ describe('sluket v5 preset C', () => {
   it('draws one picture, mixes on a coarse grid, and starts its own clock', () => {
     const play = readFileSync(new URL('../components/SluketPlay.tsx', import.meta.url), 'utf8');
     const mark = readFileSync(new URL('../components/S6Mark.tsx', import.meta.url), 'utf8');
+    assert.equal(play.includes('MEGA_MS'), true);
+    assert.equal(play.includes('wordmarkExitPose'), true);
+    assert.equal(play.includes('WORDMARK_EXIT_MS'), true);
     assert.equal(play.includes('timeSinceFirstFrame'), false);
     assert.equal(play.includes('usePathValue'), false);
     assert.equal(play.includes('BlobView'), false);
@@ -271,9 +308,24 @@ describe('sluket v5 preset C', () => {
   it('marks every function a worklet calls as a worklet', () => {
     const timeline = readFileSync(new URL('./sluket.ts', import.meta.url), 'utf8');
     const draw = readFileSync(new URL('./sluketDraw.ts', import.meta.url), 'utf8');
+    const breathe = readFileSync(new URL('./pust.ts', import.meta.url), 'utf8');
     const play = readFileSync(new URL('../components/SluketPlay.tsx', import.meta.url), 'utf8');
-    const defined = new Map([...functionBodies(timeline), ...functionBodies(draw)]);
-    for (const name of ['modelTime', 'mixAt', 'sampleStimulus', 'massIn', 'logoPose', 'gooSigma', 'writeOutline', 'renderBlobs']) {
+    const pustPlay = readFileSync(new URL('../components/PustPlay.tsx', import.meta.url), 'utf8');
+    const defined = new Map([...functionBodies(timeline), ...functionBodies(draw), ...functionBodies(breathe)]);
+    for (const name of [
+      'modelTime',
+      'mixAt',
+      'sampleStimulus',
+      'massIn',
+      'logoPose',
+      'wordmarkExitPose',
+      'gooSigma',
+      'writeOutline',
+      'renderBlobs',
+      'pustPose',
+      'pustScale',
+      'easeInOutSine',
+    ]) {
       assert.equal(defined.get(name)?.worklet, true, name);
     }
     for (const [name, fn] of defined) {
@@ -290,6 +342,8 @@ describe('sluket v5 preset C', () => {
       ...callbackBodies(play, 'useAnimatedStyle'),
       ...callbackBodies(play, 'useAnimatedReaction'),
       ...callbackBodies(play, 'useFrameCallback'),
+      ...callbackBodies(pustPlay, 'useCallback'),
+      ...callbackBodies(pustPlay, 'useFrameCallback'),
     ];
     assert.ok(uiBodies.length >= 4);
     for (const body of uiBodies) {
