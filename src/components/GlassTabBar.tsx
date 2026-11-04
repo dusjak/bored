@@ -4,7 +4,7 @@ import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TabIcon, type TabIconName } from '@/components/TabIcon';
-import { useTheme } from '@/theme';
+import { contentColumn, screenPadding, useTheme } from '@/theme';
 import { TAB_BAR, TAB_BAR_SHADOW, TAB_PILL_SHADOW } from '@/theme/tabBar';
 
 const ITEMS: Record<string, { label: string; icon: TabIconName }> = {
@@ -21,7 +21,7 @@ export function GlassTabBar({ state, emitter, navigateToTab }: BottomTabBarProps
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { width: windowWidth } = useWindowDimensions();
-  const barWidth = Math.min(TAB_BAR.width, windowWidth - 32);
+  const barWidth = Math.min(TAB_BAR.width, windowWidth - screenPadding * 2);
   const bottom = Math.max(insets.bottom, TAB_BAR.bottomInset);
   const light = theme.name === 'light';
   const shadow = light
@@ -35,10 +35,11 @@ export function GlassTabBar({ state, emitter, navigateToTab }: BottomTabBarProps
     : theme.effect.glass;
 
   return (
-    <View pointerEvents="box-none" style={[styles.host, { paddingBottom: bottom }]}>
+    <View pointerEvents="box-none" style={[styles.host, { paddingHorizontal: screenPadding, paddingBottom: bottom }]}>
       <View
         style={[
           styles.bar,
+          contentColumn,
           shadow,
           {
             width: barWidth,

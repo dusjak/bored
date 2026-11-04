@@ -3,10 +3,11 @@ import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-na
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/Button';
+import { ContentColumn } from '@/components/ContentColumn';
 import { Icon } from '@/components/Icon';
 import { ScreenTitle } from '@/components/ScreenTitle';
 import { APPEARANCE_CONFIRM, APPEARANCE_OPTIONS, APPEARANCE_SYSTEM_CAPTION, type AppearanceId } from '@/data/copy';
-import { screenPadding, ThemeOverride, useTheme, type Theme, type ThemePreference } from '@/theme';
+import { ThemeOverride, useTheme, type Theme, type ThemePreference } from '@/theme';
 
 type Props = {
   visible: boolean;
@@ -134,7 +135,7 @@ function SheetBody({
           <View style={[styles.handle, { backgroundColor: paint.color.control.off }]} />
         </Pressable>
 
-        <View style={[styles.body, { paddingHorizontal: screenPadding, gap: paint.space['4'] }]}>
+        <ContentColumn style={[styles.body, { gap: paint.space['4'] }]}>
           <ScreenTitle>Velg utseende</ScreenTitle>
 
           <View accessibilityRole="radiogroup" style={styles.options}>
@@ -155,7 +156,7 @@ function SheetBody({
           </View>
 
           <Button title={APPEARANCE_CONFIRM} size="comfort" onPress={onConfirm} style={{ alignSelf: 'stretch' }} />
-        </View>
+        </ContentColumn>
       </View>
     </View>
   );

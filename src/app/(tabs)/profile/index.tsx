@@ -37,7 +37,7 @@ import { appearanceLabel, durationParts, minutesPhrase, reminderSchedule } from 
 import { hasNotificationPermission } from '@/data/notifications';
 import { useAppState } from '@/state/AppState';
 import { useBackup } from '@/state/BackupState';
-import { screenHeaderInset, useTheme } from '@/theme';
+import { useTheme } from '@/theme';
 
 /** Deg. Preferences, appearance, then a full reset. */
 export default function Profile() {
@@ -131,7 +131,7 @@ export default function Profile() {
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
   return (
-    <Screen scroll edges={['top']} contentStyle={styles.content}>
+    <Screen scroll edges={['top']} top="app" contentStyle={styles.content}>
       {user.name ? <ScreenTitle style={{ marginBottom: theme.space['6'] }}>{user.name}</ScreenTitle> : null}
 
       <Pressable
@@ -318,7 +318,7 @@ export default function Profile() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 140, paddingTop: screenHeaderInset },
+  content: { paddingBottom: 140 },
   row: {
     minHeight: 44,
     flexDirection: 'row',

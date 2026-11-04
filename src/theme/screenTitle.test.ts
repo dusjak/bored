@@ -10,11 +10,11 @@ import {
 } from './screenTitle.ts';
 import { screenPadding } from './theme.ts';
 
-/** iPhone SE content column: 320 minus the 16pt margin on each side. */
+/** iPhone SE content column: 320 minus the 24pt margin on each side. */
 const NARROW = 320 - screenPadding * 2;
 
 describe('screen titles', () => {
-  it('keeps a left-aligned title on the 16pt margin and inside the screen', () => {
+  it('keeps a left-aligned title on the 24pt margin and inside the screen', () => {
     const box = screenTitleBox('left');
     assert.equal(titleOrigin(box), 0);
     assert.equal(box.numberOfLines, null);

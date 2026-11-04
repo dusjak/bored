@@ -8,7 +8,7 @@ import { WelcomeReveal } from '@/components/WelcomeReveal';
 import { easBuildProfile, isDevBuild } from '@/config/buildProfile';
 import { isSplashReplayEnabled } from '@/config/features';
 import { useAppState } from '@/state/AppState';
-import { screenHeaderInset, useTheme } from '@/theme';
+import { useTheme } from '@/theme';
 
 /** Welcome screen. */
 export default function Welcome() {
@@ -19,7 +19,7 @@ export default function Welcome() {
   // No stored data changes. Off unless __DEV__ or a non-production EAS profile.
   const replaySplash = isSplashReplayEnabled(isDevBuild(), easBuildProfile());
   return (
-    <Screen contentStyle={styles.content}>
+    <Screen top="welcome" contentStyle={styles.content}>
       <View>
         <WelcomeReveal index={0}>
           <ScreenTitle variant="display" style={{ marginBottom: 20 }}>
@@ -33,6 +33,7 @@ export default function Welcome() {
           </Text>
         </WelcomeReveal>
       </View>
+      <View style={styles.spacer} />
       <WelcomeReveal index={2}>
         <View style={{ gap: 10 }}>
           <Button title="Kom i gang" onPress={() => router.push('/onboarding/distraction')} />
@@ -48,5 +49,7 @@ export default function Welcome() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 40, paddingTop: screenHeaderInset, justifyContent: 'space-between' },
+  // Fixed top inset from Screen. The spacer holds the actions at the bottom.
+  content: { paddingBottom: 40 },
+  spacer: { flex: 1 },
 });

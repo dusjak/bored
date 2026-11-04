@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
@@ -10,7 +10,7 @@ import { abortedPhrase } from '@/data/copy';
 import { getSession } from '@/data/repository';
 import { MOODS, type MoodId, type SessionWithJournal } from '@/data/types';
 import { useAppState } from '@/state/AppState';
-import { useTheme } from '@/theme';
+import { space, useTheme } from '@/theme';
 
 /** Optional note after a session. The session itself is already stored. */
 export default function Reflection() {
@@ -65,74 +65,80 @@ export default function Reflection() {
   };
 
   return (
-    <Screen scroll contentStyle={styles.content}>
-      <View style={{ marginBottom: theme.space['8'] }}>
-        <ScreenTitle>{heading}</ScreenTitle>
-      </View>
+    <Screen top="app" contentStyle={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.form}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={{ marginBottom: theme.space['8'] }}>
+          <ScreenTitle>{heading}</ScreenTitle>
+        </View>
 
-      <Text style={[theme.text.label, { color: theme.color.text.primary, marginBottom: theme.space['3'] }]}>
-        Hvordan kjentes det?
-      </Text>
-      <View style={styles.moods}>
-        {MOODS.map((item) => {
-          const selected = mood === item.id;
-          return (
-            <Pressable
-              key={item.id}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              accessibilityLabel={item.label}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setMood(selected ? null : item.id);
-              }}
-              style={[
-                styles.pill,
-                {
-                  minHeight: theme.size['hit-min'],
-                  borderRadius: theme.radius.pill,
-                  backgroundColor: selected ? theme.color.button['primary-bg'] : theme.color.button['tertiary-bg'],
-                },
-              ]}
-            >
-              <Text
+        <Text style={[theme.text.label, { color: theme.color.text.primary, marginBottom: theme.space['3'] }]}>
+          Hvordan kjentes det?
+        </Text>
+        <View style={styles.moods}>
+          {MOODS.map((item) => {
+            const selected = mood === item.id;
+            return (
+              <Pressable
+                key={item.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                accessibilityLabel={item.label}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setMood(selected ? null : item.id);
+                }}
                 style={[
-                  theme.text.labelSmall,
-                  { color: selected ? theme.color.button['primary-text'] : theme.color.button['tertiary-text'] },
+                  styles.pill,
+                  {
+                    minHeight: theme.size['hit-min'],
+                    borderRadius: theme.radius.pill,
+                    backgroundColor: selected ? theme.color.button['primary-bg'] : theme.color.button['tertiary-bg'],
+                  },
                 ]}
               >
-                {item.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+                <Text
+                  style={[
+                    theme.text.labelSmall,
+                    { color: selected ? theme.color.button['primary-text'] : theme.color.button['tertiary-text'] },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
 
-      <Text style={[theme.text.label, { color: theme.color.text.primary, marginTop: theme.space['8'], marginBottom: theme.space['2'] }]}>
-        Hva dukket opp?
-      </Text>
-      <TextInput
-        multiline
-        value={note}
-        onChangeText={setNote}
-        placeholder="Hva som helst. En tanke, en idé, ingenting spesielt."
-        placeholderTextColor={theme.color.text.tertiary}
-        accessibilityLabel="Notat"
-        style={[
-          theme.text.body,
-          styles.input,
-          { color: theme.color.text.primary, borderBottomColor: theme.color.border.strong },
-        ]}
-      />
-      <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginTop: theme.space['2'] }]}>
-        Valgfritt. Privat. Deles aldri.
-      </Text>
+        <Text style={[theme.text.label, { color: theme.color.text.primary, marginTop: theme.space['8'], marginBottom: theme.space['2'] }]}>
+          Hva dukket opp?
+        </Text>
+        <TextInput
+          multiline
+          value={note}
+          onChangeText={setNote}
+          placeholder="Hva som helst. En tanke, en idé, ingenting spesielt."
+          placeholderTextColor={theme.color.text.tertiary}
+          accessibilityLabel="Notat"
+          style={[
+            theme.text.body,
+            styles.input,
+            { color: theme.color.text.primary, borderBottomColor: theme.color.border.strong },
+          ]}
+        />
+        <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginTop: theme.space['2'] }]}>
+          Valgfritt. Privat. Deles aldri.
+        </Text>
+      </ScrollView>
 
       {error ? (
-        <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginTop: theme.space['4'] }]}>{error}</Text>
+        <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginBottom: theme.space['3'] }]}>{error}</Text>
       ) : null}
-
-      <Button title="Lagre" disabled={saving || !sessionId} onPress={save} style={{ marginTop: theme.space['8'] }} />
+      <Button title="Lagre" disabled={saving || !sessionId} onPress={save} />
       <Button title="Hopp over" variant="ghost" onPress={leave} style={{ marginTop: theme.space['2'] }} />
     </Screen>
   );
@@ -140,6 +146,8 @@ export default function Reflection() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 40 },
+  scroll: { flex: 1 },
+  form: { paddingBottom: space['6'] },
   moods: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pill: { paddingHorizontal: 16, alignItems: 'center', justifyContent: 'center' },
   input: { minHeight: 110, paddingTop: 12, textAlignVertical: 'top', borderBottomWidth: 1 },

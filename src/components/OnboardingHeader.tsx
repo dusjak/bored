@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { ONBOARDING_STEPS } from '@/data/mock';
-import { tabularNums, useTheme } from '@/theme';
+import { questionContentInset, questionNavHeight, tabularNums, useTheme } from '@/theme';
 import { ForwardSlide, SUBTITLE_SLIDE_OFFSET } from './ForwardSlide';
 import { Icon } from './Icon';
 import { ProgressDots } from './ProgressDots';
@@ -34,28 +34,35 @@ export function OnboardingHeader({
         <ProgressDots total={ONBOARDING_STEPS} current={step} />
         <View style={styles.back} />
       </View>
-      <Text style={[theme.text.eyebrow, { fontVariant: tabularNums, color: theme.color.text.tertiary, marginBottom: 10 }]}>
-        {step + 1} av {ONBOARDING_STEPS}
-      </Text>
-      <ScreenTitle style={{ marginBottom: 8 }}>{title}</ScreenTitle>
-      {slideSub ? (
-        <ForwardSlide offset={SUBTITLE_SLIDE_OFFSET} delay={0}>
-          {subtitle}
-        </ForwardSlide>
-      ) : (
-        subtitle
-      )}
+      <View style={styles.copy}>
+        <Text style={[theme.text.eyebrow, { fontVariant: tabularNums, color: theme.color.text.tertiary, marginBottom: 10 }]}>
+          {step + 1} av {ONBOARDING_STEPS}
+        </Text>
+        <ScreenTitle style={{ marginBottom: 8 }}>{title}</ScreenTitle>
+        {slideSub ? (
+          <ForwardSlide offset={SUBTITLE_SLIDE_OFFSET} delay={0}>
+            {subtitle}
+          </ForwardSlide>
+        ) : (
+          subtitle
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   bar: {
+    height: questionNavHeight,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 16,
-    marginBottom: 32,
   },
-  back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  back: {
+    width: questionNavHeight,
+    height: questionNavHeight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  copy: { marginTop: questionContentInset },
 });

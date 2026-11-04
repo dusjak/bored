@@ -47,7 +47,7 @@ export default function Log() {
   };
 
   return (
-    <Screen scroll edges={['top']} contentStyle={styles.content}>
+    <Screen scroll edges={['top']} top="app" contentStyle={styles.content}>
       {showNudge ? (
         <BackupNudgeCard
           onEnable={() => router.push('/log/backup')}
@@ -190,7 +190,7 @@ export default function Log() {
 }
 
 const styles = StyleSheet.create({
-  // The count sits on the screen padding. The comp has no reserved «Logg» headline.
+  // The count sits on the screen's 40pt top inset. The comp has no reserved «Logg» headline.
   content: { paddingBottom: 140 },
   countRow: { flexDirection: 'row', alignItems: 'baseline' },
   // Taller than the hero number's 56 so iOS does not clip the top of the digit.
