@@ -3,7 +3,7 @@ import { AccessibilityInfo, Alert, Animated, AppState, Easing, StyleSheet, Text,
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Reanimated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 import { ScreenTitle } from '@/components/ScreenTitle';
@@ -19,18 +19,14 @@ import {
   completionSentence,
 } from '@/data/copy';
 import { HOLD } from '@/session/holdToEnd';
+import { SESSION_RING_GAP, SESSION_TIMER_BOX } from '@/session/sessionLayout';
 import { decideUnfinishedSession } from '@/data/sessionRules';
 import { useAppState } from '@/state/AppState';
 import { screenPadding, useTheme } from '@/theme';
 
 /** Active session. Always dark. Hold the Klumpen for four seconds to end early. */
-/** «gjenstår» and the timer, measured from the top of the 852 pt frame. */
-const REMAINING_Y = 234;
-const TIMER_Y = 298;
-
 export default function Session() {
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const {
     activeSession,
     completeActiveSession,
@@ -261,71 +257,59 @@ export default function Session() {
       <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
         <Animated.View style={[styles.root, { opacity: dissolve }]}>
           <View style={styles.stage}>
-            {showCountdown ? (
-              <>
-                <Animated.Text
-                  style={[
-                    theme.text.caption,
-                    styles.remaining,
-                    {
-                      color: theme.color.session['text-secondary'],
-                      opacity: runningOpacity,
-                      top: REMAINING_Y - insets.top,
-                    },
-                  ]}
-                >
-                  gjenstår
-                </Animated.Text>
-                <Animated.Text
-                  accessibilityRole="timer"
-                  accessibilityLabel={`${mm} minutter og ${ss} sekunder gjenstår`}
-                  adjustsFontSizeToFit
-                  numberOfLines={1}
-                  style={[
-                    theme.text.monoTimer,
-                    styles.timer,
-                    {
-                      color: theme.color.session['text-primary'],
-                      opacity: runningOpacity,
-                      top: TIMER_Y - insets.top,
-                    },
-                  ]}
-                >
-                  {mm}:{ss}
-                </Animated.Text>
-              </>
-            ) : null}
-            <Animated.View
-              style={[styles.doneCopy, { opacity: doneOpacity, top: TIMER_Y - insets.top }]}
-              pointerEvents="none"
-              accessibilityElementsHidden={!showDone}
-            >
-              <Text style={[theme.text.eyebrow, { color: theme.color.text.primary }]}>Økt fullført</Text>
-              <ScreenTitle align="center">{sentence}</ScreenTitle>
-            </Animated.View>
-
-            <SessionKlumpen
-              minutes={minutesRef.current}
-              enabled={!showDone}
-              showHint={!showDone}
-              fade={holdFade}
-              morph={morph}
-              accessibilityLabel={showDone ? `Økt fullført. ${sentence}` : HOLD_A11Y_LABEL}
-              accessibilityHint={showDone ? undefined : HOLD_A11Y_HINT}
-              accessibilityAction={!showDone}
-              onComplete={finishHeld}
-              onSettled={onHoldSettled}
-              onAccessibilityEnd={confirmEnd}
-            >
-              <Animated.View pointerEvents="none" style={[styles.circleLayer, { opacity: doneOpacity }]}>
-                <View
-                  accessible={false}
-                  importantForAccessibility="no-hide-descendants"
-                  accessibilityElementsHidden
-                  style={[styles.dot, { backgroundColor: theme.color.ink.default }]}
-                />
+            <View style={styles.column}>
+              {showCountdown || showDone ? (
+                <View style={styles.timerSlot} pointerEvents="none">
+                  {showCountdown ? (
+                    <Animated.Text
+                      accessibilityRole="timer"
+                      accessibilityLabel={`${mm} minutter og ${ss} sekunder gjenstår`}
+                      adjustsFontSizeToFit
+                      numberOfLines={1}
+                      style={[
+                        theme.text.monoTimer,
+                        styles.timer,
+                        { color: theme.color.session['text-primary'], opacity: runningOpacity },
+                      ]}
+                    >
+                      {mm}:{ss}
+                    </Animated.Text>
+                  ) : null}
+                </View>
+              ) : null}
+              <Animated.View
+                style={[styles.doneCopy, { opacity: doneOpacity }]}
+                pointerEvents="none"
+                accessibilityElementsHidden={!showDone}
+              >
+                <Text style={[theme.text.eyebrow, { color: theme.color.text.primary }]}>Økt fullført</Text>
+                <ScreenTitle align="center">{sentence}</ScreenTitle>
               </Animated.View>
-            </SessionKlumpen>
+
+              <SessionKlumpen
+                minutes={minutesRef.current}
+                enabled={!showDone}
+                showHint={!showDone}
+                fade={holdFade}
+                morph={morph}
+                gapAbove={showCountdown || showDone ? SESSION_RING_GAP : 0}
+                accessibilityLabel={showDone ? `Økt fullført. ${sentence}` : HOLD_A11Y_LABEL}
+                accessibilityHint={showDone ? undefined : HOLD_A11Y_HINT}
+                accessibilityAction={!showDone}
+                onComplete={finishHeld}
+                onSettled={onHoldSettled}
+                onAccessibilityEnd={confirmEnd}
+              >
+                <Animated.View pointerEvents="none" style={[styles.circleLayer, { opacity: doneOpacity }]}>
+                  <View
+                    accessible={false}
+                    importantForAccessibility="no-hide-descendants"
+                    accessibilityElementsHidden
+                    style={[styles.dot, { backgroundColor: theme.color.ink.default }]}
+                  />
+                </Animated.View>
+              </SessionKlumpen>
+            </View>
           </View>
         </Animated.View>
       </SafeAreaView>
@@ -343,9 +327,10 @@ export default function Session() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   stage: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: screenPadding },
-  remaining: { position: 'absolute', left: 0, right: 0, textAlign: 'center' },
-  timer: { position: 'absolute', left: 0, right: 0, textAlign: 'center' },
-  doneCopy: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 8 },
+  column: { alignSelf: 'stretch', alignItems: 'center', overflow: 'visible' },
+  timerSlot: { height: SESSION_TIMER_BOX, alignSelf: 'stretch' },
+  timer: { height: SESSION_TIMER_BOX, textAlign: 'center', includeFontPadding: false },
+  doneCopy: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', gap: 8 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   error: { position: 'absolute', left: screenPadding, right: screenPadding, bottom: 48, textAlign: 'center', zIndex: 2 },
   circleLayer: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
