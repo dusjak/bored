@@ -102,8 +102,7 @@ export const REST_SPRING: SpringState = { sq: 0, sqV: 0, wob: 0, wobV: 0, size: 
 
 export function clamp01(x: number): number {
   'worklet';
-  // NaN is not < 0 and not > 1. Treat it as 0 so a bad frame cannot reach Skia.
-  if (!(x > 0)) return 0;
+  if (x < 0) return 0;
   if (x > 1) return 1;
   return x;
 }
@@ -228,8 +227,7 @@ function integrate(x: number, v: number, target: number, dt: number): { x: numbe
 /** Semi-implicit Euler, 1 ms substeps, matching the reference simulation. dt is seconds. */
 export function stepSpring(state: SpringState, target: { sq: number; wob: number; size: number }, dt: number): SpringState {
   'worklet';
-  const raw = Number.isFinite(dt) ? dt : 0;
-  const capped = raw > 0.032 ? 0.032 : raw < 0 ? 0 : raw;
+  const capped = dt > 0.032 ? 0.032 : dt < 0 ? 0 : dt;
   const steps = Math.max(1, Math.round(capped / 0.001));
   const h = capped / steps;
   let sq = state.sq;
@@ -357,7 +355,6 @@ function sortedStops(raw: number[]): number[] {
   const out: number[] = [];
   for (let i = 0; i < raw.length; i += 1) {
     let p = raw[i];
-    if (!Number.isFinite(p)) continue;
     if (p < 0) p = 0;
     else if (p > 1) p = 1;
     let j = out.length;
@@ -368,62 +365,6 @@ function sortedStops(raw: number[]): number[] {
   return out;
 }
 
-/**
- * Skia's sweep shader in Expo Go (Skia 2.14) is rebuilt from these arrays
- * every frame. The hold used to hand it 2 stops at rest and up to 13 the
- * moment the arc moved, and that length change hard-crashes the UI thread.
- * Always this many, strictly increasing, with 0 and 1 at the ends.
- */
-export const CONTOUR_STOPS = 13;
-
-function evenStops(count: number): number[] {
-  'worklet';
-  const out: number[] = [];
-  const last = count - 1;
-  for (let i = 0; i < count; i += 1) out.push(i / last);
-  return out;
-}
-
-/** Keep `count` stops. Extra samples split the widest gaps. `count` is at least 2. */
-function fitStops(raw: number[], count: number): number[] {
-  'worklet';
-  const clean: number[] = [0];
-  for (let i = 0; i < raw.length; i += 1) {
-    const p = raw[i];
-    if (!Number.isFinite(p) || p <= clean[clean.length - 1]) continue;
-    clean.push(p > 1 ? 1 : p);
-    if (clean[clean.length - 1] === 1) break;
-  }
-  if (clean[clean.length - 1] !== 1) clean.push(1);
-  while (clean.length < count) {
-    let gap = -1;
-    let at = 1;
-    for (let i = 1; i < clean.length; i += 1) {
-      const d = clean[i] - clean[i - 1];
-      if (d > gap) {
-        gap = d;
-        at = i;
-      }
-    }
-    const mid = (clean[at - 1] + clean[at]) / 2;
-    if (!(mid > clean[at - 1] && mid < clean[at])) break;
-    clean.splice(at, 0, mid);
-  }
-  while (clean.length > count && clean.length > 2) {
-    let best = 1;
-    let bestGap = Infinity;
-    for (let i = 1; i < clean.length - 1; i += 1) {
-      const d = clean[i + 1] - clean[i - 1];
-      if (d < bestGap) {
-        bestGap = d;
-        best = i;
-      }
-    }
-    clean.splice(best, 1);
-  }
-  return clean;
-}
-
 /** Sweep stops for the lit contour. `arc` false paints the whole ring at `alpha`. */
 export function contourGradient(
   progress: number,
@@ -432,39 +373,34 @@ export function contourGradient(
   arc: boolean,
 ): { colors: string[]; positions: number[] } {
   'worklet';
-  const t = clamp01(progress);
-  const a = clamp01(alpha);
-  const flat = !arc || !Number.isFinite(progress) || t >= 0.999 || t <= 0.001 || a <= 0;
-  if (flat) {
-    const positions = evenStops(CONTOUR_STOPS);
-    const c = withAlpha(color, !arc || t >= 0.999 ? a : 0);
-    const colors: string[] = [];
-    for (let i = 0; i < positions.length; i += 1) colors.push(c);
-    return { colors, positions };
+  if (!arc || progress >= 0.999) {
+    const c = withAlpha(color, alpha);
+    return { colors: [c, c], positions: [0, 1] };
   }
-  const tip0 = t - HOLD.arcTip;
-  const tip1 = t + 0.0005;
-  const positions = fitStops(
-    sortedStops([
-      0,
-      0.0015,
-      0.003,
-      0.0045,
-      0.006,
-      0.012,
-      tip0 - 0.008,
-      tip0,
-      tip0 + (tip1 - tip0) * 0.35,
-      tip0 + (tip1 - tip0) * 0.65,
-      tip1,
-      tip1 + 0.008,
-      1,
-    ]),
-    CONTOUR_STOPS,
-  );
+  if (progress <= 0.001 || alpha <= 0) {
+    const c = withAlpha(color, 0);
+    return { colors: [c, c], positions: [0, 1] };
+  }
+  const tip0 = progress - HOLD.arcTip;
+  const tip1 = progress + 0.0005;
+  const positions = sortedStops([
+    0,
+    0.0015,
+    0.003,
+    0.0045,
+    0.006,
+    0.012,
+    tip0 - 0.008,
+    tip0,
+    tip0 + (tip1 - tip0) * 0.35,
+    tip0 + (tip1 - tip0) * 0.65,
+    tip1,
+    tip1 + 0.008,
+    1,
+  ]);
   const colors: string[] = [];
   for (let i = 0; i < positions.length; i += 1) {
-    colors.push(withAlpha(color, a * arcAlpha(positions[i], t)));
+    colors.push(withAlpha(color, alpha * arcAlpha(positions[i], progress)));
   }
   return { colors, positions };
 }
