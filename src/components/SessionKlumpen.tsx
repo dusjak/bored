@@ -4,7 +4,6 @@ import {
   Animated,
   AppState,
   Platform,
-  Pressable,
   StyleSheet,
   View,
   type AccessibilityActionEvent,
@@ -437,9 +436,19 @@ export function SessionKlumpen({
     onAccessibilityEnd();
   };
 
+  const hitStyle = {
+    left: CX + KLUMPEN_BOUNDS.minX * scale,
+    top: CY - KLUMPEN_BOUNDS.maxY * scale,
+    width: KLUMPEN_BOUNDS.width * scale,
+    height: KLUMPEN_BOUNDS.height * scale,
+  };
+
   return (
-    <View style={[styles.wrap, { marginTop: margins.marginTop }]}>
-      <View style={styles.canvasBox}>
+    <View pointerEvents="box-none" style={[styles.wrap, { marginTop: margins.marginTop }]}>
+      {/* The Skia picture view stays in the hit path even with pointerEvents "none"
+          on the canvas itself, and the column's negative margin lays that view over
+          the stone. A parent that returns no hit keeps the picture out of the hold. */}
+      <View pointerEvents="none" collapsable={false} style={styles.canvasBox}>
         <Canvas style={styles.canvas} pointerEvents="none">
           {restImage ? (
             <Path path={fillPath} style="fill" opacity={restOpacity}>
@@ -513,33 +522,12 @@ export function SessionKlumpen({
         <View pointerEvents="none" style={styles.dotSlot}>
           {children}
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={accessibilityLabel}
-          accessibilityHint={accessibilityHint}
-          accessibilityActions={accessibilityAction ? [{ name: 'end', label: HOLD_A11Y_LABEL }] : undefined}
-          onAccessibilityAction={(event: AccessibilityActionEvent) => {
-            if (event.nativeEvent.actionName === 'end') onAccessibilityEnd();
-          }}
-          onPressIn={onPressIn}
-          onPressOut={onPressOut}
-          onPress={onPress}
-          hitSlop={HOLD.slackPt}
-          style={[
-            styles.hit,
-            {
-              left: CX + KLUMPEN_BOUNDS.minX * scale,
-              top: CY - KLUMPEN_BOUNDS.maxY * scale,
-              width: KLUMPEN_BOUNDS.width * scale,
-              height: KLUMPEN_BOUNDS.height * scale,
-            },
-          ]}
-        />
       </View>
       {showHint ? (
         <View
           ref={hintAnchorRef}
           onLayout={onHintLayout}
+          pointerEvents="none"
           style={[styles.hint, { marginTop: margins.hintMarginTop }]}
           accessible={false}
           importantForAccessibility="no-hide-descendants"
@@ -550,8 +538,27 @@ export function SessionKlumpen({
           ))}
         </View>
       ) : (
-        <View style={[styles.hint, { marginTop: margins.hintMarginTop }]} />
+        <View pointerEvents="none" style={[styles.hint, { marginTop: margins.hintMarginTop }]} />
       )}
+      <View
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel}
+        accessibilityHint={accessibilityHint}
+        accessibilityActions={accessibilityAction ? [{ name: 'end', label: HOLD_A11Y_LABEL }] : undefined}
+        onAccessibilityAction={(event: AccessibilityActionEvent) => {
+          if (event.nativeEvent.actionName === 'end') onAccessibilityEnd();
+        }}
+        onAccessibilityTap={onPress}
+        collapsable={false}
+        hitSlop={HOLD.slackPt}
+        onStartShouldSetResponder={() => true}
+        onResponderTerminationRequest={() => false}
+        onResponderGrant={onPressIn}
+        onResponderRelease={onPressOut}
+        onResponderTerminate={onPressOut}
+        style={[styles.hit, hitStyle]}
+      />
     </View>
   );
 }
@@ -589,11 +596,11 @@ function PhaseLine({
 }
 
 const styles = StyleSheet.create({
-  wrap: { alignItems: 'center', alignSelf: 'stretch' },
+  wrap: { alignItems: 'center', alignSelf: 'stretch', zIndex: 1 },
   canvasBox: { width: CANVAS_W, height: CANVAS_H },
   canvas: { width: CANVAS_W, height: CANVAS_H },
   dotSlot: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
-  hit: { position: 'absolute' },
+  hit: { position: 'absolute', zIndex: 2 },
   hint: { height: SESSION_HINT_BOX, alignSelf: 'stretch', alignItems: 'center', justifyContent: 'center' },
   phase: { position: 'absolute', left: 0, right: 0, textAlign: 'center' },
 });

@@ -262,8 +262,8 @@ export default function Session() {
       <StatusBar style={statusBar} />
       <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
         <Animated.View style={[styles.root, { opacity: dissolve }]}>
-          <View style={styles.stage}>
-            <View style={styles.column}>
+            <View pointerEvents="box-none" style={styles.stage}>
+            <View pointerEvents="box-none" style={styles.column}>
               {showCountdown || showDone ? (
                 <View style={styles.timerSlot} pointerEvents="none">
                   {showCountdown ? (
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
   column: { alignSelf: 'stretch', alignItems: 'center', overflow: 'visible' },
   timerSlot: { height: SESSION_TIMER_BOX, alignSelf: 'stretch' },
   timer: { height: SESSION_TIMER_BOX, textAlign: 'center', includeFontPadding: false },
-  doneCopy: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', gap: 8 },
+  doneCopy: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', gap: 8, zIndex: 0 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   error: { position: 'absolute', left: screenPadding, right: screenPadding, bottom: 48, textAlign: 'center', zIndex: 2 },
   circleLayer: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
