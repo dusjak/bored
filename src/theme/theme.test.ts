@@ -40,6 +40,16 @@ describe('theme tokens', () => {
     assert.equal(resolveThemeName('system', 'light'), 'light');
     assert.equal(resolveThemeName('system', null), 'light');
   });
+
+  it('shares the BD-1 glow colours in both themes', () => {
+    for (const theme of [themes.light, themes.dark]) {
+      assert.equal(theme.color.glow.core, '#F6EBD6');
+      assert.equal(theme.color.glow.amber, '#E8C98E');
+      assert.equal(theme.color.glow.highlight, 'rgba(255,255,255,0.35)');
+      assert.equal(theme.color.glow.solid, '#F8F6F2');
+      assert.equal(theme.color.session['ring-track'], '#66635D');
+    }
+  });
 });
 
 describe('system F type scale', () => {

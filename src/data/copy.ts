@@ -4,7 +4,23 @@ export const PRESET_MINUTES = [5, 10, 15, 20] as const;
 export const MIN_CUSTOM_MINUTES = 5;
 export const MAX_CUSTOM_MINUTES = 20;
 export const DEFAULT_DURATION_MINUTES = 10;
-export const HOLD_TO_END_MS = 1000;
+/**
+ * Hold-to-end length. Phase boundaries are 13/40, 27/40 and 40/40 of this
+ * (1.3s, 2.7s and 4.0s at the current length).
+ */
+export const HOLD_TO_END_MS = 4000;
+
+/**
+ * Placeholder lines for the hold, in phase order, then the completed line.
+ * UX copy review owns the wording. Keep every session hold string here.
+ */
+export const HOLD_PHASE_TEXT = ['Hold for å avslutte', 'Fortsett å holde …', 'Litt til …'] as const;
+export const HOLD_DONE_TEXT = 'Avsluttet';
+export const HOLD_A11Y_LABEL = 'Avslutt økt';
+export const HOLD_A11Y_HINT = 'Dobbelttrykk for å avslutte';
+export const HOLD_CONFIRM_TITLE = 'Avslutte økten?';
+export const HOLD_CONFIRM_END = 'Avslutt';
+export const HOLD_CONFIRM_CONTINUE = 'Fortsett';
 
 /** Number and unit for a mixed-font duration, e.g. `{ value: '10', unit: 'minutter' }`. */
 export function durationParts(minutes: number): { value: string; unit: string } {

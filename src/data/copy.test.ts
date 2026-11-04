@@ -10,6 +10,14 @@ import {
   clampDurationMinutes,
   completionSentence,
   durationParts,
+  HOLD_A11Y_HINT,
+  HOLD_A11Y_LABEL,
+  HOLD_CONFIRM_CONTINUE,
+  HOLD_CONFIRM_END,
+  HOLD_CONFIRM_TITLE,
+  HOLD_DONE_TEXT,
+  HOLD_PHASE_TEXT,
+  HOLD_TO_END_MS,
   minutesPhrase,
   parseCustomMinutes,
   reminderSchedule,
@@ -74,6 +82,17 @@ describe('copy', () => {
     assert.deepEqual(reminderSchedule('lunsj'), { hour: 12, minute: 30, label: '12:30' });
     assert.deepEqual(reminderSchedule('kveld'), { hour: 20, minute: 0, label: '20:00' });
     assert.deepEqual(reminderSchedule(undefined), { hour: 8, minute: 0, label: '08:00' });
+  });
+
+  it('keeps the hold-to-end placeholders in one list', () => {
+    assert.equal(HOLD_TO_END_MS, 4000);
+    assert.deepEqual(HOLD_PHASE_TEXT, ['Hold for å avslutte', 'Fortsett å holde …', 'Litt til …']);
+    assert.equal(HOLD_DONE_TEXT, 'Avsluttet');
+    assert.equal(HOLD_A11Y_LABEL, 'Avslutt økt');
+    assert.equal(HOLD_A11Y_HINT, 'Dobbelttrykk for å avslutte');
+    assert.equal(HOLD_CONFIRM_TITLE, 'Avslutte økten?');
+    assert.equal(HOLD_CONFIRM_END, 'Avslutt');
+    assert.equal(HOLD_CONFIRM_CONTINUE, 'Fortsett');
   });
 
   it('resets a stored length outside 5–20 to the default', () => {

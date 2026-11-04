@@ -1,18 +1,29 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, AppState, Easing, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Alert, Animated, AppState, Easing, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Reanimated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
 
 import { ScreenTitle } from '@/components/ScreenTitle';
-import { TactileCircle } from '@/components/TactileCircle';
-import { HOLD_TO_END_MS, chosenMinutes, completionSentence } from '@/data/copy';
+import { SessionKlumpen } from '@/components/SessionKlumpen';
+import {
+  HOLD_A11Y_HINT,
+  HOLD_A11Y_LABEL,
+  HOLD_CONFIRM_CONTINUE,
+  HOLD_CONFIRM_END,
+  HOLD_CONFIRM_TITLE,
+  HOLD_DONE_TEXT,
+  chosenMinutes,
+  completionSentence,
+} from '@/data/copy';
+import { HOLD } from '@/session/holdToEnd';
 import { decideUnfinishedSession } from '@/data/sessionRules';
 import { useAppState } from '@/state/AppState';
 import { screenPadding, useTheme } from '@/theme';
 
-/** Active session. Always dark. Hold the circle for one second to end early. */
+/** Active session. Always dark. Hold the Klumpen for four seconds to end early. */
 export default function Session() {
   const { theme } = useTheme();
   const {
@@ -42,21 +53,14 @@ export default function Session() {
   remainingRef.current = remaining;
   const finished = useRef(false);
   const leaving = useRef(false);
-  const didLong = useRef(false);
-  const hint = useRef(new Animated.Value(0)).current;
   const morph = useRef(new Animated.Value(0)).current;
   const dissolve = useRef(new Animated.Value(1)).current;
-  const holdScale = useRef(new Animated.Value(1)).current;
-  const holding = useRef(false);
-  const holdHaptics = useRef<ReturnType<typeof setInterval> | null>(null);
+  const holdFade = useSharedValue(0);
+  const abortId = useRef<string | null>(null);
+  const holdSettled = useRef(false);
   const minutesRef = useRef(minutes);
   if (session) minutesRef.current = minutes;
-
-  useEffect(() => {
-    return () => {
-      if (holdHaptics.current) clearInterval(holdHaptics.current);
-    };
-  }, []);
+  const fadeStyle = useAnimatedStyle(() => ({ opacity: holdFade.value }));
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => undefined);
@@ -137,7 +141,8 @@ export default function Session() {
     if (finished.current) return;
     finished.current = true;
     leaving.current = true;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    AccessibilityInfo.announceForAccessibility(HOLD_DONE_TEXT);
     try {
       const id = await abortActiveSession();
       if (!id) {
@@ -146,14 +151,53 @@ export default function Session() {
       }
       Animated.timing(dissolve, {
         toValue: 0,
-        duration: theme.motion.default,
+        duration: HOLD.doneFadeMs,
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }).start(() => openReflection(id));
     } catch {
       setError('fikk ikke lagret. prøv igjen.');
     }
-  }, [abortActiveSession, dissolve, openReflection, playCompletion, theme.motion.default]);
+  }, [abortActiveSession, dissolve, openReflection, playCompletion]);
+
+  const maybeNavigate = useCallback(() => {
+    if (abortId.current && holdSettled.current) openReflection(abortId.current);
+  }, [openReflection]);
+
+  const finishHeld = useCallback(async () => {
+    if (remainingRef.current <= 0) {
+      playCompletion();
+      return;
+    }
+    if (finished.current) return;
+    finished.current = true;
+    leaving.current = true;
+    AccessibilityInfo.announceForAccessibility(HOLD_DONE_TEXT);
+    try {
+      const id = await abortActiveSession();
+      if (!id) {
+        setError('fikk ikke lagret. prøv igjen.');
+        return;
+      }
+      abortId.current = id;
+      maybeNavigate();
+    } catch {
+      setError('fikk ikke lagret. prøv igjen.');
+    }
+  }, [abortActiveSession, maybeNavigate, playCompletion]);
+
+  const onHoldSettled = useCallback(() => {
+    holdSettled.current = true;
+    maybeNavigate();
+  }, [maybeNavigate]);
+
+  const confirmEnd = useCallback(() => {
+    if (finished.current || showDone) return;
+    Alert.alert(HOLD_CONFIRM_TITLE, undefined, [
+      { text: HOLD_CONFIRM_CONTINUE, style: 'cancel' },
+      { text: HOLD_CONFIRM_END, onPress: () => playAbort() },
+    ]);
+  }, [playAbort, showDone]);
 
   useEffect(() => {
     if (!session || finished.current) return;
@@ -191,37 +235,6 @@ export default function Session() {
     return () => sub.remove();
   }, [session, startedAtMs, chosenSeconds, noteBackground, noteForeground, finishExpired]);
 
-  const stopHold = () => {
-    holding.current = false;
-    if (holdHaptics.current) {
-      clearInterval(holdHaptics.current);
-      holdHaptics.current = null;
-    }
-    Animated.spring(holdScale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 0 }).start();
-  };
-
-  const startHold = () => {
-    if (finished.current || showDone) return;
-    holding.current = true;
-    Animated.timing(holdScale, {
-      toValue: 0.94,
-      duration: HOLD_TO_END_MS,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
-    const started = Date.now();
-    holdHaptics.current = setInterval(() => {
-      if (!holding.current) return;
-      if (Date.now() - started < 300) return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-    }, 180);
-  };
-
-  const brightenHint = () => {
-    hint.setValue(1);
-    Animated.timing(hint, { toValue: 0, duration: 1000, useNativeDriver: false }).start();
-  };
-
   if (!session && !showDone) return null;
 
   const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
@@ -231,16 +244,8 @@ export default function Session() {
     inputRange: [0, 1],
     outputRange: [theme.color.bg.session, theme.color.bg.default],
   });
-  const circleFill = morph.interpolate({
-    inputRange: [0, 1],
-    outputRange: [theme.color.session.object, theme.color.object.fill],
-  });
   const runningOpacity = morph.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
   const doneOpacity = morph;
-  const hintColor = hint.interpolate({
-    inputRange: [0, 1],
-    outputRange: [theme.color.session['text-tertiary'], theme.color.session['text-secondary']],
-  });
 
   return (
     <Animated.View style={[styles.root, { backgroundColor: background }]}>
@@ -275,31 +280,17 @@ export default function Session() {
               </Animated.View>
             </View>
 
-            <Animated.View style={{ transform: [{ scale: holdScale }] }}>
-            <TactileCircle
-              fill={circleFill}
-              onPressIn={startHold}
-              onPressOut={stopHold}
-              onPress={() => {
-                if (didLong.current) {
-                  didLong.current = false;
-                  return;
-                }
-                if (finished.current) return;
-                brightenHint();
-              }}
-              onLongPress={() => {
-                if (finished.current || remainingRef.current <= 0) return;
-                didLong.current = true;
-                playAbort();
-              }}
-              delayLongPress={HOLD_TO_END_MS}
-              accessibilityLabel={showDone ? `Økt fullført. ${sentence}` : 'Sirkel'}
-              accessibilityHint={showDone ? undefined : 'Hold inne sirkelen for å avslutte'}
-              accessibilityActions={showDone ? undefined : [{ name: 'end', label: 'Avslutt økt' }]}
-              onAccessibilityAction={(event) => {
-                if (event.nativeEvent.actionName === 'end') playAbort();
-              }}
+            <SessionKlumpen
+              enabled={!showDone}
+              showHint={!showDone}
+              fade={holdFade}
+              morph={morph}
+              accessibilityLabel={showDone ? `Økt fullført. ${sentence}` : HOLD_A11Y_LABEL}
+              accessibilityHint={showDone ? undefined : HOLD_A11Y_HINT}
+              accessibilityAction={!showDone}
+              onComplete={finishHeld}
+              onSettled={onHoldSettled}
+              onAccessibilityEnd={confirmEnd}
             >
               <Animated.View pointerEvents="none" style={[styles.circleLayer, { opacity: doneOpacity }]}>
                 <View
@@ -309,16 +300,17 @@ export default function Session() {
                   style={[styles.dot, { backgroundColor: theme.color.ink.default }]}
                 />
               </Animated.View>
-            </TactileCircle>
-            </Animated.View>
-
-            <Animated.Text style={[theme.text.caption, styles.hint, { color: hintColor, opacity: runningOpacity }]}>
-              Hold inne sirkelen for å avslutte
-            </Animated.Text>
-            {error ? <Text style={[theme.text.caption, { color: theme.color.session['text-secondary'] }]}>{error}</Text> : null}
+            </SessionKlumpen>
           </View>
         </Animated.View>
       </SafeAreaView>
+      <Reanimated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: theme.color.bg.session }, fadeStyle]}
+      />
+      {error ? (
+        <Text style={[theme.text.caption, styles.error, { color: theme.color.session['text-secondary'] }]}>{error}</Text>
+      ) : null}
     </Animated.View>
   );
 }
@@ -329,7 +321,7 @@ const styles = StyleSheet.create({
   timerBlock: { minHeight: 140, alignItems: 'center', justifyContent: 'center' },
   timer: { width: '100%', textAlign: 'center' },
   doneCopy: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 8 },
-  hint: { textAlign: 'center' },
   dot: { width: 8, height: 8, borderRadius: 4 },
+  error: { position: 'absolute', left: screenPadding, right: screenPadding, bottom: 48, textAlign: 'center', zIndex: 2 },
   circleLayer: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
 });

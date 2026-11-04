@@ -115,6 +115,19 @@ const lightColor = {
     'text-tertiary': prim.neutral['400'],
     decorative: prim.neutral['700'],
     object: prim.neutral['850'],
+    /** Rest contour around the session Klumpen. */
+    'ring-track': prim.neutral['600'],
+  },
+  /**
+   * BD-1 glow, shared with the lock hint.
+   * `core` is the lit contour, `amber` is the blur around it.
+   */
+  glow: {
+    core: '#F6EBD6',
+    amber: '#E8C98E',
+    highlight: prim.alpha['white-35'],
+    /** Increase Contrast and Reduce Transparency. Solid stroke, no blur. */
+    solid: prim.neutral['50'],
   },
   tally: {
     default: prim.neutral['900'],
@@ -179,6 +192,18 @@ const darkColor = {
     'text-tertiary': prim.neutral['400'],
     decorative: prim.neutral['700'],
     object: prim.neutral['850'],
+    /** Rest contour around the session Klumpen. */
+    'ring-track': prim.neutral['600'],
+  },
+  /**
+   * BD-1 glow, shared with the lock hint.
+   * Same in both themes: the session screen is always dark.
+   */
+  glow: {
+    core: '#F6EBD6',
+    amber: '#E8C98E',
+    highlight: prim.alpha['white-35'],
+    solid: prim.neutral['50'],
   },
   tally: {
     default: prim.neutral['50'],
