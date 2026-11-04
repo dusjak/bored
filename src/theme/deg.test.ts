@@ -22,22 +22,23 @@ describe('Deg v2.2', () => {
     assert.equal(switchTravel, 21);
   });
 
-  it('spaces groups, rows, and the since-line on the v2.2 grid', () => {
+  it('spaces the title, cards, and footer on the 9:41 frame', () => {
     assert.equal(deg.groupRadius, 14);
     assert.equal(deg.groupGap, 32);
     assert.equal(deg.rowMinHeight, 50);
     assert.equal(deg.rowInset, 16);
     assert.equal(deg.separator, 0.5);
     assert.equal(deg.footerGap, 7);
-    // A two-line footer (18 + 18) plus this gap, then the same 32 pt as a group with no footer.
+    // Two caption lines, then the same 32 pt that separates cards with no footer.
     assert.equal(deg.footerGap + 18 + 18 + deg.groupGap, 75);
-    assert.equal(deg.subtitleGap, 8);
-    assert.equal(deg.afterSubtitle, 28);
+    assert.equal(deg.titleSize, 44);
+    assert.equal(deg.titleLine, 60);
+    assert.equal(deg.titleTop, 34);
+    assert.equal(deg.afterTitle, 24);
     assert.equal(deg.resetGap, 30);
     assert.equal(deg.versionGap, 28);
     assert.equal(deg.fadeHeight, 150);
     assert.equal(deg.rowSize, 17);
-    assert.equal(deg.subtitleSize, 15);
   });
 
   it('snaps the inline wheel to hours and 5-minute steps', () => {
