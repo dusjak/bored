@@ -43,10 +43,12 @@ export const SHEET_HIT_MIN = 44;
 export const SHEET_REDUCE_IN_MS = 200;
 export const SHEET_REDUCE_OUT_MS = 160;
 
-export function rubberBandOffset(distance: number, limit: number, coefficient = SHEET_RUBBER_C): number {
+export function rubberBandOffset(distance: number, limit: number, coefficient?: number): number {
   'worklet';
+  // Worklets do not capture names used only in default parameters, so read it here.
+  const rubber = coefficient ?? SHEET_RUBBER_C;
   if (distance <= 0 || limit <= 0) return 0;
-  return (1 - 1 / ((distance * coefficient) / limit + 1)) * limit;
+  return (1 - 1 / ((distance * rubber) / limit + 1)) * limit;
 }
 
 /** Finger delta in points. Positive is down and tracks 1:1. Negative rubber-bands. */
