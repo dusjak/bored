@@ -28,7 +28,7 @@ export default function TabsLayout() {
             <NativeTabs.Trigger.Label>Logg</NativeTabs.Trigger.Label>
             <NativeTabs.Trigger.Icon sf="list.bullet" md="list" />
           </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="profile" contentStyle={{ backgroundColor: theme.color.bg.default }}>
+          <NativeTabs.Trigger name="profile" contentStyle={{ backgroundColor: theme.color.bg.grouped }}>
             <NativeTabs.Trigger.Label>Deg</NativeTabs.Trigger.Label>
             <NativeTabs.Trigger.Icon sf={{ default: 'person', selected: 'person.fill' }} md="person" />
           </NativeTabs.Trigger>
@@ -48,7 +48,7 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="home" />
       <Tabs.Screen name="log" />
-      <Tabs.Screen name="profile" />
+      <Tabs.Screen name="profile" options={{ sceneStyle: { backgroundColor: theme.color.bg.grouped } }} />
     </Tabs>
   );
 }

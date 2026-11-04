@@ -31,6 +31,8 @@ const prim = {
   },
   sand: {
     '400': '#C4B09A',
+    /** Links on a light surface. 5.0:1 on #F8F6F2, 4.6:1 on #F0EDE7. */
+    '700': '#7D6650',
   },
   red: {
     '700': '#9F2D2D',
@@ -52,7 +54,12 @@ const prim = {
     'black-60': 'rgba(0,0,0,0.6)',
     'warm-8': 'rgba(60,50,40,0.08)',
     'warm-12': 'rgba(60,50,40,0.12)',
+    'warm-22': 'rgba(60,50,40,0.22)',
     'night-60': 'rgba(26,26,24,0.6)',
+    /** Off-white at 8% and 10%. Hairlines and the time-wheel band on a dark card. */
+    'paper-8': 'rgba(248,246,242,0.08)',
+    'paper-10': 'rgba(248,246,242,0.10)',
+    'ink-6': 'rgba(17,17,16,0.06)',
   },
 } as const;
 
@@ -60,17 +67,25 @@ const prim = {
 const lightColor = {
   bg: {
     default: prim.neutral['100'],
+    /** Deg canvas. Matches the v2.2 frame (#F8F6F2). Other screens keep bg.default. */
+    grouped: prim.neutral['50'],
     session: prim.neutral['950'],
     overlay: prim.alpha['ink-40'],
   },
   surface: {
     default: prim.neutral['50'],
+    /** Inset grouped cards on Deg. White in light, the same card as surface.default in dark. */
+    grouped: prim.neutral['0'],
     sheet: prim.neutral['50'],
   },
   text: {
     primary: prim.neutral['900'],
     secondary: prim.neutral['650'],
     tertiary: prim.neutral['600'],
+    /** Sand link. Light uses sand.700 so it clears 4.5:1. Dark keeps sand.400. */
+    link: prim.sand['700'],
+    /** Lowest weight. Version line. */
+    meta: prim.neutral['600'],
     destructive: prim.red['700'],
     'on-ink': prim.neutral['50'],
   },
@@ -83,9 +98,26 @@ const lightColor = {
   border: {
     default: prim.neutral['200'],
     strong: prim.alpha['ink-24'],
+    /** Hairline between rows in one group. 0.5pt, inset 16. */
+    separator: prim.neutral['200'],
+  },
+  icon: {
+    /** Chevron. Graphic, not text: neutral.300 on light, neutral.600 on dark. */
+    chevron: prim.neutral['300'],
   },
   control: {
     off: prim.neutral['250'],
+    /** Off knob. Light adds a warm shadow in the switch, not here. */
+    offKnob: prim.neutral['0'],
+    on: prim.neutral['900'],
+    onKnob: prim.neutral['50'],
+    /**
+     * 1pt off-track border. The fill is 1.5:1 on a white card (WCAG 1.4.11 wants 3:1).
+     * neutral.300 is 2.3:1. neutral.450 is 3.6:1 on white and 3.1:1 on the page.
+     */
+    offBorder: prim.neutral['450'],
+    capsule: prim.neutral['150'],
+    band: prim.alpha['ink-6'],
   },
   object: {
     fill: prim.neutral['150'],
@@ -124,17 +156,22 @@ const lightColor = {
 const darkColor = {
   bg: {
     default: prim.neutral['900'],
+    grouped: prim.neutral['900'],
     session: prim.neutral['950'],
-    overlay: prim.alpha['black-60'],
+    /** Sheet scrim. 0.40, same dim as the shared sheet (#111110 at 40%). */
+    overlay: prim.alpha['ink-40'],
   },
   surface: {
     default: prim.neutral['850'],
+    grouped: prim.neutral['850'],
     sheet: prim.neutral['850'],
   },
   text: {
     primary: prim.neutral['50'],
     secondary: prim.neutral['300'],
     tertiary: prim.neutral['400'],
+    link: prim.sand['400'],
+    meta: prim.neutral['450'],
     destructive: prim.red['200'],
     'on-ink': prim.neutral['900'],
   },
@@ -147,9 +184,24 @@ const darkColor = {
   border: {
     default: prim.neutral['800'],
     strong: prim.alpha['white-24'],
+    /** Off-white at 10% on the dark card. Reads as #30302E over #1A1A18. */
+    separator: prim.alpha['paper-10'],
+  },
+  icon: {
+    chevron: prim.neutral['600'],
   },
   control: {
     off: prim.neutral['700'],
+    offKnob: prim.neutral['850'],
+    on: prim.neutral['50'],
+    onKnob: prim.neutral['900'],
+    /**
+     * 1pt off-track border. The fill (#4A4945) is 1.9:1 on the card.
+     * neutral.600 is 2.9:1, still short. neutral.500 is 3.9:1.
+     */
+    offBorder: prim.neutral['500'],
+    capsule: prim.neutral['800'],
+    band: prim.alpha['paper-8'],
   },
   object: {
     fill: prim.neutral['850'],

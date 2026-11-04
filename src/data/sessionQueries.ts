@@ -226,6 +226,21 @@ export async function deleteSession(db: AppDatabase, id: string): Promise<void> 
   await db.runAsync('DELETE FROM sessions WHERE id = ?', id);
 }
 
+/**
+ * Oldest stored instant. Sessions and settings both count.
+ * Empty tables return null. Does not write.
+ */
+export async function earliestStoredUse(db: AppDatabase): Promise<string | null> {
+  const row = await db.getFirstAsync<{ iso: string | null }>(`
+    SELECT MIN(iso) AS iso FROM (
+      SELECT MIN(started_at) AS iso FROM sessions
+      UNION ALL
+      SELECT MIN(updated_at) AS iso FROM settings
+    )
+  `);
+  return row?.iso ?? null;
+}
+
 /** Wipes sessions, notes, settings, and app_state. The next launch looks newly installed. */
 export async function clearAllLocalData(db: AppDatabase): Promise<void> {
   await db.runAsync('DELETE FROM journal_entries');

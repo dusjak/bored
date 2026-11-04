@@ -50,4 +50,6 @@ export type OnboardingProfile = {
   time?: string;
   name?: string;
   notifications?: boolean;
+  /** "HH:MM", minute 00–59. Unset means the onboarding answer in `time`. */
+  reminderClock?: string;
 };

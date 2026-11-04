@@ -21,6 +21,8 @@ export const ONBOARDED_KEY = 'bored.onboarded';
 export const PROFILE_KEY = 'bored.profile';
 export const SHOW_COUNTDOWN_KEY = 'bored.showCountdown';
 export const SPLASH_SEEN_KEY = 'bored.splashSeen';
+/** ISO instant of the first launch. Written once. Reset clears it with the rest. */
+export const FIRST_USED_KEY = 'bored.firstUsedAt';
 
 function connection(db: Awaited<ReturnType<typeof openDatabase>>): AppDatabase {
   return db as unknown as AppDatabase;
@@ -32,6 +34,11 @@ export async function initDatabase(): Promise<void> {
 
 export async function getSetting(key: string): Promise<string | null> {
   return queries.getSetting(connection(await openDatabase()), key);
+}
+
+/** Oldest session or setting timestamp, for «Kjedet deg siden …» when no first-use key exists. */
+export async function earliestStoredUse(): Promise<string | null> {
+  return queries.earliestStoredUse(connection(await openDatabase()));
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {

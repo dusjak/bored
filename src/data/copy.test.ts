@@ -3,6 +3,11 @@ import { describe, it } from 'node:test';
 
 import {
   abortedPhrase,
+  boredSinceLine,
+  earliestIso,
+  formatClock,
+  parseClock,
+  resolveReminderClock,
   APPEARANCE_CONFIRM,
   APPEARANCE_OPTIONS,
   APPEARANCE_SYSTEM_CAPTION,
@@ -74,6 +79,28 @@ describe('copy', () => {
     assert.deepEqual(reminderSchedule('lunsj'), { hour: 12, minute: 30, label: '12:30' });
     assert.deepEqual(reminderSchedule('kveld'), { hour: 20, minute: 0, label: '20:00' });
     assert.deepEqual(reminderSchedule(undefined), { hour: 8, minute: 0, label: '08:00' });
+  });
+
+  it('prefers a saved clock and otherwise uses the onboarding answer', () => {
+    assert.deepEqual(parseClock('8:00'), { hour: 8, minute: 0 });
+    assert.deepEqual(parseClock('12:32'), { hour: 12, minute: 32 });
+    assert.deepEqual(parseClock('23:58'), { hour: 23, minute: 58 });
+    assert.equal(parseClock('24:00'), null);
+    assert.equal(parseClock('12:60'), null);
+    assert.equal(parseClock('morgen'), null);
+    assert.equal(parseClock(undefined), null);
+    assert.equal(formatClock(8, 0), '08:00');
+    assert.deepEqual(resolveReminderClock('lunsj', undefined), { hour: 12, minute: 30, label: '12:30' });
+    assert.deepEqual(resolveReminderClock('lunsj', '07:15'), { hour: 7, minute: 15, label: '07:15' });
+    assert.deepEqual(resolveReminderClock(undefined, undefined), { hour: 8, minute: 0, label: '08:00' });
+  });
+
+  it('names the month the app was first used', () => {
+    assert.equal(boredSinceLine(new Date(2026, 9, 4)), 'Kjedet deg siden oktober 2026');
+    assert.equal(boredSinceLine(new Date(2026, 0, 1)), 'Kjedet deg siden januar 2026');
+    const now = new Date('2026-11-04T12:00:00.000Z');
+    assert.equal(earliestIso([null, 'not-a-date'], now), now.toISOString());
+    assert.equal(earliestIso(['2026-11-01T00:00:00.000Z', '2026-10-02T00:00:00.000Z'], now), '2026-10-02T00:00:00.000Z');
   });
 
   it('resets a stored length outside 5–20 to the default', () => {
