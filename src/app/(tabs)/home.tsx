@@ -34,7 +34,13 @@ export default function Home() {
   return (
     <Screen edges={['top']} contentStyle={styles.content}>
       <View style={styles.hero}>
-        <HomeKlumpen minutes={durationMinutes} onPress={() => setPickerOpen(true)} />
+        <HomeKlumpen
+          minutes={durationMinutes}
+          onPress={() => setPickerOpen(true)}
+          onChange={(next) => {
+            setDurationMinutes(next).catch(() => setError('fikk ikke lagret. prøv igjen.'));
+          }}
+        />
       </View>
 
       {error ? (

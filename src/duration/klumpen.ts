@@ -49,8 +49,67 @@ export const ROW_PITCH = 79;
 export const ROW_HIT = 72;
 export const CHOICE_HIT_MIN = 44;
 export const ROW_STROKE = 1.4;
-/** Space between the stone, the choice row, and «Bruk». */
-export const SHEET_SECTION_GAP = 18;
+/** Gap between the hero number’s line box and «min». Same on Hjem and in the sheet. */
+export const NUMBER_UNIT_GAP = 4;
+
+/**
+ * Breathing-room sheet on the 852 pt frame.
+ * Title baseline 72 pt under the sheet edge, subtitle baseline 28 pt under that,
+ * 48 pt from the subtitle baseline to the 240 pt outline, 40 pt from that outline
+ * to the small lumps, number baselines 26 pt under the shared lump bottom,
+ * 40 pt from the numbers to «Bruk». «Bruk» is 56 pt with 42 pt under it.
+ */
+export const SHEET_TOP = 220;
+export const TITLE_BASELINE = 72;
+export const SUBTITLE_BASELINE_GAP = 28;
+export const SUBTITLE_TO_OUTLINE = 48;
+export const OUTLINE_TO_LUMPS = 40;
+export const NUMBER_BASELINE_GAP = 26;
+export const NUMBERS_TO_BUTTON = 40;
+export const BUTTON_HEIGHT = 56;
+
+const TITLE_LINE = 32;
+const TITLE_BASELINE_IN_LINE = 26;
+const SUBTITLE_LINE = 24;
+const SUBTITLE_BASELINE_IN_LINE = 18;
+const NUMBER_LINE = 22;
+const NUMBER_BASELINE_IN_LINE = 17;
+const GRABBER_BLOCK = 10;
+
+export function durationSheetLayout(outlineHeight: number, lumpHeight: number) {
+  const titleMargin = TITLE_BASELINE - GRABBER_BLOCK - TITLE_BASELINE_IN_LINE;
+  const subtitleMargin =
+    SUBTITLE_BASELINE_GAP - (TITLE_LINE - TITLE_BASELINE_IN_LINE) - SUBTITLE_BASELINE_IN_LINE;
+  const stoneMargin = SUBTITLE_TO_OUTLINE - (SUBTITLE_LINE - SUBTITLE_BASELINE_IN_LINE);
+  const rowMargin = OUTLINE_TO_LUMPS - (ROW_HIT - lumpHeight);
+  const labelMargin = NUMBER_BASELINE_GAP - NUMBER_BASELINE_IN_LINE;
+  const aboveButton =
+    GRABBER_BLOCK +
+    titleMargin +
+    TITLE_LINE +
+    subtitleMargin +
+    SUBTITLE_LINE +
+    stoneMargin +
+    outlineHeight +
+    rowMargin +
+    ROW_HIT +
+    labelMargin +
+    NUMBER_LINE;
+  // The listed 40 pt under the numbers, plus whatever is left so the sheet
+  // opens at y 220 while «Bruk» stays 56 pt tall and 42 pt above the screen.
+  const footerMargin = Math.max(NUMBERS_TO_BUTTON, 852 - SHEET_TOP - aboveButton - BUTTON_HEIGHT - 42);
+  const sheetHeight = aboveButton + footerMargin + BUTTON_HEIGHT + 42;
+  return {
+    titleMargin,
+    subtitleMargin,
+    stoneMargin,
+    rowMargin,
+    labelMargin,
+    footerMargin,
+    sheetHeight,
+    sheetTop: 852 - sheetHeight,
+  };
+}
 
 export const SHEET_RADIUS = 38;
 export const GRABBER_WIDTH = 36;

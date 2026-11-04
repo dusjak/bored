@@ -43,15 +43,17 @@ import {
   ROW_STROKE,
   ROW_WIDTHS,
   SHEET_RADIUS,
-  SHEET_SECTION_GAP,
   SIZE_SPRING,
   SWIPE_ACTIVATION,
   SWIPE_STEP,
   VERTICAL_YIELD,
   chosenAnnouncement,
   clampIndex,
+  durationSheetLayout,
   durationType,
   durationValueText,
+  klumpHeight,
+  klumpWidth,
   indexFromSwipe,
   indexVelocity,
   presetIndex,
@@ -62,6 +64,8 @@ import {
   useButtonLabel,
 } from '@/duration/klumpen';
 import { screenPadding, useTheme } from '@/theme';
+
+const sheetLayout = durationSheetLayout(klumpHeight(klumpWidth(3)), ROW_WIDTHS[3] * KLUMP_ASPECT);
 
 type Props = {
   visible: boolean;
@@ -428,11 +432,11 @@ const styles = StyleSheet.create({
   handle: { width: GRABBER_WIDTH, height: GRABBER_HEIGHT, borderRadius: GRABBER_HEIGHT / 2 },
   scroll: { flex: 1 },
   body: { paddingHorizontal: screenPadding },
-  titleBlock: { marginTop: 28 },
-  subtitle: { marginTop: 2 },
-  stone: { marginTop: 52, alignItems: 'center' },
-  row: { marginTop: SHEET_SECTION_GAP, flexDirection: 'row', alignSelf: 'center' },
-  list: { marginTop: SHEET_SECTION_GAP, alignSelf: 'stretch' },
+  titleBlock: { marginTop: sheetLayout.titleMargin },
+  subtitle: { marginTop: sheetLayout.subtitleMargin },
+  stone: { marginTop: sheetLayout.stoneMargin, alignItems: 'center' },
+  row: { marginTop: sheetLayout.rowMargin, flexDirection: 'row', alignSelf: 'center' },
+  list: { marginTop: sheetLayout.rowMargin, alignSelf: 'stretch' },
   choice: { minWidth: CHOICE_HIT_MIN, minHeight: CHOICE_HIT_MIN, alignItems: 'center' },
   hit: { width: ROW_HIT, height: ROW_HIT, alignItems: 'center', justifyContent: 'flex-end' },
   vRow: {
@@ -442,8 +446,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 16,
   },
-  footer: { paddingHorizontal: screenPadding, marginTop: SHEET_SECTION_GAP },
-  labelSlot: { marginTop: 8, height: 22, alignSelf: 'stretch', alignItems: 'center' },
+  footer: { paddingHorizontal: screenPadding, marginTop: sheetLayout.footerMargin },
+  labelSlot: { marginTop: sheetLayout.labelMargin, height: 22, alignSelf: 'stretch', alignItems: 'center' },
   labelBeside: { marginTop: 0, flex: 1, alignItems: 'flex-start' },
   labelOn: { position: 'absolute', left: 0, right: 0 },
 });

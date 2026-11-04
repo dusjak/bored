@@ -31,8 +31,9 @@ import {
   ROW_STROKE,
   ROW_WIDTHS,
   RUBBER_C,
+  NUMBER_UNIT_GAP,
   SHEET_RADIUS,
-  SHEET_SECTION_GAP,
+  SHEET_TOP,
   SIZE_SPRING,
   STONE_COLOR,
   STONE_NUMBER_COLOR,
@@ -41,6 +42,7 @@ import {
   VERTICAL_YIELD,
   chosenAnnouncement,
   dampingRatio,
+  durationSheetLayout,
   durationType,
   durationValueText,
   homeKlumpenLabel,
@@ -216,6 +218,15 @@ describe('sheet geometry', () => {
     assert.equal(sheetBottomPadding(34), 42);
     assert.equal(HOME_STONE_CENTER_Y, 348);
     assert.equal(HINT_GAP, 28);
-    assert.equal(SHEET_SECTION_GAP, 18);
+    assert.equal(NUMBER_UNIT_GAP, 4);
+    const layout = durationSheetLayout(klumpHeight(klumpWidth(3)), (ROW_WIDTHS[3] ?? 40) * KLUMP_ASPECT);
+    assert.equal(layout.titleMargin, 36);
+    assert.equal(layout.subtitleMargin, 4);
+    assert.equal(layout.stoneMargin, 42);
+    assert.equal(layout.labelMargin, 9);
+    assert.ok(layout.footerMargin >= 40);
+    assert.ok(Math.abs(layout.sheetTop - SHEET_TOP) < 1);
+    const lumpTopGap = layout.rowMargin + ROW_HIT - (ROW_WIDTHS[3] ?? 40) * KLUMP_ASPECT;
+    assert.ok(Math.abs(lumpTopGap - 40) < 0.05, `lump gap ${lumpTopGap}`);
   });
 });
