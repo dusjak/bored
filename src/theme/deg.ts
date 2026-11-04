@@ -35,7 +35,10 @@ export const deg = {
   rowLine: 22,
   resetGap: 30,
   resetMinHeight: 44,
-  versionGap: 28,
+  /** «1.0.0» on the 9:41 frame sits 18 pt under the Nullstill row, not 28. */
+  versionGap: 18,
+  /** Figtree’s caps sit high in the 22 pt line. Nudge labels down onto the row centre. */
+  rowTextShift: 2,
   wheelHeight: 216,
   wheelRow: 34,
   wheelInset: 8,

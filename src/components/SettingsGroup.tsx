@@ -17,12 +17,10 @@ export function SettingsGroup({ children, footer }: { children: ReactNode; foote
           <View key={index}>
             {index > 0 ? (
               <View
-                style={{
-                  height: deg.separator,
-                  // Leading inset only. The reference runs the hairline to the trailing edge.
-                  marginLeft: deg.rowInset,
-                  backgroundColor: theme.color.border.separator,
-                }}
+                style={[
+                  styles.separator,
+                  { backgroundColor: theme.color.border.separator },
+                ]}
               />
             ) : null}
             {row}
@@ -52,5 +50,14 @@ export function RowChevron() {
 
 const styles = StyleSheet.create({
   card: { overflow: 'hidden' },
+  // Drawn on the boundary so a two-row card stays 100 pt, not 100.5.
+  separator: {
+    position: 'absolute',
+    top: 0,
+    left: deg.rowInset,
+    right: 0,
+    height: deg.separator,
+    zIndex: 1,
+  },
   footer: { marginTop: deg.footerGap, paddingHorizontal: deg.rowInset },
 });
