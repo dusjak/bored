@@ -1,18 +1,20 @@
-import { useLayoutEffect, useRef, useState } from 'react';
-import { Modal, PanResponder, Pressable, StyleSheet, Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { Pressable, StyleSheet, Text, View, type HostInstance } from 'react-native';
 
 import { Button } from '@/components/Button';
 import { Icon } from '@/components/Icon';
 import { ScreenTitle } from '@/components/ScreenTitle';
+import { Sheet } from '@/components/Sheet';
 import { APPEARANCE_CONFIRM, APPEARANCE_OPTIONS, APPEARANCE_SYSTEM_CAPTION, type AppearanceId } from '@/data/copy';
-import { screenPadding, ThemeOverride, useTheme, type Theme, type ThemePreference } from '@/theme';
+import { screenPadding, ThemeOverride, useTheme, type ThemePreference } from '@/theme';
 
 type Props = {
   visible: boolean;
   onClose: () => void;
   /** Persistence failed. The sheet still closes; the screen shows the error. */
   onError?: () => void;
+  /** Focus returns to the control that opened the sheet. */
+  returnFocusRef?: RefObject<HostInstance | null>;
 };
 
 /**
@@ -20,14 +22,13 @@ type Props = {
  * Dragging down, tapping outside, or back drops the preview.
  * «Velg» is the only path that writes the preference.
  */
-export function AppearanceSheet({ visible, onClose, onError }: Props) {
+export function AppearanceSheet({ visible, onClose, onError, returnFocusRef }: Props) {
   const live = useTheme();
   const { preference, previewPreference, revertPreview, setPreference } = live;
   const frozen = useRef(live.theme);
   const paint = visible ? live.theme : frozen.current;
   if (visible) frozen.current = live.theme;
 
-  const insets = useSafeAreaInsets();
   const [picked, setPicked] = useState<ThemePreference>(preference);
   const wasVisible = useRef(false);
 
@@ -48,17 +49,6 @@ export function AppearanceSheet({ visible, onClose, onError }: Props) {
     onClose();
   };
 
-  const dismissRef = useRef(dismiss);
-  dismissRef.current = dismiss;
-  const drag = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_event, gesture) => gesture.dy > 8 && Math.abs(gesture.dy) > Math.abs(gesture.dx),
-      onPanResponderRelease: (_event, gesture) => {
-        if (gesture.dy > 32) dismissRef.current();
-      },
-    }),
-  ).current;
-
   const confirm = () => {
     setPreference(picked).catch(() => onError?.());
     onClose();
@@ -70,70 +60,8 @@ export function AppearanceSheet({ visible, onClose, onError }: Props) {
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={dismiss}>
-      <ThemeOverride theme={paint}>
-        <SheetBody
-          paint={paint}
-          insetsBottom={insets.bottom}
-          picked={picked}
-          dragHandlers={drag.panHandlers}
-          onDismiss={dismiss}
-          onChoose={choose}
-          onConfirm={confirm}
-        />
-      </ThemeOverride>
-    </Modal>
-  );
-}
-
-function SheetBody({
-  paint,
-  insetsBottom,
-  picked,
-  dragHandlers,
-  onDismiss,
-  onChoose,
-  onConfirm,
-}: {
-  paint: Theme;
-  insetsBottom: number;
-  picked: ThemePreference;
-  dragHandlers: ReturnType<typeof PanResponder.create>['panHandlers'];
-  onDismiss: () => void;
-  onChoose: (id: ThemePreference) => void;
-  onConfirm: () => void;
-}) {
-  return (
-    <View style={styles.wrap}>
-      <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} accessibilityLabel="Lukk" accessibilityRole="button">
-        <View style={[styles.backdrop, { backgroundColor: paint.color.bg.overlay }]} />
-      </Pressable>
-      <View
-        accessibilityViewIsModal
-        accessibilityActions={[{ name: 'close', label: 'Lukk' }]}
-        onAccessibilityAction={(event) => {
-          if (event.nativeEvent.actionName === 'close') onDismiss();
-        }}
-        style={[
-          styles.sheet,
-          {
-            backgroundColor: paint.color.surface.sheet,
-            paddingBottom: Math.max(insetsBottom, paint.space['6']),
-            borderTopLeftRadius: paint.radius.large,
-            borderTopRightRadius: paint.radius.large,
-          },
-        ]}
-      >
-        <Pressable
-          onPress={onDismiss}
-          accessibilityRole="button"
-          accessibilityLabel="Lukk"
-          style={styles.handleHit}
-          {...dragHandlers}
-        >
-          <View style={[styles.handle, { backgroundColor: paint.color.control.off }]} />
-        </Pressable>
-
+    <ThemeOverride theme={paint}>
+      <Sheet visible={visible} onClose={dismiss} returnFocusRef={returnFocusRef}>
         <View style={[styles.body, { paddingHorizontal: screenPadding, gap: paint.space['4'] }]}>
           <ScreenTitle>Velg utseende</ScreenTitle>
 
@@ -148,16 +76,16 @@ function SheetBody({
                   label={option.label}
                   selected={selected}
                   last={last}
-                  onPress={() => onChoose(option.id)}
+                  onPress={() => choose(option.id)}
                 />
               );
             })}
           </View>
 
-          <Button title={APPEARANCE_CONFIRM} size="comfort" onPress={onConfirm} style={{ alignSelf: 'stretch' }} />
+          <Button title={APPEARANCE_CONFIRM} size="comfort" onPress={confirm} style={{ alignSelf: 'stretch' }} />
         </View>
-      </View>
-    </View>
+      </Sheet>
+    </ThemeOverride>
   );
 }
 
@@ -205,11 +133,6 @@ function AppearanceOption({
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { flex: 1 },
-  sheet: {},
-  handleHit: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  handle: { width: 36, height: 4, borderRadius: 2 },
   body: {},
   options: { alignSelf: 'stretch' },
   option: {

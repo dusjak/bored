@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { Modal, PanResponder, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useEffect, useRef, useState, type RefObject } from 'react';
+import { PanResponder, Pressable, StyleSheet, Text, TextInput, View, type HostInstance } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AiCard } from '@/components/AiCard';
 import { Button } from '@/components/Button';
 import { ScreenTitle } from '@/components/ScreenTitle';
+import { Sheet } from '@/components/Sheet';
 import { TactileCircle } from '@/components/TactileCircle';
 import { features } from '@/config/features';
 import { minutesPhrase, parseCustomMinutes, PRESET_MINUTES } from '@/data/copy';
@@ -18,6 +18,8 @@ type Props = {
   sessionCount?: number;
   onUse: (minutes: number) => void;
   onClose: () => void;
+  /** Focus returns to the control that opened the sheet. */
+  returnFocusRef?: RefObject<HostInstance | null>;
 };
 
 const SIZE = 280;
@@ -53,9 +55,8 @@ function nearestStop(x: number, y: number): number {
 }
 
 /** Duration modal: a circle dial for 5/10/15/20, or a custom value from 5 to 20 minutes. */
-export function DurationSheet({ visible, current, sessionCount, onUse, onClose }: Props) {
+export function DurationSheet({ visible, current, sessionCount, onUse, onClose, returnFocusRef }: Props) {
   const { theme } = useTheme();
-  const insets = useSafeAreaInsets();
   const presetIndex = (value: number) => {
     const index = (PRESET_MINUTES as readonly number[]).indexOf(value);
     return index >= 0 ? index : 1;
@@ -121,32 +122,8 @@ export function DurationSheet({ visible, current, sessionCount, onUse, onClose }
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.wrap}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Lukk" accessibilityRole="button">
-          <View style={[styles.backdrop, { backgroundColor: theme.color.bg.overlay }]} />
-        </Pressable>
-        <View
-          accessibilityViewIsModal
-          accessibilityActions={[{ name: 'close', label: 'Lukk' }]}
-          onAccessibilityAction={(event) => {
-            if (event.nativeEvent.actionName === 'close') onClose();
-          }}
-          style={[
-            styles.sheet,
-            {
-              backgroundColor: theme.color.surface.sheet,
-              paddingBottom: Math.max(insets.bottom, theme.space['6']),
-              borderTopLeftRadius: theme.radius.large,
-              borderTopRightRadius: theme.radius.large,
-            },
-          ]}
-        >
-          <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Lukk" style={styles.handleHit}>
-            <View style={[styles.handle, { backgroundColor: theme.color.control.off }]} />
-          </Pressable>
-
-          <View style={styles.body}>
+    <Sheet visible={visible} onClose={onClose} returnFocusRef={returnFocusRef}>
+      <View style={styles.body}>
             <ScreenTitle align="center">Velg varighet</ScreenTitle>
 
             <View
@@ -234,10 +211,8 @@ export function DurationSheet({ visible, current, sessionCount, onUse, onClose }
             {features.aiCard ? <AiCard sessionCount={sessionCount ?? 0} onUse={onUse} /> : null}
 
             <Button title="Bruk" size="comfort" disabled={!canUse} onPress={confirm} style={{ alignSelf: 'stretch' }} />
-          </View>
-        </View>
       </View>
-    </Modal>
+    </Sheet>
   );
 }
 
@@ -246,11 +221,6 @@ function pickedMinutes(index: number): number {
 }
 
 const styles = StyleSheet.create({
-  wrap: { flex: 1, justifyContent: 'flex-end' },
-  backdrop: { flex: 1 },
-  sheet: {},
-  handleHit: { minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  handle: { width: 36, height: 4, borderRadius: 2 },
   body: { alignItems: 'center', paddingHorizontal: screenPadding, gap: 16 },
   dial: { width: SIZE, height: SIZE },
   circleSlot: { position: 'absolute', left: CENTER - 88, top: CENTER - 88 },
