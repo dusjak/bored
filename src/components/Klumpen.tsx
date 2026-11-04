@@ -177,10 +177,10 @@ export function KlumpenBody({ index, minutes, reduce, reduceMotion, fade, ghost 
   const { fontScale } = useWindowDimensions();
   const type = durationType(fontScale);
   const path = useMemo(() => Skia.Path.MakeFromSVGString(KLUMPEN_PATH), []);
-  const gummi120 = useImage(require('../../assets/hjem/klumpen-gummi-120pt@3x.png'));
-  const gummi160 = useImage(require('../../assets/hjem/klumpen-gummi-160pt@3x.png'));
-  const gummi200 = useImage(require('../../assets/hjem/klumpen-gummi-200pt@3x.png'));
-  const gummi240 = useImage(require('../../assets/hjem/klumpen-gummi-240pt@3x.png'));
+  const gummi120 = useImage(require('../../assets/hjem/klumpen-gummi-120pt.png'));
+  const gummi160 = useImage(require('../../assets/hjem/klumpen-gummi-160pt.png'));
+  const gummi200 = useImage(require('../../assets/hjem/klumpen-gummi-200pt.png'));
+  const gummi240 = useImage(require('../../assets/hjem/klumpen-gummi-240pt.png'));
   const gummi = [gummi120, gummi160, gummi200, gummi240];
   const [band, setBand] = useState(() => Math.max(0, Math.min(3, Math.ceil(index.value - 1e-3))));
   useAnimatedReaction(
