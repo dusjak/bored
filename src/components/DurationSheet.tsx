@@ -32,17 +32,18 @@ import {
   DURATION_ADJUST_HINT,
   DURATION_ADJUST_LABEL,
   DURATION_SUBTITLE,
-  DURATION_SWIPE_HINT,
   DURATION_TITLE,
   FILL_MS,
   GRABBER_COLOR,
   GRABBER_HEIGHT,
   GRABBER_WIDTH,
   KLUMP_ASPECT,
+  CHOICE_HIT_MIN,
   ROW_HIT,
   ROW_STROKE,
   ROW_WIDTHS,
   SHEET_RADIUS,
+  SHEET_SECTION_GAP,
   SIZE_SPRING,
   SWIPE_ACTIVATION,
   SWIPE_STEP,
@@ -73,9 +74,10 @@ type Props = {
 
 /**
  * Duration sheet, direction C. The Klumpen grows with the length.
- * Open and close stay on the shared sheet container: the same transparent
- * modal the other sheets use. The 520/360 ms sheet curve belongs to that
- * container, not to this screen.
+ * Open and close still use this modal. When the shared Sheet lands, this
+ * component drops the modal, backdrop, and grabber and renders its body as
+ * `<Sheet visible onClose returnFocusRef>` children. `scrollable` stays off:
+ * the big Klumpen has its own pan.
  */
 export function DurationSheet({ visible, current, sessionCount, onUse, onClose }: Props) {
   return (
@@ -232,23 +234,7 @@ function DurationBody({
         <Text style={[theme.text.body, styles.subtitle, { color: theme.color.text.secondary }]}>{DURATION_SUBTITLE}</Text>
       </View>
 
-      <View
-        accessible
-        accessibilityRole="adjustable"
-        accessibilityLabel={DURATION_ADJUST_LABEL}
-        accessibilityHint={DURATION_ADJUST_HINT}
-        accessibilityValue={{ text: durationValueText(minutes) }}
-        accessibilityActions={[
-          { name: 'increment', label: 'Øk' },
-          { name: 'decrement', label: 'Senk' },
-        ]}
-        onAccessibilityAction={(event) => {
-          if (event.nativeEvent.actionName === 'increment') step(1);
-          if (event.nativeEvent.actionName === 'decrement') step(-1);
-        }}
-        style={styles.stone}
-        {...pan.panHandlers}
-      >
+      <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.stone} {...pan.panHandlers}>
         <KlumpenBody
           index={indexSv}
           minutes={minutes}
@@ -261,15 +247,16 @@ function DurationBody({
 
       <Choices
         selected={selected}
+        valueText={durationValueText(minutes)}
         vertical={type.verticalChoices}
         pitch={rowPitch(screenWidth)}
+        onStep={step}
         onPick={(index) => {
           if (index === selectedRef.current) return;
           apply(index, 0);
         }}
       />
 
-      <Text style={[theme.text.caption, styles.help, { color: theme.color.text.secondary }]}>{DURATION_SWIPE_HINT}</Text>
       {features.aiCard ? <AiCard sessionCount={sessionCount ?? 0} onUse={onUse} /> : null}
     </>
   );
@@ -331,13 +318,17 @@ function DurationBody({
 
 function Choices({
   selected,
+  valueText,
   vertical,
   pitch,
+  onStep,
   onPick,
 }: {
   selected: number;
+  valueText: string;
   vertical: boolean;
   pitch: number;
+  onStep: (direction: 1 | -1) => void;
   onPick: (index: number) => void;
 }) {
   const { theme } = useTheme();
@@ -345,24 +336,36 @@ function Choices({
   const stroke = theme.color.text.tertiary;
   return (
     <View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
+      accessible
+      accessibilityRole="adjustable"
+      accessibilityLabel={DURATION_ADJUST_LABEL}
+      accessibilityHint={DURATION_ADJUST_HINT}
+      accessibilityValue={{ text: valueText }}
+      accessibilityActions={[
+        { name: 'increment', label: 'Øk' },
+        { name: 'decrement', label: 'Senk' },
+      ]}
+      onAccessibilityAction={(event) => {
+        if (event.nativeEvent.actionName === 'increment') onStep(1);
+        if (event.nativeEvent.actionName === 'decrement') onStep(-1);
+      }}
       style={vertical ? styles.list : styles.row}
     >
       {PRESET_MINUTES.map((minutes, index) => {
         const on = selected === index;
-        const pip = (
-          <Pip width={ROW_WIDTHS[index] ?? 22} selected={on} ink={ink} stroke={stroke} />
-        );
-        return vertical ? (
-          <Pressable key={minutes} onPress={() => onPick(index)} style={styles.vRow}>
-            {pip}
-            <ChoiceLabel label={String(minutes)} selected={on} beside />
-          </Pressable>
-        ) : (
-          <Pressable key={minutes} onPress={() => onPick(index)} style={{ width: pitch, alignItems: 'center' }}>
-            <View style={styles.hit}>{pip}</View>
-            <ChoiceLabel label={String(minutes)} selected={on} />
+        const pip = <Pip width={ROW_WIDTHS[index] ?? 22} selected={on} ink={ink} stroke={stroke} />;
+        return (
+          <Pressable
+            key={minutes}
+            accessibilityRole="button"
+            accessible={false}
+            importantForAccessibility="no-hide-descendants"
+            onPress={() => onPick(index)}
+            style={vertical ? styles.vRow : [styles.choice, { width: pitch }]}
+          >
+            {vertical ? null : <View style={styles.hit}>{pip}</View>}
+            {vertical ? pip : null}
+            <ChoiceLabel label={String(minutes)} selected={on} beside={vertical} />
           </Pressable>
         );
       })}
@@ -428,12 +431,18 @@ const styles = StyleSheet.create({
   titleBlock: { marginTop: 28 },
   subtitle: { marginTop: 2 },
   stone: { marginTop: 52, alignItems: 'center' },
-  row: { marginTop: 18, flexDirection: 'row', alignSelf: 'center' },
-  list: { marginTop: 18, alignSelf: 'stretch' },
+  row: { marginTop: SHEET_SECTION_GAP, flexDirection: 'row', alignSelf: 'center' },
+  list: { marginTop: SHEET_SECTION_GAP, alignSelf: 'stretch' },
+  choice: { minWidth: CHOICE_HIT_MIN, minHeight: CHOICE_HIT_MIN, alignItems: 'center' },
   hit: { width: ROW_HIT, height: ROW_HIT, alignItems: 'center', justifyContent: 'flex-end' },
-  vRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 16 },
-  help: { marginTop: 8, textAlign: 'center' },
-  footer: { paddingHorizontal: screenPadding, marginTop: 24 },
+  vRow: {
+    minWidth: CHOICE_HIT_MIN,
+    minHeight: Math.max(CHOICE_HIT_MIN, 48),
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  footer: { paddingHorizontal: screenPadding, marginTop: SHEET_SECTION_GAP },
   labelSlot: { marginTop: 8, height: 22, alignSelf: 'stretch', alignItems: 'center' },
   labelBeside: { marginTop: 0, flex: 1, alignItems: 'flex-start' },
   labelOn: { position: 'absolute', left: 0, right: 0 },

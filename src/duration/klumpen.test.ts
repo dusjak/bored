@@ -3,12 +3,12 @@ import { describe, it } from 'node:test';
 
 import { PRESET_MINUTES } from '../data/copy.ts';
 import {
+  CHOICE_HIT_MIN,
   CROSSFADE_MS,
   DURATION_ADJUST_HINT,
   DURATION_ADJUST_LABEL,
   DURATION_HOME_HINT,
   DURATION_SUBTITLE,
-  DURATION_SWIPE_HINT,
   DURATION_TITLE,
   DURATION_UNIT,
   FILL_MS,
@@ -32,6 +32,7 @@ import {
   ROW_WIDTHS,
   RUBBER_C,
   SHEET_RADIUS,
+  SHEET_SECTION_GAP,
   SIZE_SPRING,
   STONE_COLOR,
   STONE_NUMBER_COLOR,
@@ -178,7 +179,6 @@ describe('type and copy', () => {
   it('speaks one adjustable duration and a Bruk button', () => {
     assert.equal(DURATION_TITLE, 'Velg varighet');
     assert.equal(DURATION_SUBTITLE, 'Hvor lang tid har du i dag?');
-    assert.equal(DURATION_SWIPE_HINT, 'Sveip på Klumpen for å endre');
     assert.equal(DURATION_HOME_HINT, 'Trykk for å velge en annen tid');
     assert.equal(DURATION_UNIT, 'min');
     assert.equal(DURATION_ADJUST_LABEL, 'Varighet');
@@ -204,6 +204,8 @@ describe('sheet geometry', () => {
     assert.deepEqual(ROW_WIDTHS, [22, 28, 34, 40]);
     assert.equal(ROW_PITCH, 79);
     assert.equal(ROW_HIT, 72);
+    assert.ok(ROW_HIT >= CHOICE_HIT_MIN);
+    assert.equal(CHOICE_HIT_MIN, 44);
     assert.equal(ROW_STROKE, 1.4);
     assert.equal(rowPitch(393), 79);
     assert.deepEqual(
@@ -214,5 +216,6 @@ describe('sheet geometry', () => {
     assert.equal(sheetBottomPadding(34), 42);
     assert.equal(HOME_STONE_CENTER_Y, 348);
     assert.equal(HINT_GAP, 28);
+    assert.equal(SHEET_SECTION_GAP, 18);
   });
 });

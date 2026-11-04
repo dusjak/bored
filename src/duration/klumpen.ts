@@ -8,7 +8,6 @@ import { PRESET_MINUTES, minutesPhrase } from '../data/copy.ts';
 
 export const DURATION_TITLE = 'Velg varighet';
 export const DURATION_SUBTITLE = 'Hvor lang tid har du i dag?';
-export const DURATION_SWIPE_HINT = 'Sveip på Klumpen for å endre';
 export const DURATION_HOME_HINT = 'Trykk for å velge en annen tid';
 export const DURATION_ADJUST_LABEL = 'Varighet';
 export const DURATION_ADJUST_HINT = 'Sveip opp eller ned for å endre';
@@ -46,8 +45,12 @@ export const ROLL_DISTANCE = 6;
 
 export const ROW_WIDTHS = [22, 28, 34, 40] as const;
 export const ROW_PITCH = 79;
+/** Each choice is a button. 72 pt covers the lump; the label sits in the same target, and 44 pt is the floor. */
 export const ROW_HIT = 72;
+export const CHOICE_HIT_MIN = 44;
 export const ROW_STROKE = 1.4;
+/** Space between the stone, the choice row, and «Bruk». */
+export const SHEET_SECTION_GAP = 18;
 
 export const SHEET_RADIUS = 38;
 export const GRABBER_WIDTH = 36;
