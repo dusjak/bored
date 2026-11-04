@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { StyleSheet, Text, View, type HostInstance } from 'react-native';
 import { router } from 'expo-router';
 
 import { Button } from '@/components/Button';
@@ -15,6 +15,7 @@ export default function Home() {
   const { theme } = useTheme();
   const { durationMinutes, setDurationMinutes, beginSession, sessions } = useAppState();
   const [pickerOpen, setPickerOpen] = useState(false);
+  const durationRef = useRef<HostInstance>(null);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
 
@@ -36,6 +37,7 @@ export default function Home() {
     <Screen edges={['top']} contentStyle={styles.content}>
       <View style={styles.hero}>
         <TactileCircle
+          ref={durationRef}
           onPress={() => setPickerOpen(true)}
           accessibilityLabel={minutesPhrase(durationMinutes)}
           accessibilityHint="Endre lengde"
@@ -69,6 +71,7 @@ export default function Home() {
           setPickerOpen(false);
         }}
         onClose={() => setPickerOpen(false)}
+        returnFocusRef={durationRef}
       />
     </Screen>
   );

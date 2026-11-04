@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, AppState, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, AppState, Linking, Pressable, StyleSheet, Text, View, type HostInstance } from 'react-native';
 import Constants from 'expo-constants';
 import { router } from 'expo-router';
 
@@ -59,6 +59,9 @@ export default function Profile() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [previewMenu, setPreviewMenu] = useState(false);
+  const durationRef = useRef<HostInstance>(null);
+  const appearanceRef = useRef<HostInstance>(null);
+  const previewRef = useRef<HostInstance>(null);
   const [allowed, setAllowed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reminderOn = user.notifications === true && allowed;
@@ -135,6 +138,7 @@ export default function Profile() {
       {user.name ? <ScreenTitle style={{ marginBottom: theme.space['6'] }}>{user.name}</ScreenTitle> : null}
 
       <Pressable
+        ref={durationRef}
         accessibilityRole="button"
         accessibilityLabel={`Foretrukket varighet, ${minutesPhrase(durationMinutes)}`}
         onPress={() => setPickerOpen(true)}
@@ -226,6 +230,7 @@ export default function Profile() {
       </View>
 
       <Pressable
+        ref={appearanceRef}
         accessibilityRole="button"
         accessibilityLabel={`Utseende, ${appearanceLabel(preference)}`}
         onPress={() => setAppearanceOpen(true)}
@@ -280,11 +285,13 @@ export default function Profile() {
           setPickerOpen(false);
         }}
         onClose={() => setPickerOpen(false)}
+        returnFocusRef={durationRef}
       />
       {backup.mode === 'preview' ? (
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`Versjon ${version}`}
+          ref={previewRef}
           onPress={() => {
             versionTaps.current += 1;
             if (versionTaps.current >= 5) {
@@ -302,10 +309,12 @@ export default function Profile() {
         visible={appearanceOpen}
         onClose={() => setAppearanceOpen(false)}
         onError={() => setError('noe gikk galt. prøv igjen.')}
+        returnFocusRef={appearanceRef}
       />
       <PreviewStateSheet
         visible={previewMenu}
         onClose={() => setPreviewMenu(false)}
+        returnFocusRef={previewRef}
         onPick={(screen: PreviewForce | null) => {
           void backup.forcePreview(screen).then(() => {
             setPreviewMenu(false);
