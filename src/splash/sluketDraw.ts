@@ -1,4 +1,14 @@
-import { Skia, type SkCanvas, type SkPath, type TileMode } from '@shopify/react-native-skia';
+import {
+  FilterMode,
+  MipmapMode,
+  Skia,
+  TileMode,
+  type SkCanvas,
+  type SkImage,
+  type SkPath,
+  type SkPicture,
+  type SkRuntimeEffect,
+} from '@shopify/react-native-skia';
 
 import { S6_STONE } from '@/splash/s6';
 import {
@@ -8,6 +18,7 @@ import {
   logoPose,
   mixAt,
   MIX_OFF_AT,
+  mixShaderUnits,
   modelTime,
   outlinePhase,
   type LogoPose,
@@ -27,12 +38,10 @@ export type SplashDraw = {
   mixR: number;
 };
 
-function argb(r: number, g: number, b: number) {
+/** CSS colour. Skia.Color accepts this on the JS thread; a packed int does not travel. */
+function inkCss(r: number, g: number, b: number) {
   'worklet';
-  const ri = Math.round(r);
-  const gi = Math.round(g);
-  const bi = Math.round(b);
-  return ((255 << 24) | (ri << 16) | (gi << 8) | bi) | 0;
+  return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
 }
 
 /**
@@ -106,7 +115,7 @@ export function renderBlobs(
     const k = pose[9];
     builder.reset();
     writeOutline(builder, item.outline, amp, outlinePhase(model, item.phase));
-    paint.setColor(Skia.Color(argb(
+    paint.setColor(Skia.Color(inkCss(
       item.rgb[0] + (INK_RGB[0] - item.rgb[0]) * k,
       item.rgb[1] + (INK_RGB[1] - item.rgb[1]) * k,
       item.rgb[2] + (INK_RGB[2] - item.rgb[2]) * k,
@@ -126,7 +135,7 @@ export function renderBlobs(
   const avg = aw > 0 ? ([ar / aw, ag / aw, ab / aw] as const) : INK_RGB;
   const logo = logoPose(tMs, fraction, avg, mixOn === 1);
   if (mixOn === 1 && stone && logo.kw > 0.2) {
-    paint.setColor(Skia.Color(argb(logo.r, logo.g, logo.b)));
+    paint.setColor(Skia.Color(inkCss(logo.r, logo.g, logo.b)));
     canvas.save();
     canvas.translate(width / 2 + logo.dx, height / 2 + logo.dy);
     canvas.scale(logo.kw, logo.kw);
@@ -140,4 +149,52 @@ export function renderBlobs(
 export function makeStonePath() {
   'worklet';
   return Skia.Path.MakeFromSVGString(S6_STONE);
+}
+
+export type SplashPlate =
+  | { kind: 'image'; image: SkImage; under: SkImage | null }
+  | { kind: 'picture'; picture: SkPicture };
+
+/**
+ * Raster of one swallow frame, owned by the JS thread.
+ * The 4 pt grid (8 pt in Low Power) is an offscreen surface. The paint-mix
+ * shader runs there. `under` is the unmixed ink, drawn behind the mix so a
+ * shader that comes back clear cannot hide the swallow.
+ * A missing GPU surface falls back to the picture itself.
+ * Not a UI-runtime function: iOS drops pictures created off the JS thread.
+ */
+export function presentSplash(input: {
+  picture: SkPicture;
+  width: number;
+  height: number;
+  cell: number;
+  /** Null skips the paint mix. The picture's own ink is enough. */
+  mix: { m: number; radius: number; sigma: number } | null;
+  effect: SkRuntimeEffect | null;
+}): SplashPlate {
+  const cell = Math.max(1, input.cell);
+  const bufW = Math.max(1, Math.round(input.width / cell));
+  const bufH = Math.max(1, Math.round(input.height / cell));
+  const surface = Skia.Surface.MakeOffscreen(bufW, bufH) ?? Skia.Surface.Make(bufW, bufH);
+  if (!surface) return { kind: 'picture', picture: input.picture };
+  const canvas = surface.getCanvas();
+  canvas.scale(bufW / input.width, bufH / input.height);
+  canvas.drawPicture(input.picture);
+  const base = surface.makeImageSnapshot();
+  if (!input.mix || !input.effect) return { kind: 'image', image: base, under: null };
+  try {
+    const child = base.makeShaderOptions(TileMode.Clamp, TileMode.Clamp, FilterMode.Linear, MipmapMode.None);
+    const shader = input.effect.makeShaderWithChildren(
+      [input.mix.m, mixShaderUnits(input.mix.radius, cell), mixShaderUnits(input.mix.sigma, cell)],
+      [child],
+    );
+    const mixed = Skia.Surface.MakeOffscreen(bufW, bufH) ?? Skia.Surface.Make(bufW, bufH);
+    if (!mixed) return { kind: 'image', image: base, under: null };
+    const paint = Skia.Paint();
+    paint.setShader(shader);
+    mixed.getCanvas().drawPaint(paint);
+    return { kind: 'image', image: mixed.makeImageSnapshot(), under: base };
+  } catch {
+    return { kind: 'image', image: base, under: null };
+  }
 }

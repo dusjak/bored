@@ -98,6 +98,7 @@ describe('session notes and delete', () => {
     await upsertJournal(db, session.id, 'calm', 'en tanke');
     await setSetting(db, 'bored.themePreference', 'dark');
     await setSetting(db, 'bored.onboarded', '1');
+    await setSetting(db, 'bored.splashSeen', '1');
     await clearAllLocalData(db);
     assert.equal(await getSession(db, session.id), null);
     assert.deepEqual(sessionTotals(await listFinishedSessions(db)), { total: 0, completed: 0, aborted: 0 });

@@ -287,19 +287,27 @@ describe('sluket v5 preset C', () => {
     assert.equal(closed, true);
   });
 
-  it('draws one picture, mixes on a coarse grid, and starts its own clock', () => {
+  it('draws the swallow on the JS thread, on a coarse grid, from its own clock', () => {
     const play = readFileSync(new URL('../components/SluketPlay.tsx', import.meta.url), 'utf8');
+    const draw = readFileSync(new URL('./sluketDraw.ts', import.meta.url), 'utf8');
     const mark = readFileSync(new URL('../components/S6Mark.tsx', import.meta.url), 'utf8');
     assert.equal(play.includes('MEGA_MS'), true);
     assert.equal(play.includes('wordmarkExitPose'), true);
     assert.equal(play.includes('WORDMARK_EXIT_MS'), true);
     assert.equal(play.includes('timeSinceFirstFrame'), false);
     assert.equal(play.includes('usePathValue'), false);
+    assert.equal(play.includes('useFrameCallback'), false);
+    assert.equal(play.includes("'worklet'"), false);
+    assert.equal(play.includes('requestAnimationFrame'), true);
+    assert.equal(play.includes('presentSplash'), true);
     assert.equal(play.includes('BlobView'), false);
     assert.equal(play.includes('WordmarkImage'), false);
     assert.equal(play.includes('renderBlobs'), true);
-    assert.equal(play.includes('mixShaderUnits'), true);
     assert.equal(play.includes('onFirstPaint'), true);
+    assert.equal(draw.includes('MakeOffscreen'), true);
+    assert.equal(draw.includes('mixShaderUnits'), true);
+    assert.equal(functionBodies(draw).get('presentSplash')?.worklet, false);
+    assert.equal(functionBodies(draw).get('renderBlobs')?.worklet, true);
     assert.equal(mark.includes('SplashLogo'), true);
     assert.equal(mark.includes('STATIC_LOGO'), true);
     assert.equal(play.includes('<Text'), false);
