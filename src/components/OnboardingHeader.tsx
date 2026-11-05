@@ -2,13 +2,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { ONBOARDING_STEPS } from '@/data/mock';
-import { questionContentInset, questionNavHeight, tabularNums, useTheme } from '@/theme';
+import { questionContentInset, questionNavHeight, useTheme } from '@/theme';
 import { ForwardSlide, SUBTITLE_SLIDE_OFFSET } from './ForwardSlide';
 import { Icon } from './Icon';
 import { ProgressDots } from './ProgressDots';
 import { ScreenTitle } from './ScreenTitle';
 
-/** Back control, progress, step count, title and subtitle. */
+/** Back control, progress dots, title and subtitle. */
 export function OnboardingHeader({
   step,
   title,
@@ -35,9 +35,6 @@ export function OnboardingHeader({
         <View style={styles.back} />
       </View>
       <View style={styles.copy}>
-        <Text style={[theme.text.eyebrow, { fontVariant: tabularNums, color: theme.color.text.tertiary, marginBottom: 10 }]}>
-          {step + 1} av {ONBOARDING_STEPS}
-        </Text>
         <ScreenTitle style={{ marginBottom: 8 }}>{title}</ScreenTitle>
         {slideSub ? (
           <ForwardSlide offset={SUBTITLE_SLIDE_OFFSET} delay={0}>
