@@ -7,10 +7,10 @@
  * Emalje uses the export overrides box=0.40, box_w=0.17, det=0.00002.
  * The bytes are that NumPy/SciPy run, stored as float16. They are not a second generator.
  *
- * Gummi is the hires pillow (`hires.py` lines 145–153) on `shape_mask(600, 400, 400, 800, 800)`,
- * then placed with the `export-gummi.py` lines 36–39 warp. Detail fbm uses the hash in
- * `hires.py` lines 12–32, seed 7, at the 2520 canvas (`CX=CY=1260`, `OW=1440`).
- * Distances on the 800 mask are scaled by 1440/600, the ratio of those two widths.
+ * Gummi normals are the hires 1 px gradient on the 2520 canvas, then the
+ * `export-gummi.py` crop, Lanczos half-scale, and radial warp. They are not the
+ * derivative of the warped height. Bevel normals are `numpy.gradient` of the
+ * 1200 height grid. Kull glint is `material.py` lines 130–132.
  */
 
 import { inflateSync } from 'node:zlib';
@@ -18,16 +18,14 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { hash01, pillowHeight, spotsAt } from './pathLight.ts';
+import { hash01, normalsFromHeight } from './pathLight.ts';
 import { SOURCE_BASE_R, SOURCE_REST_R } from './sourceTables.ts';
 
 export const SOURCE_MASTER = 1200;
-export const SOURCE_STONE = 800;
 export const SOURCE_CANVAS_CENTER = 1260;
 export const SOURCE_OBJECT_D = 1440;
 const STONE_WIDTH = 600;
 const REST_W = 240;
-const MASK_PER_CANVAS = SOURCE_OBJECT_D / STONE_WIDTH;
 
 const dir = dirname(fileURLToPath(import.meta.url));
 
@@ -156,56 +154,55 @@ export function sourceFbm(x: number, y: number, cells: readonly number[], amps: 
   return out;
 }
 
-function gummiDetail(x: number, y: number): number {
-  const d = SOURCE_OBJECT_D;
-  const und = sourceFbm(x, y, [0.12 * d], [0.0004], 8);
-  const grain = sourceFbm(x, y, [0.0022 * d, 0.0011 * d, 0.00055 * d], [8.8e-5, 5.6e-5, 3.2e-5], 9);
-  const pit = spotsAt(x, y, 0.03 * d, 0.06, 0.0006 * d, 0.0014 * d, 10);
-  return und + grain - pit ** 0.7 * 0.0004 * d;
-}
-
-function smoothstep(edge0: number, edge1: number, x: number): number {
-  const span = edge1 - edge0;
-  if (span === 0) return x < edge0 ? 0 : 1;
-  const t = Math.min(1, Math.max(0, (x - edge0) / span));
-  return t * t * (3 - 2 * t);
-}
-
-let stoneRadius = 0;
-
-function stoneFields(): { phi: Float32Array; dist: Float32Array; radius: number } {
-  const phi = grid('stone-phi.f16.zlib', SOURCE_STONE, SOURCE_STONE);
-  const dist = grid('stone-dist.f16.zlib', SOURCE_STONE, SOURCE_STONE);
-  if (stoneRadius === 0) {
-    for (let i = 0; i < dist.length; i += 1) if (dist[i] > stoneRadius) stoneRadius = dist[i];
-  }
-  return { phi, dist, radius: stoneRadius };
-}
-
-const BEVEL_HEIGHT: Record<string, string> = {
+const HEIGHT_FILE: Record<string, string> = {
+  gummi: 'height-gummi.f16.zlib',
   skifer: 'height-skifer.f16.zlib',
   kull: 'height-kull.f16.zlib',
   emalje: 'height-emalje.f16.zlib',
   floyel: 'height-floyel.f16.zlib',
 };
 
+const normalCache = new Map<string, Float32Array>();
+
 /**
- * Height at a master pixel. Bevel materials read the NumPy grid, which already
- * includes the 18° Skifer noise. Gummi evaluates the pillow in canvas units and
- * adds the hash detail at the pre-warp coordinate.
+ * Height at a master pixel, 1:1 with the 1200² grid. Gummi is the hires pillow
+ * after the export-gummi.py warp. Differentiating that warped height is not the
+ * source normal: the canvas gradient is warped as its own field.
  */
 export function masterHeightAt(id: string, px: number, py: number): number {
-  const file = BEVEL_HEIGHT[id];
-  if (file) return bilinear(grid(file, SOURCE_MASTER, SOURCE_MASTER), SOURCE_MASTER, SOURCE_MASTER, px, py);
-  if (id !== 'gummi') return 0;
-  const stone = masterToStone(px, py);
-  const fields = stoneFields();
-  const distMask = bilinear(fields.dist, SOURCE_STONE, SOURCE_STONE, stone.x, stone.y);
-  const phi = bilinear(fields.phi, SOURCE_STONE, SOURCE_STONE, stone.x, stone.y);
-  const dist = distMask * MASK_PER_CANVAS;
-  const radius = fields.radius * MASK_PER_CANVAS;
-  const macro = pillowHeight(dist, radius, phi, 0.4, 2.4);
-  const canvas = masterToCanvas(px, py);
-  const ramp = smoothstep(0, 0.004 * SOURCE_OBJECT_D, dist);
-  return macro + gummiDetail(canvas.x, canvas.y) * ramp;
+  const file = HEIGHT_FILE[id];
+  if (!file) return 0;
+  return bilinear(grid(file, SOURCE_MASTER, SOURCE_MASTER), SOURCE_MASTER, SOURCE_MASTER, px, py);
+}
+
+/** 1 px source normals for the whole master. Cached. */
+export function masterNormals(id: string): Float32Array {
+  const hit = normalCache.get(id);
+  if (hit) return hit;
+  let normals: Float32Array;
+  if (id === 'gummi') {
+    const xy = loadF16('normal-gummi-xy.f16.zlib', SOURCE_MASTER * 2, SOURCE_MASTER);
+    normals = new Float32Array(SOURCE_MASTER * SOURCE_MASTER * 3);
+    const count = SOURCE_MASTER * SOURCE_MASTER;
+    for (let i = 0; i < count; i += 1) {
+      const x = xy[i * 2];
+      const y = xy[i * 2 + 1];
+      const z2 = 1 - x * x - y * y;
+      normals[i * 3] = x;
+      normals[i * 3 + 1] = y;
+      normals[i * 3 + 2] = z2 > 0 ? Math.sqrt(z2) : 0;
+    }
+  } else {
+    const file = HEIGHT_FILE[id];
+    if (!file) throw new Error(`no source height for ${id}`);
+    normals = normalsFromHeight(grid(file, SOURCE_MASTER, SOURCE_MASTER), SOURCE_MASTER, SOURCE_MASTER, 1);
+  }
+  normalCache.set(id, normals);
+  return normals;
+}
+
+/** Blurred Kull glint mask, `material.py` lines 130–132, seed 58. Zero for other materials. */
+export function masterGlintAt(id: string, px: number, py: number): number {
+  if (id !== 'kull') return 0;
+  return bilinear(grid('glint-kull.f16.zlib', SOURCE_MASTER, SOURCE_MASTER), SOURCE_MASTER, SOURCE_MASTER, px, py);
 }

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Canvas, Group, ImageShader, Paint, Rect, Shader, Skia, useImage, type SkPath } from '@shopify/react-native-skia';
 
 import { materialLocalMatrix, materialPlacement, sourcePixelAt, MATERIAL_DIGIT_COLOR, MATERIAL_DIGIT_FONT, MATERIAL_TILE } from '@/materials/restMaps';
-import { SOURCE_MASTER, masterHeightAt } from '@/materials/sourceParity';
+import { SOURCE_MASTER, masterGlintAt, masterNormals } from '@/materials/sourceParity';
 import {
   ENV_LIGHT,
   PATH_LIGHT_SKSL,
@@ -11,7 +11,6 @@ import {
   RIM_SAMPLE_PX_PER_PT,
   fitRim,
   litFromBase,
-  normalsFromHeight,
   parseHex,
   rimBand,
   unitLight,
@@ -40,14 +39,30 @@ type Props = {
   digitSize?: number;
 };
 
-const FIELD = 120;
+const NORMAL_PX = SOURCE_MASTER;
+
+function normalImage(normals: Float32Array) {
+  const count = NORMAL_PX * NORMAL_PX;
+  const bytes = new Uint8Array(count * 4);
+  for (let i = 0; i < count; i += 1) {
+    bytes[i * 4] = Math.round((normals[i * 3] * 0.5 + 0.5) * 255);
+    bytes[i * 4 + 1] = Math.round((normals[i * 3 + 1] * 0.5 + 0.5) * 255);
+    bytes[i * 4 + 2] = Math.round((normals[i * 3 + 2] * 0.5 + 0.5) * 255);
+    bytes[i * 4 + 3] = 255;
+  }
+  return Skia.Image.MakeImage(
+    { width: NORMAL_PX, height: NORMAL_PX, alphaType: 1, colorType: 4 },
+    Skia.Data.fromBytes(bytes),
+    NORMAL_PX * 4,
+  );
+}
 
 /**
  * Path-aware light on the albedo only. Rest shade and light maps are not sampled.
  * Not mounted by Hjem, the session, or onboarding. The shipped gummi rasters stay.
- * Rim gain is fit on this albedo after the source height's light. It stays 0
- * when those pixels cannot be read. Normals come from the rest master grid:
- * NumPy bevel height, or the warped gummi pillow. The shader is not mounted.
+ * Rim gain is fit on this albedo after the 1 px source normal. It stays 0
+ * when those pixels cannot be read. Gummi uses the warped canvas normals.
+ * Bevel normals are the 1 px gradient of the source height. The shader is not mounted.
  */
 export function DynamicMaterial({
   material,
@@ -62,26 +77,20 @@ export function DynamicMaterial({
   const place = materialPlacement(width, cx, cy);
   const matrix = materialLocalMatrix(width, cx, cy);
   const profile = PROFILES[material];
-  const fieldImage = useMemo(() => {
-    const height = new Float32Array(FIELD * FIELD);
-    const step = SOURCE_MASTER / FIELD;
-    for (let y = 0; y < FIELD; y += 1) {
-      for (let x = 0; x < FIELD; x += 1) {
-        height[y * FIELD + x] = masterHeightAt(material, ((x + 0.5) / FIELD) * SOURCE_MASTER, ((y + 0.5) / FIELD) * SOURCE_MASTER);
+  const fieldImage = useMemo(() => normalImage(masterNormals(material)), [material]);
+  const glintImage = useMemo(() => {
+    const bytes = new Uint8Array(NORMAL_PX * NORMAL_PX * 4);
+    for (let y = 0; y < NORMAL_PX; y += 1) {
+      for (let x = 0; x < NORMAL_PX; x += 1) {
+        const i = y * NORMAL_PX + x;
+        bytes[i * 4] = Math.round(Math.min(1, Math.max(0, masterGlintAt(material, x, y))) * 255);
+        bytes[i * 4 + 3] = 255;
       }
     }
-    const normals = normalsFromHeight(height, FIELD, FIELD, step);
-    const bytes = new Uint8Array(FIELD * FIELD * 4);
-    for (let i = 0; i < FIELD * FIELD; i += 1) {
-      bytes[i * 4] = Math.round((normals[i * 3] * 0.5 + 0.5) * 255);
-      bytes[i * 4 + 1] = Math.round((normals[i * 3 + 1] * 0.5 + 0.5) * 255);
-      bytes[i * 4 + 2] = Math.round((normals[i * 3 + 2] * 0.5 + 0.5) * 255);
-      bytes[i * 4 + 3] = 255;
-    }
     return Skia.Image.MakeImage(
-      { width: FIELD, height: FIELD, alphaType: 1, colorType: 4 },
+      { width: NORMAL_PX, height: NORMAL_PX, alphaType: 1, colorType: 4 },
       Skia.Data.fromBytes(bytes),
-      FIELD * 4,
+      NORMAL_PX * 4,
     );
   }, [material]);
   const rimImage = useMemo(() => {
@@ -107,20 +116,13 @@ export function DynamicMaterial({
     let band = rimBand(mask, cols, rows, px).band;
     let k = 0;
     if (readable && basePx) {
-      const height = new Float32Array(FIELD * FIELD);
-      const step = SOURCE_MASTER / FIELD;
-      for (let y = 0; y < FIELD; y += 1) {
-        for (let x = 0; x < FIELD; x += 1) {
-          height[y * FIELD + x] = masterHeightAt(material, ((x + 0.5) / FIELD) * SOURCE_MASTER, ((y + 0.5) / FIELD) * SOURCE_MASTER);
-        }
-      }
-      const normals = normalsFromHeight(height, FIELD, FIELD, step);
+      const normals = masterNormals(material);
       const plate = new Float32Array(cols * rows * 3);
       for (let y = 0; y < rows; y += 1) {
         for (let x = 0; x < cols; x += 1) {
-          const fx = Math.min(FIELD - 1, Math.max(0, Math.floor(((x + 0.5) / cols) * FIELD)));
-          const fy = Math.min(FIELD - 1, Math.max(0, Math.floor(((y + 0.5) / rows) * FIELD)));
-          const n = fy * FIELD + fx;
+          const fx = Math.min(NORMAL_PX - 1, Math.max(0, Math.floor(((x + 0.5) / cols) * NORMAL_PX)));
+          const fy = Math.min(NORMAL_PX - 1, Math.max(0, Math.floor(((y + 0.5) / rows) * NORMAL_PX)));
+          const n = fy * NORMAL_PX + fx;
           const canvasX = place.tx + (x + 0.5) / px;
           const canvasY = place.ty + (y + 0.5) / px;
           const src = sourcePixelAt(width, cx, cy, canvasX, canvasY);
@@ -132,6 +134,7 @@ export function DynamicMaterial({
             src.y,
             { x: normals[n * 3], y: normals[n * 3 + 1], z: normals[n * 3 + 2] },
             material,
+            masterGlintAt(material, fx, fy),
           );
           const i = y * cols + x;
           plate[i * 3] = color.r;
@@ -159,12 +162,12 @@ export function DynamicMaterial({
   }, [albedo, clip, cx, cy, material, place.artboardPt, place.tx, place.ty, width]);
   const light = unitLight();
   const floor = parseHex(ENV_LIGHT.floor);
-  const ready = Boolean(effect && albedo && fieldImage && rimImage.image);
+  const ready = Boolean(effect && albedo && fieldImage && glintImage && rimImage.image);
 
   return (
     <View style={{ width: place.artboardPt, height: place.artboardPt }}>
       <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-        {ready && effect && albedo && fieldImage && rimImage.image ? (
+        {ready && effect && albedo && fieldImage && glintImage && rimImage.image ? (
           <Group clip={clip}>
             <Group layer={<Paint />}>
               <Rect x={place.tx} y={place.ty} width={place.artboardPt} height={place.artboardPt}>
@@ -197,6 +200,14 @@ export function DynamicMaterial({
                 <ImageShader image={albedo} tx={MATERIAL_TILE} ty={MATERIAL_TILE} fit="none" matrix={matrix} />
                 <ImageShader
                   image={fieldImage}
+                  fit="fill"
+                  x={place.tx}
+                  y={place.ty}
+                  width={place.artboardPt}
+                  height={place.artboardPt}
+                />
+                <ImageShader
+                  image={glintImage}
                   fit="fill"
                   x={place.tx}
                   y={place.ty}

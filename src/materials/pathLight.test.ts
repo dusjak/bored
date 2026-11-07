@@ -249,6 +249,7 @@ describe('path-dependent material light', () => {
     assert.ok(contrastRatio('#F8F6F2', DARK_RIM_AGAINST) > 3);
     assert.match(PATH_LIGHT_SKSL, /uniform shader albedo/);
     assert.match(PATH_LIGHT_SKSL, /uniform shader normals/);
+    assert.match(PATH_LIGHT_SKSL, /uniform shader glint/);
     assert.doesNotMatch(PATH_LIGHT_SKSL, /shade-multiply|light-screen/);
     const view = readFileSync(join(process.cwd(), 'src/materials/DynamicMaterial.tsx'), 'utf8');
     const klumpen = readFileSync(join(process.cwd(), 'src/components/Klumpen.tsx'), 'utf8');

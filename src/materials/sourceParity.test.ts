@@ -49,5 +49,9 @@ describe('source parity of the rest warp and height', () => {
     assert.ok(Math.abs(emalje - 82.4375) < 1e-3);
     const gummi = masterHeightAt('gummi', 600, 600);
     assert.ok(gummi > 100);
+    const view = readFileSync(join(process.cwd(), 'src/materials/DynamicMaterial.tsx'), 'utf8');
+    assert.match(view, /masterNormals/);
+    assert.match(view, /NORMAL_PX = SOURCE_MASTER/);
+    assert.doesNotMatch(view, /const FIELD = 120/);
   });
 });

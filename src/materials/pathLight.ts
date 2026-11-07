@@ -878,10 +878,17 @@ export function shadeBevel(albedo: RGB, n: Vec3, profile: BevelProfile): RGB {
   };
 }
 
-export function shadeNormal(id: MaterialId, n: Vec3, albedo?: RGB): RGB {
+export function shadeNormal(id: MaterialId, n: Vec3, albedo?: RGB, glint = 0): RGB {
   const profile = PROFILES[id];
   const alb = albedo ?? parseHex(profile.albedo);
-  return profile.kind === 'pillow' ? shadePillow(alb, n, profile) : shadeBevel(alb, n, profile);
+  const color = profile.kind === 'pillow' ? shadePillow(alb, n, profile) : shadeBevel(alb, n, profile);
+  if (glint <= 0) return color;
+  const L = unitLight();
+  const nz = n.z;
+  const rv = { x: 2 * nz * n.x, y: 2 * nz * n.y, z: 2 * nz * nz - 1 };
+  const rdl = clamp01(rv.x * L.x + rv.y * L.y + rv.z * L.z);
+  const add = glintAdd(rdl, glint);
+  return { r: color.r + add, g: color.g + add, b: color.b + add };
 }
 
 /** Bilinear sample of an RGBA8888 master. Coordinates are source pixels. */
@@ -918,8 +925,9 @@ export function litFromBase(
   y: number,
   normal: Vec3,
   id: MaterialId,
+  glint = 0,
 ): RGB {
-  return shadeNormal(id, normal, sampleRgba(pixels, width, height, x, y));
+  return shadeNormal(id, normal, sampleRgba(pixels, width, height, x, y), glint);
 }
 
 /** Which fbm cells survive at a given object width. `hires.py` lines 27–31. */
@@ -1267,6 +1275,7 @@ uniform float lz;
 uniform float floorR;
 uniform float floorG;
 uniform float floorB;
+uniform shader glint;
 uniform shader rim;
 uniform float rimK;
 
@@ -1279,6 +1288,7 @@ float sstep(float a, float b, float x) {
 half4 main(float2 xy) {
   half4 alb = albedo.eval(xy);
   half4 nn = normals.eval(xy);
+  half4 glintPx = glint.eval(xy);
   half4 rimPx = rim.eval(xy);
   float3 n = float3(nn.r, nn.g, nn.b) * 2.0 - 1.0;
   float nz = n.z;
@@ -1301,6 +1311,7 @@ half4 main(float2 xy) {
     col += boxK + float3(floorR, floorG, floorB) * (fres * below * floorRefl);
     col += float3(255.0, 252.0, 246.0) * sheenK;
   }
+  col += glintPx.r * 4.0 * rdl * rdl * 120.0;
   col += float3(120.0, 114.0, 104.0) * rimPx.r * rimK;
   return half4(clamp(col / 255.0, 0.0, 1.0), alb.a);
 }
