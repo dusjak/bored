@@ -265,12 +265,12 @@ export async function clearAllLocalData(db: AppDatabase): Promise<void> {
   await db.runAsync('DELETE FROM app_state');
 }
 
-/** Oldest first, one mark per finished session. Aborted marks use the muted stroke. */
+/** Newest first, one mark per finished session. Does not mutate the stored rows. */
 export function tallyMarks(sessions: { status: SessionStatus; startedAt: string }[]): { aborted: boolean }[] {
   return sessions
     .filter((session) => session.status === 'completed' || session.status === 'aborted')
     .slice()
-    .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
     .map((session) => ({ aborted: session.status === 'aborted' }));
 }
 

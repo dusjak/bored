@@ -86,14 +86,22 @@ describe('session notes and delete', () => {
     assert.equal(await getSession(db, 'missing'), null);
   });
 
-  it('draws tally marks oldest first and marks an aborted session', async () => {
+  it('draws tally marks newest first without rewriting the stored sessions', async () => {
     const db = openMemoryDatabase();
     const first = await insertActiveSession(db, 10);
     await finishSession(db, first.id, 'completed', 600, new Date('2026-10-18T12:10:00.000Z'));
     const second = await insertActiveSession(db, 5);
     await finishSession(db, second.id, 'aborted', 40, new Date('2026-10-18T13:00:00.000Z'));
-    const marks = tallyMarks(await listFinishedSessions(db));
-    assert.deepEqual(marks, [{ aborted: false }, { aborted: true }]);
+    await db.runAsync('UPDATE sessions SET started_at = ? WHERE id = ?', '2026-10-18T12:10:00.000Z', first.id);
+    await db.runAsync('UPDATE sessions SET started_at = ? WHERE id = ?', '2026-10-18T13:00:00.000Z', second.id);
+    const listed = await listFinishedSessions(db);
+    const snapshot = listed.map((session) => ({ id: session.id, status: session.status, startedAt: session.startedAt }));
+    assert.equal(listed[0]?.id, second.id);
+    assert.deepEqual(tallyMarks(listed), [{ aborted: true }, { aborted: false }]);
+    assert.deepEqual(
+      listed.map((session) => ({ id: session.id, status: session.status, startedAt: session.startedAt })),
+      snapshot,
+    );
   });
 
   it('keeps countdown on and leaves every other record when an existing install has no countdown key', async () => {

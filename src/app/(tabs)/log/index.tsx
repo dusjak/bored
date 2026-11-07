@@ -6,20 +6,23 @@ import { shouldShowBackupNudge } from '@/backup/nudge';
 import { BackupNudgeCard } from '@/components/backup/BackupNudgeCard';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
+import { Icon } from '@/components/Icon';
 import { SessionKlumps } from '@/components/SessionKlumps';
-import { abortedPhrase, chosenMinutes, formatSessionDate, minutesPhrase, sessionsPhrase } from '@/data/copy';
+import { abortedPhrase, chosenMinutes, formatSessionDate, minutesPhrase } from '@/data/copy';
 import {
-  LOG_COUNT_WORD_GAP,
   LOG_DELETE_FLEX,
   LOG_KLUMP_SPACING,
   LOG_NOTE_ACTION_GAP,
   LOG_SAVE_FLEX,
+  LOGG_COLLAPSED_MAX,
+  LOGG_TOGGLE,
+  logCaption,
 } from '@/data/klumper';
 import { sessionTotals } from '@/data/sessionQueries';
 import { MOODS, type MoodId, type SessionWithJournal } from '@/data/types';
 import { useAppState } from '@/state/AppState';
 import { useBackup } from '@/state/BackupState';
-import { monoHeroFontLineHeight, useTheme } from '@/theme';
+import { useTheme } from '@/theme';
 
 function moodLabel(id: MoodId | null): string | null {
   if (!id) return null;
@@ -36,6 +39,9 @@ export default function Log() {
   const [error, setError] = useState<string | null>(null);
 
   const { total, completed, aborted } = sessionTotals(sessions);
+  const [tallyOpen, setTallyOpen] = useState(false);
+  const showToggle = total > LOGG_COLLAPSED_MAX;
+  const caption = logCaption(total, completed, aborted);
   const showNudge =
     backup.ready && backup.mode !== 'off' && shouldShowBackupNudge(backup.nudge, completed);
 
@@ -64,37 +70,41 @@ export default function Log() {
       ) : null}
 
       <View style={{ marginBottom: theme.space['8'] }}>
-        <View
-          ref={countRef}
-          collapsable={false}
-          style={styles.countRow}
-          accessible
-          accessibilityLabel={sessionsPhrase(total)}
-        >
-          <Text style={[theme.text.monoHero, styles.count, { color: theme.color.text.primary }]}>{total}</Text>
-          <Text style={[theme.text.bodyLarge, { color: theme.color.text.primary, marginLeft: LOG_COUNT_WORD_GAP }]}>
-            {total === 1 ? 'økt' : 'økter'}
-          </Text>
-        </View>
-        {total > 0 ? <SessionKlumps sessions={sessions} /> : null}
         {total === 0 ? (
-          <Text style={[theme.text.body, { color: theme.color.text.secondary, marginTop: theme.space['3'] }]}>
-            Ingen økter ennå.
-          </Text>
-        ) : null}
-        {aborted > 0 ? (
-          <Text
-            style={[
-              theme.text.caption,
-              { color: theme.color.text.secondary, marginTop: LOG_KLUMP_SPACING.aboveSummary },
-            ]}
-          >
-            <Text style={theme.text.monoData}>{completed}</Text>
-            {' fullført, '}
-            <Text style={theme.text.monoData}>{aborted}</Text>
-            {' avbrutt'}
-          </Text>
-        ) : null}
+          <View ref={countRef} collapsable={false}>
+            <Text style={[theme.text.body, { color: theme.color.text.secondary }]}>Ingen økter ennå.</Text>
+          </View>
+        ) : (
+          <>
+            <SessionKlumps sessions={sessions} expanded={tallyOpen} />
+            {showToggle ? (
+              <Pressable
+                onPress={() => setTallyOpen((open) => !open)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: tallyOpen }}
+                accessibilityLabel={tallyOpen ? LOGG_TOGGLE.less : LOGG_TOGGLE.more}
+                style={[styles.toggle, { marginTop: LOG_KLUMP_SPACING.aboveToggle }]}
+              >
+                <Text style={[theme.text.monoData, { color: theme.color.text.primary }]}>
+                  {tallyOpen ? LOGG_TOGGLE.less : LOGG_TOGGLE.more}
+                </Text>
+                <View style={tallyOpen ? styles.chevronUp : undefined}>
+                  <Icon name="chevronDown" size={16} color={theme.color.text.primary} />
+                </View>
+              </Pressable>
+            ) : null}
+            <View
+              ref={countRef}
+              collapsable={false}
+              accessible
+              accessibilityRole="text"
+              accessibilityLabel={caption}
+              style={{ marginTop: showToggle ? LOG_KLUMP_SPACING.belowToggle : LOG_KLUMP_SPACING.aboveSummary }}
+            >
+              <Text style={[theme.text.caption, { color: theme.color.text.secondary }]}>{caption}</Text>
+            </View>
+          </>
+        )}
       </View>
 
       <View>
@@ -196,11 +206,17 @@ export default function Log() {
 }
 
 const styles = StyleSheet.create({
-  // The count sits on the screen's 40pt top inset. The comp has no reserved «Logg» headline.
+  // The tally sits where the count used to, under the screen's 40pt top inset.
   content: { paddingBottom: 140 },
-  countRow: { flexDirection: 'row', alignItems: 'baseline' },
-  // Taller than the hero number's 56 so iOS does not clip the top of the digit.
-  count: { lineHeight: monoHeroFontLineHeight },
+  toggle: {
+    minHeight: LOGG_TOGGLE.minHeight,
+    minWidth: 100,
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  chevronUp: { transform: [{ rotate: '180deg' }] },
   row: { borderBottomWidth: 1 },
   rowHit: { minHeight: 44, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
   preview: { maxWidth: 140, textAlign: 'right' },

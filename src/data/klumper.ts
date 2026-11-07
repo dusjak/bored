@@ -1,24 +1,48 @@
 /**
- * Log lumps. One Klumpen per finished session, groups of five.
+ * Logg v4 tally. Fifteen Klumper per row, three groups of five.
+ * At the 345pt column: 15w + 12×(w/4) + 2w = 20w = 345, so w = 17.25.
+ * Gap, group gap, and row gap keep the 4/16, 16/16, and 8/16 ratios.
+ * The 1.4pt stroke stays fixed when a narrower column scales the shapes.
  * Filled = completed, outline = aborted. Same outer edge either way.
- *
- * Spacing is measured on dusan-logg-klumper-2026-11-04.png (393×852 at 2×):
- * the row is 16pt-wide lumps, 4pt apart, 16pt between groups.
- * Fourteen lumps (5 + 5 + 4) are 300pt wide and end at the content edge.
  */
 
 export const KLUMP_GROUP = 5;
+export const LOGG_GROUPS_PER_ROW = 3;
+export const LOGG_PER_ROW = KLUMP_GROUP * LOGG_GROUPS_PER_ROW;
+/** Closed tally shows two rows. Further sessions stay in the caption and the list. */
+export const LOGG_COLLAPSED_MAX = LOGG_PER_ROW * 2;
 
 export const KLUMP = {
-  width: 16,
+  width: 17.25,
   stroke: 1.4,
-  gap: 4,
-  groupGap: 16,
-  /** Wrapped rows. The comp is a single row. */
-  rowGap: 8,
-  /** Light-mode ink. The comp is pure black, not text.primary. */
+  gap: 4.3125,
+  groupGap: 17.25,
+  rowGap: 8.625,
+  /** Design column. Narrower screens scale width and gaps, not the stroke. */
+  contentWidth: 345,
+  /** Light-mode ink. Rendering uses the theme tally token. */
   ink: '#000000',
 } as const;
+
+export type LogMetrics = {
+  width: number;
+  gap: number;
+  groupGap: number;
+  rowGap: number;
+  stroke: number;
+};
+
+/** Symbol size for a measured content width. 345pt and wider use the v4 sizes. */
+export function logMetrics(contentWidth: number): LogMetrics {
+  const scale = contentWidth > 0 && contentWidth < KLUMP.contentWidth ? contentWidth / KLUMP.contentWidth : 1;
+  return {
+    width: KLUMP.width * scale,
+    gap: KLUMP.gap * scale,
+    groupGap: KLUMP.groupGap * scale,
+    rowGap: KLUMP.rowGap * scale,
+    stroke: KLUMP.stroke,
+  };
+}
 
 /**
  * Margins around the lump row, in pt.
@@ -27,7 +51,17 @@ export const KLUMP = {
  */
 export const LOG_KLUMP_SPACING = {
   aboveCount: 9,
+  /** Symbols to caption when every symbol is already visible. */
   aboveSummary: 13,
+  /** Symbols to the accordion, then accordion to the caption. */
+  aboveToggle: 8,
+  belowToggle: 5,
+} as const;
+
+export const LOGG_TOGGLE = {
+  more: 'Vis alle',
+  less: 'Vis færre',
+  minHeight: 44,
 } as const;
 
 /**
@@ -85,10 +119,33 @@ export function groupKlumper<T>(marks: readonly T[], size: number = KLUMP_GROUP)
   return groups;
 }
 
-/** Width of a single row of `count` lumps, including the gaps between groups. */
-export function klumpRowWidth(count: number): number {
-  if (count <= 0) return 0;
-  const groups = Math.ceil(count / KLUMP_GROUP);
-  const innerGaps = count - groups;
-  return count * KLUMP.width + innerGaps * KLUMP.gap + (groups - 1) * KLUMP.groupGap;
+/** Width of one full v4 row: three groups of five. */
+export function logRowWidth(metrics: LogMetrics = logMetrics(KLUMP.contentWidth)): number {
+  const group = KLUMP_GROUP * metrics.width + (KLUMP_GROUP - 1) * metrics.gap;
+  return LOGG_GROUPS_PER_ROW * group + (LOGG_GROUPS_PER_ROW - 1) * metrics.groupGap;
+}
+
+/** How many symbols the tally draws. The caption still counts every session. */
+export function visibleTallyCount(total: number, expanded: boolean): number {
+  if (total <= LOGG_COLLAPSED_MAX) return Math.max(0, total);
+  return expanded ? total : LOGG_COLLAPSED_MAX;
+}
+
+/** Newest first. Each row is up to three groups of five. */
+export function logSymbolRows<T>(marks: readonly T[]): T[][][] {
+  const groups = groupKlumper(marks, KLUMP_GROUP);
+  const rows: T[][][] = [];
+  for (let index = 0; index < groups.length; index += LOGG_GROUPS_PER_ROW) {
+    rows.push(groups.slice(index, index + LOGG_GROUPS_PER_ROW));
+  }
+  return rows;
+}
+
+/**
+ * Caption under the symbols. Counts every finished session, including those
+ * hidden by the closed accordion. 1 is «økt»; every other total is «økter».
+ */
+export function logCaption(total: number, completed: number, aborted: number): string {
+  const head = total === 1 ? '1 økt' : `${Math.max(0, total)} økter`;
+  return `${head}: ${completed} fullført, ${aborted} avbrutt`;
 }
