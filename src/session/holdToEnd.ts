@@ -5,13 +5,17 @@
  * Light falls back with ease-out cubic. The shape does not.
  */
 import { HOLD_TO_END_MS as COPY_HOLD_TO_END_MS } from '../data/copy.ts';
+import { TRACK_IN_MS } from './trackStroke.ts';
 
 // `export { HOLD_TO_END_MS }` is a getter on the module object. Worklets
 // capture that object and cannot read the getter, so the UI thread throws
 // ReferenceError and Expo Go aborts.
 export const HOLD_TO_END_MS: number = COPY_HOLD_TO_END_MS;
 
-/** 13/40, 27/40 and 40/40 of the hold. 1300 / 2700 / 4000 ms when the hold is 4 s. */
+/**
+ * 13/40, 27/40 and 40/40 of the 4 s fill, measured after the 150 ms entrance.
+ * 1450 / 2850 / 4150 ms. Those are the two mid haptics and completion.
+ */
 const PHASE_NUM = [13, 27, 40] as const;
 
 export const GLOW_LEVELS = [0, 0.3, 0.62, 0.9] as const;
@@ -135,7 +139,8 @@ export function phaseEndMs(index: 0 | 1 | 2, totalMs?: number): number {
   'worklet';
   // Worklets do not capture names used only in default parameters, so read it here.
   const total = totalMs ?? HOLD_TO_END_MS;
-  return (PHASE_NUM[index] * total) / 40;
+  const fill = total - TRACK_IN_MS;
+  return TRACK_IN_MS + (PHASE_NUM[index] * fill) / 40;
 }
 
 export function phaseIndex(holdMs: number, totalMs?: number): number {

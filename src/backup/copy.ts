@@ -32,6 +32,8 @@ export const LINK_APPLE_LABEL = 'Koble til Apple';
 export const TURN_OFF = 'Slå av sikkerhetskopi';
 export const DELETE_ACCOUNT = 'Slett konto';
 export const PRIVACY = 'Personvernerklæring';
+/** Space above the existing Personvernerklæring link. Not a new row. */
+export const PRIVACY_LINK_GAP = 4;
 export const TRY_AGAIN = 'Prøv igjen';
 
 export const DELETED_MESSAGE = 'Kontoen er slettet. Det som ligger på telefonen, er urørt.';

@@ -5,6 +5,7 @@ import { NativeTabs } from 'expo-router/native-tabs';
 
 import { GlassTabBar } from '@/components/GlassTabBar';
 import { useTheme } from '@/theme';
+import { tabBarKind } from '@/theme/tabBar';
 
 const hjem = {
   default: require('../../../assets/tabs/hjem.png'),
@@ -25,7 +26,7 @@ const deg = {
  */
 export default function TabsLayout() {
   const { theme } = useTheme();
-  if (Platform.OS === 'ios') {
+  if (tabBarKind(Platform.OS, theme.name) === 'native') {
     const background = theme.color.bg.default;
     return (
       <NavigationThemeProvider value={theme.name === 'dark' ? DarkTheme : DefaultTheme}>

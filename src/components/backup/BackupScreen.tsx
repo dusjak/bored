@@ -41,6 +41,7 @@ import {
   LINK_APPLE_LABEL,
   LINKED_MESSAGE,
   PRIVACY,
+  PRIVACY_LINK_GAP,
   SCREEN_OFF_BODY,
   SIGN_IN_AGAIN,
   START_NEW_BACKUP,
@@ -400,7 +401,7 @@ function PrivacyLink() {
     <View
       accessibilityRole="text"
       accessibilityLabel={PRIVACY}
-      style={[styles.privacy, { gap: theme.space['2'], marginTop: theme.space['6'] }]}
+      style={[styles.privacy, { gap: theme.space['2'], marginTop: PRIVACY_LINK_GAP }]}
     >
       <Text style={[theme.text.bodySmall, { color: theme.color.text.secondary }]}>{PRIVACY}</Text>
       <Icon name="chevronRight" size={16} color={theme.color.text.tertiary} />

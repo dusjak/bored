@@ -12,15 +12,18 @@ import {
 } from './trackStroke.ts';
 
 describe('BOR-38 track stroke', () => {
-  it('keeps the hold at 4 s and fills the arc across the remaining 3.85 s', () => {
-    assert.equal(HOLD_TO_END_MS, 4000);
+  it('keeps the hold at 4.15 s and fills the arc across the following 4 s', () => {
+    assert.equal(HOLD_TO_END_MS, 4150);
     assert.equal(TRACK_IN_MS, 150);
     assert.equal(TRACK_OUT_MS, 250);
-    assert.equal(ARC_FILL_MS, 3850);
+    assert.equal(ARC_FILL_MS, 4000);
+    assert.equal(TRACK_IN_MS + ARC_FILL_MS, HOLD_TO_END_MS);
     assert.equal(drawProgress(0), 0);
     assert.equal(drawProgress(150), 0);
     assert.ok(Math.abs(drawProgress(150 + ARC_FILL_MS / 2) - 0.5) < 1e-9);
-    assert.equal(drawProgress(4000), 1);
+    assert.equal(drawProgress(HOLD_TO_END_MS), 1);
+    const frozen = drawProgress(2000);
+    assert.equal(drawProgress(2000), frozen);
   });
 
   it('fades the track in with ease-out and out with ease-in, without rewinding', () => {
@@ -46,6 +49,6 @@ describe('BOR-38 track stroke', () => {
     assert.equal(strokeOpacity(true, 10, 11, 10, -1, true), 0);
     assert.equal(drawProgress(10), 0);
     assert.ok(Math.abs(drawProgress(150 + ARC_FILL_MS / 2) - 0.5) < 1e-9);
-    assert.equal(strokeOpacity(true, 4000, 4000, -1, 4000, true), 1);
+    assert.equal(strokeOpacity(true, HOLD_TO_END_MS, HOLD_TO_END_MS, -1, HOLD_TO_END_MS, true), 1);
   });
 });

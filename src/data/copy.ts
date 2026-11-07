@@ -5,10 +5,10 @@ export const MIN_CUSTOM_MINUTES = 5;
 export const MAX_CUSTOM_MINUTES = 20;
 export const DEFAULT_DURATION_MINUTES = 10;
 /**
- * Hold-to-end length. Phase boundaries are 13/40, 27/40 and 40/40 of this
- * (1.3s, 2.7s and 4.0s at the current length).
+ * Hold-to-end length. 150 ms entrance, then 4.0 s of fill: 4.15 s total.
+ * Phase and haptic marks are 1.45 s, 2.85 s and 4.15 s.
  */
-export const HOLD_TO_END_MS = 4000;
+export const HOLD_TO_END_MS = 4150;
 
 /**
  * Placeholder lines for the hold, in phase order, then the completed line.
@@ -109,6 +109,13 @@ export function clampDurationMinutes(minutes: number): number {
 
 export function emptyProfile(): OnboardingProfile {
   return {};
+}
+
+/** Hjem greeting. A skipped or blank name is «Hei.» */
+export function homeGreeting(name: string | null | undefined): string {
+  const trimmed = name?.trim() ?? '';
+  if (!trimmed) return 'Hei.';
+  return `Hei, ${trimmed}.`;
 }
 
 /**

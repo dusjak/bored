@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TabIcon, type TabIconName } from '@/components/TabIcon';
 import { contentColumn, screenPadding, useTheme } from '@/theme';
-import { TAB_BAR, TAB_BAR_SHADOW, TAB_PILL_SHADOW } from '@/theme/tabBar';
+import { TAB_BAR, TAB_BAR_DARK, TAB_BAR_SHADOW, TAB_PILL_SHADOW, tabBarDarkGlass } from '@/theme/tabBar';
 
 const ITEMS: Record<string, { label: string; icon: TabIconName }> = {
   home: { label: 'Hjem', icon: 'home' },
@@ -53,17 +53,23 @@ export function GlassTabBar({ state, emitter, navigateToTab }: BottomTabBarProps
         <View
           style={[
             styles.glass,
-            { borderRadius: TAB_BAR.radius, borderColor: theme.color.glass.stroke },
+            { borderRadius: TAB_BAR.radius, borderColor: light ? theme.color.glass.stroke : TAB_BAR_DARK.edge },
           ]}
         >
           <BlurView
-            intensity={40}
+            intensity={light ? 40 : TAB_BAR_DARK.blur}
             tint={light ? 'light' : 'dark'}
             style={[StyleSheet.absoluteFill, { borderRadius: TAB_BAR.radius }]}
           />
           <View
             pointerEvents="none"
-            style={[StyleSheet.absoluteFill, { backgroundColor: theme.color.glass.fill, borderRadius: TAB_BAR.radius }]}
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor: light ? theme.color.glass.fill : tabBarDarkGlass(),
+                borderRadius: TAB_BAR.radius,
+              },
+            ]}
           />
         </View>
         <View style={styles.slots}>
@@ -71,7 +77,13 @@ export function GlassTabBar({ state, emitter, navigateToTab }: BottomTabBarProps
             const item = ITEMS[route.name];
             if (!item) return null;
             const focused = state.index === index;
-            const color = focused ? theme.color.text.primary : theme.color.text.tertiary;
+            const color = light
+              ? focused
+                ? theme.color.text.primary
+                : theme.color.text.tertiary
+              : focused
+                ? TAB_BAR_DARK.activeInk
+                : TAB_BAR_DARK.inactiveInk;
             const onPress = () => {
               const event = emitter.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
               if (!focused && !event.defaultPrevented) navigateToTab(route.key);
@@ -89,7 +101,7 @@ export function GlassTabBar({ state, emitter, navigateToTab }: BottomTabBarProps
                   style={[
                     styles.pill,
                     focused && {
-                      backgroundColor: light ? TAB_BAR.activePill : theme.color.glass.selected,
+                      backgroundColor: light ? TAB_BAR.activePill : TAB_BAR_DARK.activePill,
                     },
                     focused && light && styles.pillShadow,
                   ]}

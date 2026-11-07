@@ -7,7 +7,10 @@ import {
   KLUMPEN_ICON,
   LOG_BARS,
   TAB_BAR,
+  TAB_BAR_DARK,
   degHeadRadius,
+  tabBarDarkGlass,
+  tabBarKind,
   klumpenIconStrokePt,
   outerRect,
   tabSlotWidth,
@@ -45,6 +48,22 @@ describe('tab bar v6', () => {
       { x: 9.4, y: 7, width: 5.2, height: 13, rx: 1.2 },
       { x: 17.9, y: 10, width: 5.2, height: 10, rx: 1.2 },
     ]);
+  });
+
+  it('paints the dark v6 glass without changing the light inks', () => {
+    assert.equal(TAB_BAR.activeInk, '#111110');
+    assert.equal(TAB_BAR.inactiveInk, '#66635D');
+    assert.equal(TAB_BAR_DARK.glass, '#2C2B28');
+    assert.equal(TAB_BAR_DARK.glassOpacity, 0.72);
+    assert.equal(TAB_BAR_DARK.blur, 20);
+    assert.equal(TAB_BAR_DARK.edge, 'rgba(248,246,242,0.10)');
+    assert.equal(TAB_BAR_DARK.activePill, '#34322E');
+    assert.equal(TAB_BAR_DARK.activeInk, '#F8F6F2');
+    assert.equal(TAB_BAR_DARK.inactiveInk, '#8C887F');
+    assert.equal(tabBarDarkGlass(), 'rgba(44,43,40,0.72)');
+    assert.equal(tabBarKind('ios', 'light'), 'native');
+    assert.equal(tabBarKind('ios', 'dark'), 'v6');
+    assert.equal(tabBarKind('android', 'light'), 'v6');
   });
 
   it('grows the Deg head by half the stroke when it is filled', () => {

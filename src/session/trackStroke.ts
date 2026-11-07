@@ -1,14 +1,13 @@
 /**
- * BOR-38. The grey track and the lit arc are drawing only.
- * The hold itself stays 4 s: glow, phases, and completion do not move.
+ * BOR-38. The grey track and the lit arc share the hold clock.
  * The track fades in over the first 150 ms. The arc then fills from north
- * across the remaining 3.85 s, so it is full at 4000 ms.
+ * across 4.0 s, so the hold completes at 4150 ms.
  */
 
 export const TRACK_IN_MS = 150;
 export const TRACK_OUT_MS = 250;
-/** Arc fill window. 4000 − 150. */
-export const ARC_FILL_MS = 3850;
+/** Arc fill window after the entrance. 4150 − 150. */
+export const ARC_FILL_MS = 4000;
 
 function clamp01(x: number): number {
   'worklet';
@@ -50,7 +49,7 @@ export function cubicBezier(x: number, x1: number, y1: number, x2: number, y2: n
   return unitBezier(t, y1, y2);
 }
 
-/** 0 until 150 ms, then linear to 1 at 4000 ms. `holdMs` is already frozen on release. */
+/** 0 until 150 ms, then linear to 1 at 4150 ms. `holdMs` is already frozen on release. */
 export function drawProgress(holdMs: number): number {
   'worklet';
   if (holdMs <= TRACK_IN_MS) return 0;

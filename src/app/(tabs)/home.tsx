@@ -6,13 +6,15 @@ import { Button } from '@/components/Button';
 import { DurationSheet } from '@/components/DurationSheet';
 import { HomeKlumpen } from '@/components/Klumpen';
 import { Screen } from '@/components/Screen';
+import { ScreenTitle } from '@/components/ScreenTitle';
 import { features } from '@/config/features';
+import { homeGreeting } from '@/data/copy';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
 export default function Home() {
   const { theme } = useTheme();
-  const { durationMinutes, setDurationMinutes, beginSession, sessions } = useAppState();
+  const { durationMinutes, setDurationMinutes, beginSession, sessions, user } = useAppState();
   const [pickerOpen, setPickerOpen] = useState(false);
   const durationRef = useRef<HostInstance>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +36,7 @@ export default function Home() {
 
   return (
     <Screen edges={['top']} contentStyle={styles.content}>
+      <ScreenTitle italic={false}>{homeGreeting(user.name)}</ScreenTitle>
       <View style={styles.hero}>
         <HomeKlumpen
           minutes={durationMinutes}

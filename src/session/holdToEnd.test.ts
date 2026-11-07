@@ -23,26 +23,26 @@ const idle: HoldGesture = { pressAt: null, releaseAt: null, doneAt: null };
 const plain = { reduceMotion: false, solid: false };
 
 describe('hold to end', () => {
-  it('keeps the phase boundaries as fractions of the one hold length', () => {
-    assert.equal(HOLD_TO_END_MS, 4000);
-    assert.equal(phaseEndMs(0), 1300);
-    assert.equal(phaseEndMs(1), 2700);
-    assert.equal(phaseEndMs(2), 4000);
+  it('keeps the phase boundaries on the 4.15 s clock', () => {
+    assert.equal(HOLD_TO_END_MS, 4150);
+    assert.equal(phaseEndMs(0), 1450);
+    assert.equal(phaseEndMs(1), 2850);
+    assert.equal(phaseEndMs(2), 4150);
     assert.equal(phaseIndex(0), 0);
-    assert.equal(phaseIndex(1299), 0);
-    assert.equal(phaseIndex(1300), 1);
-    assert.equal(phaseIndex(2699), 1);
-    assert.equal(phaseIndex(2700), 2);
+    assert.equal(phaseIndex(1449), 0);
+    assert.equal(phaseIndex(1450), 1);
+    assert.equal(phaseIndex(2849), 1);
+    assert.equal(phaseIndex(2850), 2);
   });
 
   it('steps the glow with ease-in-out sine and a small step at each phase', () => {
     assert.equal(glowLevel(0), 0);
-    assert.ok(Math.abs(glowLevel(650) - 0.15) < 1e-12);
-    assert.equal(glowLevel(1300), 0.3);
-    assert.ok(Math.abs(glowLevel(2000) - (0.3 + 0.32 * easeInOutSine(700 / 1400))) < 1e-9);
-    assert.equal(glowLevel(2700), 0.62);
-    assert.equal(glowLevel(4000), 0.9);
-    assert.ok(glowLevel(1300) - glowLevel(1299) > 0);
+    assert.ok(Math.abs(glowLevel(725) - 0.15) < 1e-12);
+    assert.equal(glowLevel(1450), 0.3);
+    assert.ok(Math.abs(glowLevel(2150) - (0.3 + 0.32 * easeInOutSine(700 / 1400))) < 1e-9);
+    assert.equal(glowLevel(2850), 0.62);
+    assert.equal(glowLevel(4150), 0.9);
+    assert.ok(glowLevel(1450) - glowLevel(1449) > 0);
     assert.equal(HOLD_PHASE_TEXT[phaseIndex(1000)], 'Hold for å avslutte');
     assert.equal(HOLD_PHASE_TEXT[phaseIndex(2000)], 'Fortsett å holde …');
     assert.equal(HOLD_PHASE_TEXT[phaseIndex(3000)], 'Litt til …');
@@ -81,7 +81,7 @@ describe('hold to end', () => {
     const gone = sampleHold(g, 2700, plain);
     const k = 1 - easeOutCubic(0.5);
     assert.ok(Math.abs(halfway.e - atRelease.e * k) < 1e-9);
-    assert.ok(Math.abs(halfway.prog - 0.6 * k) < 1e-9);
+    assert.ok(Math.abs(halfway.prog - (2400 / HOLD_TO_END_MS) * k) < 1e-9);
     assert.ok(gone.e < 1e-9);
     assert.equal(gone.prog, 0);
     assert.equal(sampleHold(g, 2519, plain).textCur, 1);
@@ -90,12 +90,12 @@ describe('hold to end', () => {
   });
 
   it('peaks the confirmation and then fades the screen toward reflection', () => {
-    const g: HoldGesture = { pressAt: 0, releaseAt: null, doneAt: 4000 };
-    const peak = sampleHold(g, 4140, plain);
-    const settled = sampleHold(g, 4600, plain);
-    const beforeFade = sampleHold(g, 4650, plain);
-    const midFade = sampleHold(g, 4800, plain);
-    const gone = sampleHold(g, 4950, plain);
+    const g: HoldGesture = { pressAt: 0, releaseAt: null, doneAt: HOLD_TO_END_MS };
+    const peak = sampleHold(g, HOLD_TO_END_MS + 140, plain);
+    const settled = sampleHold(g, HOLD_TO_END_MS + 600, plain);
+    const beforeFade = sampleHold(g, HOLD_TO_END_MS + 650, plain);
+    const midFade = sampleHold(g, HOLD_TO_END_MS + 800, plain);
+    const gone = sampleHold(g, HOLD_TO_END_MS + 950, plain);
     assert.ok(Math.abs(peak.e - 1) < 1e-9);
     assert.ok(Math.abs(peak.glowR - HOLD.glowRPeak) < 1e-9);
     assert.equal(peak.textCur, 3);
@@ -105,19 +105,19 @@ describe('hold to end', () => {
     assert.equal(beforeFade.fade, 0);
     assert.ok(Math.abs(midFade.fade - easeInOutSine(0.5)) < 1e-9);
     assert.ok(Math.abs(gone.fade - 1) < 1e-9);
-    assert.equal(sampleHold(g, 4000, plain).textXf, 0);
-    assert.equal(sampleHold(g, 4180, plain).textXf, 1);
+    assert.equal(sampleHold(g, HOLD_TO_END_MS, plain).textXf, 0);
+    assert.equal(sampleHold(g, HOLD_TO_END_MS + 180, plain).textXf, 1);
   });
 
   it('crossfades copy and keeps Reduce Motion to opacity, without a radius pulse', () => {
     const holding: HoldGesture = { pressAt: 0, releaseAt: null, doneAt: null };
-    const atBoundary = sampleHold(holding, 1300, plain);
+    const atBoundary = sampleHold(holding, 1450, plain);
     assert.equal(atBoundary.textCur, 1);
     assert.equal(atBoundary.textPrev, 0);
     assert.equal(atBoundary.textXf, 0);
-    assert.ok(Math.abs(sampleHold(holding, 1390, plain).textXf - easeInOutSine(0.5)) < 1e-9);
-    const done: HoldGesture = { pressAt: 0, releaseAt: null, doneAt: 4000 };
-    const reduced = sampleHold(done, 4140, { reduceMotion: true, solid: false });
+    assert.ok(Math.abs(sampleHold(holding, 1540, plain).textXf - easeInOutSine(0.5)) < 1e-9);
+    const done: HoldGesture = { pressAt: 0, releaseAt: null, doneAt: HOLD_TO_END_MS };
+    const reduced = sampleHold(done, HOLD_TO_END_MS + 140, { reduceMotion: true, solid: false });
     assert.equal(reduced.arc, 0);
     assert.equal(reduced.glowR, HOLD.glowRFull);
     assert.ok(Math.abs(reduced.e - 1) < 1e-9);
@@ -150,7 +150,7 @@ describe('hold to end', () => {
   it('mixes the track into the core the way variant A does', () => {
     assert.equal(mixHex('#66635D', '#F6EBD6', 0), '#66635d');
     assert.equal(mixHex('#66635D', '#F6EBD6', 1), '#f6ebd6');
-    const full = sampleHold({ pressAt: 0, releaseAt: null, doneAt: null }, 4000, plain);
+    const full = sampleHold({ pressAt: 0, releaseAt: null, doneAt: null }, HOLD_TO_END_MS, plain);
     assert.ok(Math.abs(full.e - 0.9) < 1e-9);
     assert.ok(Math.abs(full.strokeW - HOLD.litWMax) < 1e-9);
     assert.ok(Math.abs(full.glowR - HOLD.glowRFull) < 1e-9);
