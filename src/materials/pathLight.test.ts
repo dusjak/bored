@@ -37,6 +37,7 @@ import {
   RIM_EROSION_PT,
   RIM_SHIFT_PT,
   fitRim,
+  fitRimGain,
   hash01,
   insideDistance,
   pillowHeight,
@@ -249,19 +250,33 @@ describe('path-dependent material light', () => {
     assert.ok(contrastRatio('#F8F6F2', DARK_RIM_AGAINST) > 3);
     assert.match(PATH_LIGHT_SKSL, /uniform shader albedo/);
     assert.match(PATH_LIGHT_SKSL, /uniform shader normals/);
+    assert.match(PATH_LIGHT_SKSL, /uniform shader micro/);
     assert.match(PATH_LIGHT_SKSL, /uniform shader glint/);
     assert.doesNotMatch(PATH_LIGHT_SKSL, /shade-multiply|light-screen/);
+    const gain = fitRimGain(litCopy, blob, 48, 48, 3);
+    const full = fitRim(litCopy, blob, 48, 48, 3);
+    assert.equal(gain.k, full.k);
     const view = readFileSync(join(process.cwd(), 'src/materials/DynamicMaterial.tsx'), 'utf8');
+    const live = readFileSync(join(process.cwd(), 'src/materials/liveField.ts'), 'utf8');
     const klumpen = readFileSync(join(process.cwd(), 'src/components/Klumpen.tsx'), 'utf8');
+    const session = readFileSync(join(process.cwd(), 'src/components/SessionKlumpen.tsx'), 'utf8');
     const home = readFileSync(join(process.cwd(), 'src/app/(tabs)/home.tsx'), 'utf8');
+    const onboarding = readFileSync(join(process.cwd(), 'src/app/onboarding/name.tsx'), 'utf8');
     assert.match(view, /base\.png/);
     assert.doesNotMatch(view, /shade-multiply|light-screen/);
-    assert.match(view, /fitRim/);
     assert.match(view, /readPixels/);
-    assert.match(view, /litFromBase/);
+    assert.match(view, /requestAnimationFrame/);
+    assert.match(live, /litFromBase/);
+    assert.match(live, /LIVE_MACRO_PX = 64/);
     assert.doesNotMatch(view, /litPlate/);
+    assert.doesNotMatch(view, /pathNormals/);
     assert.match(klumpen, /klumpen-gummi-240pt\.png/);
+    assert.match(klumpen, /MaterialShade/);
+    assert.match(session, /MaterialShade/);
+    assert.match(session, /ImpactFeedbackStyle\.Soft/);
+    assert.match(session, /ImpactFeedbackStyle\.Light/);
+    assert.match(session, /NotificationFeedbackType\.Success/);
     assert.doesNotMatch(home, /DynamicMaterial/);
-    assert.doesNotMatch(klumpen, /DynamicMaterial/);
+    assert.doesNotMatch(onboarding, /MaterialShade|DynamicMaterial|RestMaterial/);
   });
 });

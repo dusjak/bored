@@ -82,10 +82,14 @@ describe('rest material maps', () => {
     const home = readFileSync(join(process.cwd(), 'src/app/(tabs)/home.tsx'), 'utf8');
     const onboarding = readFileSync(join(process.cwd(), 'src/app/onboarding/name.tsx'), 'utf8');
     assert.match(klumpen, /klumpen-gummi-240pt\.png/);
+    assert.match(klumpen, /MaterialShade/);
+    assert.match(session, /MaterialShade/);
     assert.doesNotMatch(klumpen, /materials\/2026-11-07/);
+    assert.doesNotMatch(klumpen, /shade-multiply|light-screen/);
+    assert.doesNotMatch(session, /shade-multiply|light-screen/);
     assert.doesNotMatch(session, /RestMaterial/);
     assert.doesNotMatch(home, /RestMaterial/);
-    assert.doesNotMatch(onboarding, /RestMaterial/);
+    assert.doesNotMatch(onboarding, /RestMaterial|MaterialShade|DynamicMaterial/);
     const view = readFileSync(join(process.cwd(), 'src/materials/RestMaterial.tsx'), 'utf8');
     assert.match(view, /blendMode=\{MATERIAL_BLEND\[1\]\}/);
     assert.match(view, /blendMode=\{MATERIAL_BLEND\[2\]\}/);

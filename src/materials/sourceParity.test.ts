@@ -51,8 +51,13 @@ describe('source parity of the rest warp and height', () => {
     const gummi = masterHeightAt('gummi', 600, 600);
     assert.ok(gummi > 100);
     const view = readFileSync(join(process.cwd(), 'src/materials/DynamicMaterial.tsx'), 'utf8');
-    assert.match(view, /pathNormals/);
-    assert.match(view, /NORMAL_PX = SOURCE_MASTER/);
+    const live = readFileSync(join(process.cwd(), 'src/materials/liveField.ts'), 'utf8');
+    assert.match(view, /LIVE_MACRO_PX/);
+    assert.match(live, /liveMacroNormals/);
+    assert.doesNotMatch(view, /pathNormals/);
+    assert.doesNotMatch(view, /SOURCE_MASTER/);
+    assert.doesNotMatch(view, /node:fs/);
+    assert.doesNotMatch(live, /node:fs/);
     assert.doesNotMatch(view, /const FIELD = 120/);
     const detail = restMicroOffset('emalje');
     assert.equal(restMicroOffset('emalje'), detail);

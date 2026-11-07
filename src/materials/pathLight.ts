@@ -1173,6 +1173,59 @@ export function fitRim(
   return { applied: mean != null, k: mean ? hi : 0, contrast: mean ? contrastOf(mean) : null, band, meanContrast: true };
 }
 
+function meanRimmed(base: Float32Array, band: Float32Array, edge: Uint8Array, k: number): RGB | null {
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let n = 0;
+  for (let i = 0; i < edge.length; i += 1) {
+    if (!edge[i] || band[i] <= RIM_BAND_MIN) continue;
+    const w = band[i] * k;
+    r += Math.min(255, Math.max(0, base[i * 3] + RIM_ADD.r * w));
+    g += Math.min(255, Math.max(0, base[i * 3 + 1] + RIM_ADD.g * w));
+    b += Math.min(255, Math.max(0, base[i * 3 + 2] + RIM_ADD.b * w));
+    n += 1;
+  }
+  if (!n) return null;
+  return { r: r / n, g: g / n, b: b / n };
+}
+
+/**
+ * Same bisection as `fitRim`, reading only the edge pixels.
+ * The device path uses this so a pose update does not copy the plate fourteen times.
+ */
+export function fitRimGainFromBand(
+  base: Float32Array,
+  band: Float32Array,
+  edge: Uint8Array,
+  target = DARK_RIM_TARGET_CONTRAST,
+): { k: number; applied: boolean } {
+  let lo = 0;
+  let hi = RIM_K_MAX;
+  for (let step = 0; step < RIM_BISECTIONS; step += 1) {
+    const k = (lo + hi) / 2;
+    const mean = meanRimmed(base, band, edge, k);
+    const c = mean ? contrastOf(mean) : 0;
+    if (c < target) lo = k;
+    else hi = k;
+  }
+  const mean = meanRimmed(base, band, edge, hi);
+  return { k: mean ? hi : 0, applied: mean != null };
+}
+
+export function fitRimGain(
+  base: Float32Array,
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  pxPerPt = RIM_SAMPLE_PX_PER_PT,
+  target = DARK_RIM_TARGET_CONTRAST,
+): { k: number; applied: boolean; band: Float32Array } {
+  const { band, edge } = rimBand(mask, width, height, pxPerPt);
+  const fit = fitRimGainFromBand(base, band, edge, target);
+  return { k: fit.k, applied: fit.applied, band };
+}
+
 export function relativeLuminance(hex: string): number {
   const { r, g, b } = parseHex(hex);
   const f = (c: number) => {
@@ -1260,12 +1313,14 @@ export function diskMask(size: number, radius: number): Uint8Array {
 }
 
 /**
- * SKSL for the tested shade. Children: albedo, then normals in 0..1 (xyz*0.5+0.5).
+ * SKSL for the tested shade. Shader children, in order: albedo, macro normals,
+ * micro offset, glint, rim. A mid-gray micro sample adds nothing.
  * Rest light maps are not declared.
  */
 export const PATH_LIGHT_SKSL = `
 uniform shader albedo;
 uniform shader normals;
+uniform shader micro;
 uniform float pillow;
 uniform float key;
 uniform float amb;
@@ -1299,9 +1354,12 @@ float sstep(float a, float b, float x) {
 half4 main(float2 xy) {
   half4 alb = albedo.eval(xy);
   half4 nn = normals.eval(xy);
+  half4 microPx = micro.eval(xy);
   half4 glintPx = glint.eval(xy);
   half4 rimPx = rim.eval(xy);
   float3 n = float3(nn.r, nn.g, nn.b) * 2.0 - 1.0;
+  n.xy += float2(microPx.r, microPx.g) * 2.0 - 1.0;
+  n *= inversesqrt(max(dot(n, n), 0.0001));
   float nz = n.z;
   float ndl = sat(n.x * lx + n.y * ly + n.z * lz);
   float diffuse = amb * (0.55 + 0.45 * nz) + (key * kd * ndl) / lz * 0.6;

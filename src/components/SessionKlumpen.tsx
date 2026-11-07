@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
 import {
   AccessibilityInfo,
   Animated,
@@ -15,6 +15,7 @@ import {
   Canvas,
   ImageShader,
   Path,
+  Skia,
   SweepGradient,
   select,
   useImage,
@@ -30,9 +31,12 @@ import Reanimated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import { MaterialShade, useLiveMaterial } from '@/materials/DynamicMaterial';
+import { materialPlacement } from '@/materials/restMaps';
 import {
   KLUMPEN_BOUNDS,
   sessionStoneScale,
+  sessionStoneWidth,
   sessionTextureRect,
   writeKlumpenPath,
 } from '@/session/klumpenShape';
@@ -296,6 +300,12 @@ export function SessionKlumpen({
   const fireSettled = useCallback(() => {
     onSettled();
   }, [onSettled]);
+  const [deform, setDeform] = useState({ sq: 0, wob: 0, size: 0, phase: 0 });
+  const publishDeform = useCallback((next: { sq: number; wob: number; size: number; phase: number }) => {
+    setDeform(next);
+  }, []);
+  const deformKey = useSharedValue('rest');
+  const deformAt = useSharedValue(0);
 
   const onFrame = useCallback(
     (frame: { timeSincePreviousFrame: number | null }) => {
@@ -341,7 +351,14 @@ export function SessionKlumpen({
         Math.abs(spring.value.wobV) > 0.0004 ||
         Math.abs(spring.value.size) > 0.0004 ||
         Math.abs(spring.value.sizeV) > 0.0004;
-      if (!holding && !releasedRecently && !confirming && !moving) return;
+      if (!holding && !releasedRecently && !confirming && !moving) {
+        if (deformKey.value !== 'rest') {
+          deformKey.value = 'rest';
+          deformAt.value = now;
+          runOnJS(publishDeform)({ sq: 0, wob: 0, size: 0, phase: 0 });
+        }
+        return;
+      }
 
       const reduce = reduceSv.value === 1;
       const h = holdMsAt(g, now);
@@ -350,16 +367,30 @@ export function SessionKlumpen({
       const next = reduce ? { ...REST_SPRING } : stepSpring(spring.value, target, dt);
       spring.value = next;
       const sample = sampleHold(g, now, { reduceMotion: reduce, solid: solidSv.value === 1 });
+      const spin = ((now % HOLD.wobbleRotMs) / HOLD.wobbleRotMs) * Math.PI * 2;
       pose.value = {
         ...sample,
         sq: next.sq,
         wob: next.wob,
         size: next.size,
-        phase: ((now % HOLD.wobbleRotMs) / HOLD.wobbleRotMs) * Math.PI * 2,
+        phase: spin,
         track: strokeOpacity(press >= 0, sample.holdMs, now, release, doneAt.value, reduce),
         drawProg: drawProgress(sample.holdMs),
       };
       fade.value = sample.fade;
+      const poseKey = `${Math.round(next.sq * 256)}|${Math.round(next.wob * 256)}|${Math.round(next.size * 256)}|${
+        Math.abs(next.wob) > 0.004 ? Math.round(spin * 2) : 0
+      }`;
+      const settledKey = poseKey === '0|0|0|0' ? 'rest' : poseKey;
+      if (settledKey !== deformKey.value && (settledKey === 'rest' || now - deformAt.value >= 90)) {
+        deformKey.value = settledKey;
+        deformAt.value = now;
+        runOnJS(publishDeform)(
+          settledKey === 'rest'
+            ? { sq: 0, wob: 0, size: 0, phase: 0 }
+            : { sq: next.sq, wob: next.wob, size: next.size, phase: Math.abs(next.wob) > 0.004 ? spin : 0 },
+        );
+      }
       if (g.doneAt != null && settleSent.value === 0 && now >= g.doneAt + HOLD.doneFadeAtMs + HOLD.doneFadeMs) {
         settleSent.value = 1;
         runOnJS(fireSettled)();
@@ -374,6 +405,8 @@ export function SessionKlumpen({
       firePhase,
       fireSettled,
       fireSuccess,
+      deformAt,
+      deformKey,
       lastNow,
       locked,
       phaseSent,
@@ -384,6 +417,7 @@ export function SessionKlumpen({
       settleSent,
       solidSv,
       spring,
+      publishDeform,
     ],
   );
   useFrameCallback(onFrame);
@@ -425,6 +459,21 @@ export function SessionKlumpen({
   const glowWidth = useDerivedValue(() => pose.value.strokeW * HOLD.glowGain);
   const trackOpacitySv = useDerivedValue(() => pose.value.track);
   const glowBlur = useDerivedValue(() => (pose.value.glowR < 0.5 ? 0.5 : pose.value.glowR));
+  const stoneWidth = sessionStoneWidth(minutes);
+  const place = useMemo(() => materialPlacement(stoneWidth, CX, CY), [stoneWidth]);
+  const shadePath = useMemo(() => {
+    const builder = Skia.PathBuilder.Make();
+    writeKlumpenPath(builder, CX, CY, deform.sq, deform.wob, deform.size, deform.phase, 0, scale);
+    return builder.build();
+  }, [deform.phase, deform.size, deform.sq, deform.wob, scale]);
+  const field = useLiveMaterial(
+    'gummi',
+    shadePath,
+    { x: place.tx, y: place.ty, size: place.artboardPt },
+    place.artboardPt,
+    deform.sq !== 0 || deform.wob !== 0 || deform.size !== 0,
+    { kind: 'points', width: stoneWidth, cx: CX, cy: CY },
+  );
 
   // The outline origin is the centroid. At 176 pt it sits about +0.7 / +2.4 pt
   // from the box centre, and that offset scales because the stone scales around it.
@@ -469,7 +518,15 @@ export function SessionKlumpen({
           the stone. A parent that returns no hit keeps the picture out of the hold. */}
       <View pointerEvents="none" collapsable={false} style={styles.canvasBox}>
         <Canvas style={styles.canvas} pointerEvents="none">
-          {restImage ? (
+          {field.ready ? (
+            <Path path={fillPath} style="fill" opacity={restOpacity}>
+              <MaterialShade
+                material="gummi"
+                field={field}
+                rect={{ x: place.tx, y: place.ty, size: place.artboardPt }}
+              />
+            </Path>
+          ) : restImage ? (
             <Path path={fillPath} style="fill" opacity={restOpacity}>
               <ImageShader
                 image={restImage}
@@ -483,7 +540,7 @@ export function SessionKlumpen({
           ) : (
             <Path path={fillPath} style="fill" color={theme.color.session.object} opacity={restOpacity} />
           )}
-          {pressedImage ? (
+          {!field.ready && pressedImage ? (
             <Path path={fillPath} style="fill" opacity={pressedOpacity}>
               <ImageShader
                 image={pressedImage}

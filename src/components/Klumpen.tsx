@@ -30,6 +30,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { KLUMPEN_PATH } from '@/components/klumpenPath';
+import { MaterialShade, useLiveMaterial, type LiveFrame } from '@/materials/DynamicMaterial';
 import {
   CROSSFADE_MS,
   DURATION_HOME_HINT,
@@ -77,6 +78,9 @@ const CANVAS_H = MAX_H + PAD * 2;
 const BOX_W = KLUMPEN_BOUNDS.width;
 const ORIGIN_X = KLUMPEN_BOUNDS.x + BOX_W / 2;
 const ORIGIN_Y = KLUMPEN_BOUNDS.y + KLUMPEN_BOUNDS.height / 2;
+const HJEM_ARTBOARD = (BOX_W * 1200) / 720;
+const HJEM_WINDOW = { x: ORIGIN_X - HJEM_ARTBOARD / 2, y: ORIGIN_Y - HJEM_ARTBOARD / 2, size: HJEM_ARTBOARD };
+const HJEM_FRAME: LiveFrame = { kind: 'hjem', originX: ORIGIN_X, originY: ORIGIN_Y, boxW: BOX_W };
 
 type Fade = {
   from: SharedValue<number>;
@@ -203,6 +207,8 @@ export function KlumpenBody({
     },
   );
   const gummiImage = gummi[band] ?? null;
+  const widthPt = KLUMP_WIDTH_MIN + KLUMP_WIDTH_STEP * band;
+  const field = useLiveMaterial('gummi', path, HJEM_WINDOW, widthPt * (1200 / 720), false, HJEM_FRAME);
   // Tabular hero number. System F is Figtree Light with tabular-nums.
   const hero = theme.text.monoHero;
   const fontSize = (Number(hero.fontSize) || 56) * type.numberScale;
@@ -236,8 +242,8 @@ export function KlumpenBody({
               <Path path={path} style="stroke" strokeWidth={OUTLINE_STROKE} color={OUTLINE} />
             </Group>
           ) : null}
-          <StoneLayer path={path} transform={backTransform} opacity={backOpacity} rim={rim} image={gummiImage} />
-          <StoneLayer path={path} transform={frontTransform} opacity={frontOpacity} rim={rim} image={gummiImage} />
+          <StoneLayer path={path} transform={backTransform} opacity={backOpacity} rim={rim} image={gummiImage} field={field} />
+          <StoneLayer path={path} transform={frontTransform} opacity={frontOpacity} rim={rim} image={gummiImage} field={field} />
         </Canvas>
       ) : (
         <View style={styles.fallback} />
@@ -273,13 +279,16 @@ function StoneLayer({
   opacity,
   rim,
   image,
+  field,
 }: {
   path: NonNullable<ReturnType<typeof Skia.Path.MakeFromSVGString>>;
   transform: SharedValue<Transforms3d>;
   opacity: SharedValue<number>;
   rim: boolean;
   image: ReturnType<typeof useImage>;
+  field: ReturnType<typeof useLiveMaterial>;
 }) {
+  const live = field.ready;
   return (
     <Group transform={transform} opacity={opacity}>
       <Group transform={[{ translateY: 58 }]} opacity={0.55}>
@@ -288,7 +297,9 @@ function StoneLayer({
         </Path>
       </Group>
       <Path path={path} color={STONE_COLOR}>
-        {image ? (
+        {live ? (
+          <MaterialShade material="gummi" field={field} rect={HJEM_WINDOW} />
+        ) : image ? (
           <ImageShader
             image={image}
             fit="fill"
@@ -299,7 +310,7 @@ function StoneLayer({
           />
         ) : null}
       </Path>
-      {rim ? <Path path={path} style="stroke" strokeWidth={6} color="rgba(255,255,255,0.22)" /> : null}
+      {live || !rim ? null : <Path path={path} style="stroke" strokeWidth={6} color="rgba(255,255,255,0.22)" />}
     </Group>
   );
 }
