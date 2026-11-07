@@ -14,29 +14,43 @@ export function OnboardingHeader({
   title,
   sub,
   slideSub = false,
+  total = ONBOARDING_STEPS,
+  helpGap = 8,
+  ink,
+  subInk,
+  dot,
+  dotIdle,
 }: {
   step: number;
   title: string;
   sub: string;
   /** Question steps only. The subtitle catches up after the push. */
   slideSub?: boolean;
+  total?: number;
+  /** Space between the title and the help line. The last Del 2 screen uses 4. */
+  helpGap?: number;
+  /** Title, help and back icon. The practice screen is on the session ground. */
+  ink?: string;
+  subInk?: string;
+  dot?: string;
+  dotIdle?: string;
 }) {
   const { theme } = useTheme();
-  const subtitle = (
-    <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginBottom: 32 }]}>{sub}</Text>
-  );
+  const subtitle = sub ? (
+    <Text style={[theme.text.caption, { color: subInk ?? theme.color.text.tertiary, marginBottom: 32 }]}>{sub}</Text>
+  ) : null;
   return (
     <View>
       <View style={styles.bar}>
         <Pressable hitSlop={12} onPress={() => router.back()} accessibilityLabel="Tilbake" style={styles.back}>
-          <Icon name="chevronLeft" size={18} color={theme.color.text.tertiary} />
+          <Icon name="chevronLeft" size={18} color={subInk ?? theme.color.text.tertiary} />
         </Pressable>
-        <ProgressDots total={ONBOARDING_STEPS} current={step} />
+        <ProgressDots total={total} current={step} activeColor={dot} idleColor={dotIdle} />
         <View style={styles.back} />
       </View>
       <View style={styles.copy}>
-        <ScreenTitle style={{ marginBottom: 8 }}>{title}</ScreenTitle>
-        {slideSub ? (
+        {title ? <ScreenTitle color={ink} style={{ marginBottom: helpGap }}>{title}</ScreenTitle> : null}
+        {subtitle && slideSub ? (
           <ForwardSlide offset={SUBTITLE_SLIDE_OFFSET} delay={0}>
             {subtitle}
           </ForwardSlide>

@@ -34,9 +34,7 @@ import { KLUMPEN_PATH } from '@/components/klumpenPath';
 import { FixedRim, MaterialShade, useLiveMaterial, type LiveFrame } from '@/materials/DynamicMaterial';
 import {
   CROSSFADE_MS,
-  DURATION_HOME_HINT,
   DURATION_UNIT,
-  HINT_GAP,
   HOME_APPLY_DELAY,
   HOME_STONE_CENTER_Y,
   KLUMP_ASPECT,
@@ -182,6 +180,10 @@ type BodyProps = {
   ghost?: boolean;
   /** Space under the number before «min». Hjem keeps the shared gap. */
   unitGap?: number;
+  /** Upright Figtree for onboarding numbers. Hjem keeps Figtree Light. */
+  numberFamily?: string;
+  /** «min» on the stone. Hjem keeps the shared grey. */
+  unitColor?: string;
 };
 
 /** The matte stone, its number, and the size animation. Layout box is the 20-minute size, so the center stays put. */
@@ -193,6 +195,8 @@ export function KlumpenBody({
   fade,
   ghost = false,
   unitGap = NUMBER_UNIT_GAP,
+  numberFamily,
+  unitColor,
 }: BodyProps) {
   const { theme } = useTheme();
   const { fontScale } = useWindowDimensions();
@@ -271,7 +275,7 @@ export function KlumpenBody({
           value={minutes}
           color={STONE_NUMBER_COLOR}
           fontSize={fontSize}
-          fontFamily={hero.fontFamily}
+          fontFamily={numberFamily ?? hero.fontFamily}
           fontVariant={hero.fontVariant}
           reduceMotion={reduceMotion}
         />
@@ -282,7 +286,8 @@ export function KlumpenBody({
               styles.unit,
               {
                 marginTop: unitGap === NUMBER_UNIT_GAP ? homeUnitMarginTop(fontSize, unitGap) : unitGap,
-                fontFamily: theme.fonts.sansMedium,
+                fontFamily: numberFamily ?? theme.fonts.sansMedium,
+                color: unitColor ?? STONE_UNIT_COLOR,
                 fontSize: HOME_UNIT_FONT_SIZE,
                 lineHeight: HOME_UNIT_LINE_HEIGHT,
                 includeFontPadding: false,
@@ -472,7 +477,6 @@ export function HomeKlumpen({
   /** Focus returns here when the duration sheet closes. */
   focusRef?: RefObject<HostInstance | null>;
 }) {
-  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion() === true;
   const shown = useDelayedValue(minutes, HOME_APPLY_DELAY);
@@ -576,14 +580,8 @@ export function HomeKlumpen({
   }, [fade, index, shown]);
 
   const natural = HOME_STONE_CENTER_Y - insets.top - screenPadding;
-  const maxCenter = heroHeight > 0 ? heroHeight - HINT_GAP - 22 - MAX_H / 2 : natural;
+  const maxCenter = heroHeight > 0 ? heroHeight - MAX_H / 2 : natural;
   const center = Math.min(natural, Math.max(maxCenter, MAX_H / 2));
-
-  const hintStyle = useAnimatedStyle(() => {
-    const idx = reduce.value > 0.5 ? fade.from.value + (fade.to.value - fade.from.value) * fade.u.value : index.value;
-    const height = (KLUMP_WIDTH_MIN + KLUMP_WIDTH_STEP * idx) * KLUMP_ASPECT;
-    return { top: center + height / 2 + HINT_GAP };
-  });
 
   return (
     <View style={styles.hero} onLayout={(event) => setHeroHeight(event.nativeEvent.layout.height)}>
@@ -607,13 +605,6 @@ export function HomeKlumpen({
           <KlumpenBody index={index} minutes={display} reduce={reduce} reduceMotion={reduceMotion} fade={fade} />
         </Pressable>
       </View>
-      <Animated.Text
-        accessibilityElementsHidden
-        importantForAccessibility="no"
-        style={[theme.text.caption, styles.hint, { color: theme.color.text.secondary }, hintStyle]}
-      >
-        {DURATION_HOME_HINT}
-      </Animated.Text>
     </View>
   );
 }
@@ -632,5 +623,4 @@ const styles = StyleSheet.create({
   incoming: { position: 'absolute', left: 0, right: 0 },
   hero: { flex: 1 },
   homeSlot: { position: 'absolute', left: 0, right: 0, alignItems: 'center' },
-  hint: { position: 'absolute', left: 0, right: 0, textAlign: 'center' },
 });

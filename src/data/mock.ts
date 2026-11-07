@@ -18,7 +18,8 @@ export type Question = {
   withIcons?: boolean;
 };
 
-export const ONBOARDING_STEPS = 7;
+/** Del 2 screens that are still asked. Duration is chosen once in Bli kjent. */
+export const ONBOARDING_STEPS = 6;
 
 export const QUESTIONS: Record<QuestionKey, Question> = {
   distraction: {
@@ -54,7 +55,7 @@ export const QUESTIONS: Record<QuestionKey, Question> = {
     step: 2,
     title: 'Hva vil du ha ut av dette?',
     sub: 'Vi tilpasser opplevelsen til deg.',
-    next: '/onboarding/duration',
+    next: '/onboarding/time',
     options: [
       { id: 'ro', label: 'Mental ro', sub: 'Skru av alt, bare hvile' },
       { id: 'kreativitet', label: 'Mer kreativitet', sub: 'La tankene vandre til noe nytt' },
@@ -78,7 +79,7 @@ export const QUESTIONS: Record<QuestionKey, Question> = {
   },
   time: {
     key: 'time',
-    step: 4,
+    step: 3,
     title: 'Når passer det best?',
     sub: 'Vi sender en stille påminnelse til rett tid.',
     next: '/onboarding/name',

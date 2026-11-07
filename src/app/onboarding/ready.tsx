@@ -36,7 +36,7 @@ export default function Ready() {
           <ScreenTitle
             variant="display"
             color={theme.color.session['text-primary']}
-            style={{ marginBottom: 16 }}
+            style={{ marginBottom: 8 }}
           >
             {user.name ? `${user.name}, la oss starte.` : 'La oss starte.'}
           </ScreenTitle>

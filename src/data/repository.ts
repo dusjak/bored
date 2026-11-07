@@ -23,6 +23,8 @@ export const SHOW_COUNTDOWN_KEY = 'bored.showCountdown';
 export const SPLASH_SEEN_KEY = 'bored.splashSeen';
 /** Older first-use key. It may have been backfilled. The since-line does not read it. */
 export const FIRST_USED_KEY = 'bored.firstUsedAt';
+/** Set when the Hjem unease window has closed. Restart does not open it again. */
+export const HOME_UNEASE_LATCH = 'bored.homeUneaseClosed';
 export { FIRST_USED_TRUSTED_KEY } from '@/data/sinceLine';
 
 function connection(db: Awaited<ReturnType<typeof openDatabase>>): AppDatabase {

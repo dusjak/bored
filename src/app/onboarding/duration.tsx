@@ -1,5 +1,6 @@
-import { QuestionStep } from '@/components/QuestionStep';
+import { Redirect } from 'expo-router';
 
-export default function Step() {
-  return <QuestionStep questionKey="duration" />;
+/** Duration is chosen once in Bli kjent. Del 2 does not ask again. */
+export default function DurationStep() {
+  return <Redirect href="/onboarding/time" />;
 }

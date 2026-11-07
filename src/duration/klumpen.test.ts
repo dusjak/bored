@@ -195,7 +195,7 @@ describe('type and copy', () => {
     assert.equal(DURATION_ADJUST_HINT, 'Sveip opp eller ned for å endre');
     assert.equal(durationValueText(15), '15 minutter');
     assert.equal(useButtonLabel(15), 'Bruk 15 minutter');
-    assert.equal(homeKlumpenLabel(15), '15 minutter. Trykk for å velge en annen tid');
+    assert.equal(homeKlumpenLabel(15), '15 minutter');
     assert.equal(chosenAnnouncement(15), '15 minutter valgt');
     assert.equal(chosenAnnouncement(1), '1 minutt valgt');
   });

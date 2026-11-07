@@ -8,7 +8,8 @@
  * Top inset is measured under the safe area. The spacing scale is the source of truth.
  * - App screens that lead with a title or count (Refleksjon, Logg, Deg): `space['10']` (40).
  * - Welcome: `space['32']` (128), fixed. The title is not positioned with space-between.
- * - Intro questions: a 44pt nav row (`size['hit-min']`), then `space['12']` (48).
+ * - Intro questions: a 44pt nav row (`size['hit-min']`), then `space['6']` (24).
+ *   The old «n av N» line under the nav is gone, so the title sits one step higher.
  * Hjem and Økt are centered compositions. They do not use the 40pt inset.
  */
 import type { ViewStyle } from 'react-native';
@@ -27,8 +28,12 @@ export const welcomeTopInset = space['32'];
 /** Intro question row: back button and progress dots. 44pt hit target. */
 export const questionNavHeight = size['hit-min'];
 
-/** Space from the question nav row down to the step title. */
-export const questionContentInset = space['12'];
+/**
+ * Space from the question nav row down to the step title.
+ * Was `space['12']` (48) while the «n av N» line occupied the gap.
+ * The line is gone, so the title moves up to `space['6']` (24).
+ */
+export const questionContentInset = space['6'];
 
 export type ScreenTop = 'gutter' | 'app' | 'welcome' | 'none';
 

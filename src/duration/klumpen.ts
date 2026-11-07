@@ -373,7 +373,7 @@ export function useButtonLabel(minutes: number): string {
 }
 
 export function homeKlumpenLabel(minutes: number): string {
-  return `${minutesPhrase(minutes)}. ${DURATION_HOME_HINT}`;
+  return minutesPhrase(minutes);
 }
 
 export function chosenAnnouncement(minutes: number): string {

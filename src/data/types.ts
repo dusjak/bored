@@ -42,6 +42,11 @@ export type SessionWithJournal = SessionRecord & {
   journal: JournalRecord | null;
 };
 
+export type KlumpMaterialId = 'gummi' | 'skifer' | 'kull' | 'emalje' | 'floyel';
+
+/** Which way the user left Veiskille. The Hjem unease window reads this. */
+export type IntroPath = 'del2' | 'skip';
+
 export type OnboardingProfile = {
   distraction?: string;
   state?: string;
@@ -52,4 +57,8 @@ export type OnboardingProfile = {
   notifications?: boolean;
   /** "HH:MM", minute 00–59. Unset means the onboarding answer in `time`. */
   reminderClock?: string;
+  materialId?: KlumpMaterialId;
+  /** Radial offsets, one per form bin, kept per material for this pass. */
+  forms?: Partial<Record<KlumpMaterialId, number[]>>;
+  introPath?: IntroPath;
 };

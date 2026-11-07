@@ -257,7 +257,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateUser = useCallback((patch: Partial<OnboardingProfile>) => {
-    setUser((current) => ({ ...current, ...patch }));
+    const next = { ...userRef.current, ...patch };
+    userRef.current = next;
+    setUser(next);
   }, []);
 
   const setDurationMinutes = useCallback(async (minutes: number) => {

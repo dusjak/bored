@@ -31,9 +31,9 @@ describe('layout v2.1', () => {
     assert.equal(welcomeTopInset, 128);
     assert.equal(questionNavHeight, size['hit-min']);
     assert.equal(questionNavHeight, 44);
-    assert.equal(questionContentInset, space['12']);
-    assert.equal(questionContentInset, 48);
-    assert.equal(questionNavHeight + questionContentInset, 92);
+    assert.equal(questionContentInset, space['6']);
+    assert.equal(questionContentInset, 24);
+    assert.equal(questionNavHeight + questionContentInset, 68);
 
     assert.equal(insetUnderSafeArea('app'), screenTopInset);
     assert.equal(insetUnderSafeArea('welcome'), welcomeTopInset);

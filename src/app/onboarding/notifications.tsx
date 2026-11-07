@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
+
+import { hasNotificationPermission } from '@/data/notifications';
 
 import { Button } from '@/components/Button';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
@@ -12,14 +14,40 @@ import { useTheme } from '@/theme';
 
 export default function NotificationsStep() {
   const { theme } = useTheme();
-  const { user, updateUser } = useAppState();
-  const [enabled, setEnabled] = useState(user.notifications ?? false);
+  const { user, setDailyReminder } = useAppState();
+  const [enabled, setEnabled] = useState(false);
+
+  useEffect(() => {
+    let live = true;
+    void hasNotificationPermission().then((allowed) => {
+      if (live) setEnabled(user.notifications === true && allowed);
+    });
+    return () => {
+      live = false;
+    };
+  }, [user.notifications]);
+
+  const change = async (next: boolean) => {
+    if (!next) {
+      setEnabled(false);
+      await setDailyReminder(false);
+      return;
+    }
+    const result = await setDailyReminder(true);
+    if (result === 'on') {
+      setEnabled(true);
+      return;
+    }
+    setEnabled(false);
+    await setDailyReminder(false);
+  };
   const timeLabel = (user.time && NOTIF_TIME_LABELS[user.time]) || 'Daglig';
 
   return (
     <Screen top="none" contentStyle={{ paddingBottom: 40 }}>
       <OnboardingHeader
-        step={6}
+        step={5}
+        helpGap={4}
         title="En stille påminnelse."
         sub="Ingen lyder. Ingen merker. Bare en enkel melding. Du bestemmer selv om du svarer."
       />
@@ -38,14 +66,14 @@ export default function NotificationsStep() {
             Kan skrus av når som helst
           </Text>
         </View>
-        <Toggle value={enabled} onChange={setEnabled} accessibilityLabel="Skru på varsler" />
+        <Toggle value={enabled} onChange={(next) => void change(next)} accessibilityLabel="Skru på varsler" />
       </View>
 
       <View style={{ flex: 1 }} />
       <Button
         title="Se din oppsummering"
         onPress={() => {
-          updateUser({ notifications: enabled });
+          if (!enabled) void setDailyReminder(false);
           router.push('/onboarding/ready');
         }}
       />
