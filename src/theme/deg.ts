@@ -31,6 +31,11 @@ export const deg = {
   titleLine: 60,
   titleTop: 34,
   afterTitle: 24,
+  /** «Kjedet deg siden …» under the name. Figtree 15/20. The name line stays 60. */
+  sinceGap: 8,
+  sinceSize: 15,
+  sinceLineHeight: 20,
+  sinceToGroup: 28,
   rowSize: 17,
   rowLine: 22,
   resetGap: 30,

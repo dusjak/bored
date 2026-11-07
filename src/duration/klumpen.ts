@@ -212,6 +212,44 @@ export function indexFromSwipe(startIndex: number, dx: number): number {
   return rubberBandIndex(startIndex + dx / SWIPE_STEP);
 }
 
+/**
+ * Lock the stone drag. Vertical is either direction.
+ * The sheet's own dismiss stays outside this responder.
+ */
+export function stonePanAxis(dx: number, dy: number, current: 'x' | 'y' | null): 'x' | 'y' | null {
+  if (current != null) return current;
+  const absX = Math.abs(dx);
+  const absY = Math.abs(dy);
+  if (absY > VERTICAL_YIELD && absY > absX) return 'y';
+  if (absX > SWIPE_ACTIVATION && absX > absY) return 'x';
+  return null;
+}
+
+/** Up (negative dy) moves toward a longer preset. Same 64 pt step as the horizontal drag. */
+export function verticalStoneIndex(startIndex: number, dy: number): number {
+  return indexFromSwipe(startIndex, -dy);
+}
+
+/**
+ * Release on the stone selects a preset. It never dismisses the sheet.
+ * Vertical ignores flick velocity. Horizontal keeps the existing flick.
+ */
+export function stoneReleaseAction(input: {
+  axis: 'x' | 'y' | null;
+  startIndex: number;
+  dx: number;
+  dy: number;
+  vx: number;
+}): { kind: 'none' } | { kind: 'select'; index: number } {
+  if (input.axis === 'y') {
+    return { kind: 'select', index: snapIndex(verticalStoneIndex(input.startIndex, input.dy), 0) };
+  }
+  if (input.axis === 'x') {
+    return { kind: 'select', index: snapIndex(indexFromSwipe(input.startIndex, input.dx), input.vx) };
+  }
+  return { kind: 'none' };
+}
+
 export function selectionFromIndex(index: number): number {
   return clampIndex(Math.round(index));
 }

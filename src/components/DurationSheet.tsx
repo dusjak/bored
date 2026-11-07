@@ -43,9 +43,7 @@ import {
   ROW_STROKE,
   ROW_WIDTHS,
   SIZE_SPRING,
-  SWIPE_ACTIVATION,
   SWIPE_STEP,
-  VERTICAL_YIELD,
   chosenAnnouncement,
   clampIndex,
   durationSheetLayout,
@@ -55,12 +53,14 @@ import {
   klumpWidth,
   indexFromSwipe,
   indexVelocity,
+  stonePanAxis,
+  stoneReleaseAction,
+  verticalStoneIndex,
   presetIndex,
   rowPitch,
   glyphFrame,
   selectionFromIndex,
   SHEET_NUMBER_UNIT_GAP,
-  snapIndex,
   useButtonLabel,
 } from '@/duration/klumpen';
 import { useTheme } from '@/theme';
@@ -94,7 +94,6 @@ export function DurationSheet({ visible, current, sessionCount, onUse, onClose, 
         current={current}
         sessionCount={sessionCount}
         onUse={onUse}
-        onClose={onClose}
       />
     </Sheet>
   );
@@ -105,13 +104,11 @@ function DurationBody({
   current,
   sessionCount,
   onUse,
-  onClose,
 }: {
   visible: boolean;
   current: number;
   sessionCount?: number;
   onUse: (minutes: number) => void;
-  onClose: () => void;
 }) {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -182,21 +179,16 @@ function DurationBody({
   const api = useRef({
     preview,
     release: (next: number, velocityX: number) => apply(next, velocityX),
-    dismiss: onClose,
   });
   api.current.preview = preview;
   api.current.release = (next, velocityX) => apply(next, velocityX);
-  api.current.dismiss = onClose;
 
   const axis = useRef<'x' | 'y' | null>(null);
   const startIndex = useRef(initial);
   const pan = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gesture) => {
-        const vertical = gesture.dy > VERTICAL_YIELD && gesture.dy > Math.abs(gesture.dx);
-        const horizontal = Math.abs(gesture.dx) > SWIPE_ACTIVATION && Math.abs(gesture.dx) > Math.abs(gesture.dy);
-        return vertical || horizontal;
-      },
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        stonePanAxis(gesture.dx, gesture.dy, null) != null,
       onPanResponderTerminationRequest: () => false,
       onPanResponderGrant: () => {
         axis.current = null;
@@ -205,33 +197,38 @@ function DurationBody({
         cancelAnimation(fade.u);
       },
       onPanResponderMove: (_, gesture) => {
-        if (axis.current == null) {
-          if (gesture.dy > VERTICAL_YIELD && gesture.dy > Math.abs(gesture.dx)) axis.current = 'y';
-          else if (Math.abs(gesture.dx) > SWIPE_ACTIVATION) axis.current = 'x';
-          else return;
-        }
-        if (axis.current !== 'x') return;
+        axis.current = stonePanAxis(gesture.dx, gesture.dy, axis.current);
+        if (axis.current == null) return;
+        const next =
+          axis.current === 'y'
+            ? verticalStoneIndex(startIndex.current, gesture.dy)
+            : indexFromSwipe(startIndex.current, gesture.dx);
         if (reduceRef.current) {
-          api.current.preview(selectionFromIndex(startIndex.current + gesture.dx / SWIPE_STEP));
+          api.current.preview(selectionFromIndex(next));
           return;
         }
-        const next = indexFromSwipe(startIndex.current, gesture.dx);
         indexSv.value = next;
         api.current.preview(selectionFromIndex(next));
       },
       onPanResponderRelease: (_, gesture) => {
-        if (axis.current === 'y') {
-          if (gesture.dy > 32) api.current.dismiss();
-          return;
-        }
-        if (axis.current !== 'x') return;
-        const next = indexFromSwipe(startIndex.current, gesture.dx);
-        api.current.release(snapIndex(next, gesture.vx), gesture.vx);
+        const action = stoneReleaseAction({
+          axis: axis.current,
+          startIndex: startIndex.current,
+          dx: gesture.dx,
+          dy: gesture.dy,
+          vx: gesture.vx,
+        });
+        if (action.kind === 'select') api.current.release(action.index, axis.current === 'x' ? gesture.vx : 0);
       },
       onPanResponderTerminate: (_, gesture) => {
-        if (axis.current !== 'x') return;
-        const next = indexFromSwipe(startIndex.current, gesture.dx);
-        api.current.release(snapIndex(next, 0), 0);
+        const action = stoneReleaseAction({
+          axis: axis.current,
+          startIndex: startIndex.current,
+          dx: gesture.dx,
+          dy: gesture.dy,
+          vx: 0,
+        });
+        if (action.kind === 'select') api.current.release(action.index, 0);
       },
     }),
   ).current;

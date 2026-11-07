@@ -25,15 +25,15 @@ import {
 import { degBackupValue, resetNeedsNetwork, showHonestyLine, type PreviewForce } from '@/backup/model';
 import { deviceIsOnline } from '@/backup/net';
 import { AppearanceSheet } from '@/components/AppearanceSheet';
+import { TimeWheel } from '@/components/TimeWheel';
 import { BottomFade } from '@/components/BottomFade';
 import { DurationSheet } from '@/components/DurationSheet';
 import { PreviewStateSheet } from '@/components/backup/PreviewStateSheet';
 import { RowChevron, SettingsGroup } from '@/components/SettingsGroup';
-import { ReminderTimeSheet } from '@/components/ReminderTimeSheet';
 import { Screen } from '@/components/Screen';
 import { Toggle } from '@/components/Toggle';
 import { features } from '@/config/features';
-import { appearanceLabel, durationParts, minutesPhrase, resolveReminderClock } from '@/data/copy';
+import { appearanceLabel, boredSinceLine, durationParts, minutesPhrase, resolveReminderClock } from '@/data/copy';
 import { reminderIsOn } from '@/data/reminderPolicy';
 import { hasNotificationPermission } from '@/data/notifications';
 import { useAppState } from '@/state/AppState';
@@ -56,12 +56,12 @@ export default function Profile() {
     resetLocalData,
     beginIntroSplash,
     sessions,
+    firstUsedAt,
   } = useAppState();
   const backup = useBackup();
   const versionTaps = useRef(0);
   const durationRef = useRef<HostInstance>(null);
   const appearanceRef = useRef<HostInstance>(null);
-  const timeRef = useRef<HostInstance>(null);
   const previewRef = useRef<HostInstance>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
@@ -71,6 +71,7 @@ export default function Profile() {
   const [error, setError] = useState<string | null>(null);
   const reminderOn = reminderIsOn(user.notifications, allowed);
   const clock = resolveReminderClock(user.time, user.reminderClock);
+  const since = firstUsedAt ? boredSinceLine(new Date(firstUsedAt)) : null;
   const duration = durationParts(durationMinutes);
   const canvas = theme.color.bg.grouped;
 
@@ -153,11 +154,21 @@ export default function Profile() {
             <Text
               style={[
                 styles.title,
-                { fontFamily: theme.fonts.serif, color: theme.color.text.primary },
+                { fontFamily: theme.fonts.serif, color: theme.color.text.primary, marginBottom: since ? 0 : deg.afterTitle },
               ]}
             >
               {user.name}
             </Text>
+            {since ? (
+              <Text
+                style={[
+                  styles.since,
+                  { fontFamily: theme.fonts.sans, color: theme.color.text.tertiary },
+                ]}
+              >
+                {since}
+              </Text>
+            ) : null}
           </Pressable>
         ) : null}
 
@@ -241,10 +252,10 @@ export default function Profile() {
             {reminderOn ? (
               <View>
                 <Pressable
-                  ref={timeRef}
                   accessibilityRole="button"
                   accessibilityLabel={`Tidspunkt, ${clock.label}`}
-                  onPress={() => setTimeOpen(true)}
+                  accessibilityState={{ expanded: timeOpen }}
+                  onPress={() => setTimeOpen((open) => !open)}
                   style={styles.row}
                 >
                   <Text style={label}>Tidspunkt</Text>
@@ -258,13 +269,22 @@ export default function Profile() {
                       style={[
                         theme.text.body,
                         styles.capsuleText,
-                        { color: theme.color.text.primary },
+                        { color: timeOpen ? theme.color.accent.default : theme.color.text.primary },
                       ]}
                     >
                       {clock.label}
                     </Text>
                   </View>
                 </Pressable>
+                <TimeWheel
+                  open={timeOpen}
+                  hour={clock.hour}
+                  minute={clock.minute}
+                  onChange={(hour, minute) => {
+                    if (hour === clock.hour && minute === clock.minute) return;
+                    setReminderClock(hour, minute).catch(() => setError('noe gikk galt. prøv igjen.'));
+                  }}
+                />
               </View>
             ) : null}
           </SettingsGroup>
@@ -353,18 +373,6 @@ export default function Profile() {
       </Screen>
       <BottomFade color={canvas} />
 
-      <ReminderTimeSheet
-        visible={timeOpen}
-        hour={clock.hour}
-        minute={clock.minute}
-        returnFocusRef={timeRef}
-        onCancel={() => setTimeOpen(false)}
-        onConfirm={(hour, minute) => {
-          setTimeOpen(false);
-          if (hour === clock.hour && minute === clock.minute) return;
-          setReminderClock(hour, minute).catch(() => setError('noe gikk galt. prøv igjen.'));
-        }}
-      />
       <DurationSheet
         visible={pickerOpen}
         current={durationMinutes}
@@ -411,7 +419,12 @@ const styles = StyleSheet.create({
   title: {
     fontSize: deg.titleSize,
     lineHeight: deg.titleLine,
-    marginBottom: deg.afterTitle,
+  },
+  since: {
+    marginTop: deg.sinceGap,
+    marginBottom: deg.sinceToGroup,
+    fontSize: deg.sinceSize,
+    lineHeight: deg.sinceLineHeight,
   },
   groups: { gap: deg.groupGap },
   row: {

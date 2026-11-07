@@ -21,8 +21,9 @@ export const ONBOARDED_KEY = 'bored.onboarded';
 export const PROFILE_KEY = 'bored.profile';
 export const SHOW_COUNTDOWN_KEY = 'bored.showCountdown';
 export const SPLASH_SEEN_KEY = 'bored.splashSeen';
-/** ISO instant of the first launch. Written once. Reset clears it with the rest. */
+/** Older first-use key. It may have been backfilled. The since-line does not read it. */
 export const FIRST_USED_KEY = 'bored.firstUsedAt';
+export { FIRST_USED_TRUSTED_KEY } from '@/data/sinceLine';
 
 function connection(db: Awaited<ReturnType<typeof openDatabase>>): AppDatabase {
   return db as unknown as AppDatabase;

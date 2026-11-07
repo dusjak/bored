@@ -20,6 +20,7 @@ import {
   type AppDatabase,
 } from './sessionQueries.ts';
 import { planCountdownUpgrade } from './showCountdown.ts';
+import { FIRST_USED_TRUSTED_KEY, sinceLinePlan } from './sinceLine.ts';
 
 function openMemoryDatabase(): AppDatabase {
   const db = new DatabaseSync(':memory:');
@@ -125,6 +126,26 @@ describe('session notes and delete', () => {
     const flags = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'backup.ever');
     assert.equal(flags?.value, '1');
     assert.equal((await listFinishedSessions(db)).length, 2);
+  });
+
+  it('keeps an old first-use key and the other rows when that key is not trusted', async () => {
+    const db = openMemoryDatabase();
+    const kept = await insertActiveSession(db, 10);
+    await finishSession(db, kept.id, 'completed', 600, new Date('2026-10-18T12:10:00.000Z'));
+    await upsertJournal(db, kept.id, 'calm', 'behold denne');
+    await setSetting(db, 'bored.firstUsedAt', '2024-01-15T00:00:00.000Z');
+    await setSetting(db, 'bored.themePreference', 'dark');
+    const plan = sinceLinePlan({
+      trustedRaw: await getSetting(db, FIRST_USED_TRUSTED_KEY),
+      hasPriorData: await hasPriorUserData(db, 'bored.showCountdown'),
+      nowIso: '2026-11-07T06:00:00.000Z',
+    });
+    assert.equal(plan.displayIso, null);
+    assert.equal(plan.writeTrusted, null);
+    assert.equal(await getSetting(db, 'bored.firstUsedAt'), '2024-01-15T00:00:00.000Z');
+    assert.equal(await getSetting(db, FIRST_USED_TRUSTED_KEY), null);
+    assert.equal(await getSetting(db, 'bored.themePreference'), 'dark');
+    assert.equal((await getSession(db, kept.id))?.journal?.note, 'behold denne');
   });
 
   it('treats an empty database as a new install and a countdown key alone as not prior data', async () => {

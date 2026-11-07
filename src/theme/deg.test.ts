@@ -36,6 +36,11 @@ describe('Deg v2.2', () => {
     assert.equal(deg.titleLine, 60);
     assert.equal(deg.titleTop, 34);
     assert.equal(deg.afterTitle, 24);
+    assert.equal(deg.sinceGap, 8);
+    assert.equal(deg.sinceSize, 15);
+    assert.equal(deg.sinceLineHeight, 20);
+    assert.equal(deg.sinceToGroup, 28);
+    assert.equal(deg.titleLine, 60);
     assert.equal(deg.resetGap, 30);
     assert.equal(deg.versionGap, 18);
     assert.equal(deg.rowTextShift, 2);

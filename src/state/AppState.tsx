@@ -3,6 +3,7 @@ import { AppState as AppActivity } from 'react-native';
 
 import { clampDurationMinutes, DEFAULT_DURATION_MINUTES, formatClock, resolveReminderClock } from '@/data/copy';
 import { planCountdownUpgrade } from '@/data/showCountdown';
+import { FIRST_USED_TRUSTED_KEY, sinceLinePlan } from '@/data/sinceLine';
 import {
   cancelAllScheduledNotifications,
   cancelDailyReminder,
@@ -204,11 +205,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
           // A reminder failure must not block the first screen.
         }
         try {
-          const storedFirst = await getSetting(FIRST_USED_KEY);
-          const known = storedFirst && !Number.isNaN(Date.parse(storedFirst)) ? storedFirst : null;
-          setFirstUsedAt(known);
+          const since = sinceLinePlan({
+            trustedRaw: await getSetting(FIRST_USED_TRUSTED_KEY),
+            hasPriorData: priorData,
+            nowIso: new Date().toISOString(),
+          });
+          if (since.writeTrusted) await setSetting(FIRST_USED_TRUSTED_KEY, since.writeTrusted);
+          setFirstUsedAt(since.displayIso);
         } catch {
-          // No reliable first-start date. The since-line stays hidden.
+          setFirstUsedAt(null);
         }
 
         if (active) {
@@ -273,9 +278,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
     const existingFirst = await getSetting(FIRST_USED_KEY);
     if (!existingFirst) {
-      const first = new Date().toISOString();
-      await setSetting(FIRST_USED_KEY, first);
-      setFirstUsedAt(first);
+      await setSetting(FIRST_USED_KEY, new Date().toISOString());
     }
     setOnboarded(true);
   }, []);
@@ -457,7 +460,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setDurationState(DEFAULT_DURATION_MINUTES);
     setShowCountdownState(false);
     await setSetting(SHOW_COUNTDOWN_KEY, '0');
-    setFirstUsedAt(null);
+    const trusted = new Date().toISOString();
+    await setSetting(FIRST_USED_TRUSTED_KEY, trusted);
+    setFirstUsedAt(trusted);
     setSessions([]);
     setActiveSession(null);
     setReflectionSessionId(null);

@@ -50,6 +50,9 @@ import {
   homeKlumpenLabel,
   indexFromSwipe,
   indexVelocity,
+  stonePanAxis,
+  stoneReleaseAction,
+  verticalStoneIndex,
   klumpHeight,
   klumpWidth,
   minutesToIndex,
@@ -236,5 +239,28 @@ describe('sheet geometry', () => {
     assert.ok(Math.abs(layout.sheetTop - SHEET_TOP) < 1);
     const lumpTopGap = layout.rowMargin + ROW_HIT - (ROW_WIDTHS[3] ?? 40) * KLUMP_ASPECT;
     assert.ok(Math.abs(lumpTopGap - 40) < 0.05, `lump gap ${lumpTopGap}`);
+  });
+});
+
+describe('duration stone swipe', () => {
+  it('treats an upward drag as a longer preset and a downward drag as a shorter one', () => {
+    assert.equal(stonePanAxis(0, -20, null), 'y');
+    assert.equal(stonePanAxis(0, 20, null), 'y');
+    assert.equal(stonePanAxis(40, 4, null), 'x');
+    assert.equal(verticalStoneIndex(1, -SWIPE_STEP), 2);
+    assert.equal(verticalStoneIndex(1, SWIPE_STEP), 0);
+    const up = stoneReleaseAction({ axis: 'y', startIndex: 1, dx: 0, dy: -SWIPE_STEP, vx: 4000 });
+    assert.deepEqual(up, { kind: 'select', index: 2 });
+    const down = stoneReleaseAction({ axis: 'y', startIndex: 2, dx: 0, dy: SWIPE_STEP, vx: -4000 });
+    assert.deepEqual(down, { kind: 'select', index: 1 });
+    assert.deepEqual(stoneReleaseAction({ axis: null, startIndex: 1, dx: 0, dy: 80, vx: 0 }), { kind: 'none' });
+  });
+
+  it('keeps horizontal flick behaviour and does not dismiss from the stone', () => {
+    const flick = stoneReleaseAction({ axis: 'x', startIndex: 1, dx: 4, dy: 0, vx: 900 });
+    assert.equal(flick.kind, 'select');
+    if (flick.kind === 'select') assert.equal(flick.index, 2);
+    const held = stoneReleaseAction({ axis: 'x', startIndex: 1, dx: 4, dy: 0, vx: 0 });
+    assert.deepEqual(held, { kind: 'select', index: 1 });
   });
 });
