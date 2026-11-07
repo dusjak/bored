@@ -10,6 +10,7 @@ import {
   RIM_SAMPLE_PX_PER_PT,
   buildField,
   fitRim,
+  litPlate,
   parseHex,
   unitLight,
   type MaterialId,
@@ -91,12 +92,26 @@ export function DynamicMaterial({
         if (clip.contains(place.tx + (x + 0.5) / px, place.ty + (y + 0.5) / px)) mask[y * cols + x] = 1;
       }
     }
-    const alb = parseHex(profile.albedo);
+    const coarse = new Uint8Array(FIELD * FIELD);
+    const scale = place.artboardPt / FIELD;
+    for (let y = 0; y < FIELD; y += 1) {
+      for (let x = 0; x < FIELD; x += 1) {
+        if (clip.contains(place.tx + (x + 0.5) * scale, place.ty + (y + 0.5) * scale)) coarse[y * FIELD + x] = 1;
+      }
+    }
+    const field = buildField(coarse, FIELD, FIELD, material);
     const plate = new Float32Array(cols * rows * 3);
-    for (let i = 0; i < cols * rows; i += 1) {
-      plate[i * 3] = alb.r;
-      plate[i * 3 + 1] = alb.g;
-      plate[i * 3 + 2] = alb.b;
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        const fx = Math.min(FIELD - 1, Math.max(0, Math.floor(((x + 0.5) / cols) * FIELD)));
+        const fy = Math.min(FIELD - 1, Math.max(0, Math.floor(((y + 0.5) / rows) * FIELD)));
+        const n = fy * FIELD + fx;
+        const color = litPlate(field.normals.subarray(n * 3, n * 3 + 3), material);
+        const i = y * cols + x;
+        plate[i * 3] = color[0];
+        plate[i * 3 + 1] = color[1];
+        plate[i * 3 + 2] = color[2];
+      }
     }
     const fit = fitRim(plate, mask, cols, rows, px);
     const bytes = new Uint8Array(cols * rows * 4);
@@ -112,7 +127,7 @@ export function DynamicMaterial({
         cols * 4,
       ),
     };
-  }, [clip, place.artboardPt, place.tx, place.ty, profile.albedo]);
+  }, [clip, material, place.artboardPt, place.tx, place.ty]);
   const light = unitLight();
   const floor = parseHex(ENV_LIGHT.floor);
   const ready = Boolean(effect && albedo && fieldImage && rimImage.image);

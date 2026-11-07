@@ -29,7 +29,11 @@ import {
   gummiWarpReady,
   GUMMI_WARP_SOURCE,
   GUMMI_WARP_TABLES,
+  MISSING_WARP_FILES,
+  litPlate,
   rimLengthsPx,
+  rotateWrap,
+  sourceTheta,
   RIM_BLUR_PT,
   RIM_EROSION_PT,
   RIM_SHIFT_PT,
@@ -204,7 +208,33 @@ describe('path-dependent material light', () => {
     assert.ok(fitted.contrast != null && fitted.contrast < 3.05);
     assert.doesNotMatch(readFileSync(join(process.cwd(), 'src/app/(tabs)/home.tsx'), 'utf8'), /homeGreeting|Hei/);
     assert.equal(gummiWarpReady(GUMMI_WARP_TABLES), false);
-    assert.match(GUMMI_WARP_SOURCE, /build\.py/);
+    assert.match(GUMMI_WARP_SOURCE, /punktum_shape/);
+    assert.ok(MISSING_WARP_FILES.some((file) => file.includes('punktum_shape.py')));
+    const theta = sourceTheta();
+    assert.equal(theta.length, 720);
+    assert.ok(Math.abs(theta[0] + Math.PI) < 1e-12);
+    assert.ok(theta[719] < Math.PI);
+    const spun = rotateWrap(Float32Array.from([1, 0, 0, 0]), 2, 2, 18);
+    assert.equal(spun.length, 4);
+    assert.ok(Math.abs(spun.reduce((sum, value) => sum + value, 0) - 1) < 0.2);
+    const normals = new Float32Array([0, 0, 1]);
+    const lit = litPlate(normals, 'gummi');
+    const darkPlate = new Float32Array(48 * 48 * 3);
+    const litCopy = new Float32Array(48 * 48 * 3);
+    for (let i = 0; i < 48 * 48; i += 1) {
+      darkPlate[i * 3] = 0x11;
+      darkPlate[i * 3 + 1] = 0x11;
+      darkPlate[i * 3 + 2] = 0x10;
+      litCopy[i * 3] = lit[0];
+      litCopy[i * 3 + 1] = lit[1];
+      litCopy[i * 3 + 2] = lit[2];
+    }
+    const onDark = fitRim(darkPlate, blob, 48, 48, 3);
+    const onLit = fitRim(litCopy, blob, 48, 48, 3);
+    assert.ok(onLit.k < onDark.k);
+    const field = buildField(blob, 48, 48, 'skifer');
+    assert.equal(field.detailApplied, false);
+    assert.equal(field.noiseMatchesNumpy, false);
     const mapped = gummiWarpPixel(900, 600, { theta: [0], baseR: [1], restR: [0.5] });
     assert.ok(mapped);
     assert.ok(Math.abs((mapped?.sx ?? 0) - 960) < 1e-9);

@@ -514,18 +514,54 @@ export function materialNoise(
   }
   const sigmaX = aniso ? Math.max(aniso[0], 0.5) : Math.max(sigma, 0.5);
   const sigmaY = aniso ? Math.max(aniso[1], 0.5) : Math.max(sigma, 0.5);
-  const blurred = gaussianBlur(raw, width, rows, sigmaX, sigmaY);
+  const turned = aniso ? rotateWrap(raw, width, rows, aniso[2]) : raw;
+  const blurred = gaussianBlur(turned, width, rows, sigmaX, sigmaY);
+  const restored = aniso ? rotateWrap(blurred, width, rows, -aniso[2]) : blurred;
   let mean = 0;
-  for (let i = 0; i < blurred.length; i += 1) mean += blurred[i];
-  mean /= blurred.length;
+  for (let i = 0; i < restored.length; i += 1) mean += restored[i];
+  mean /= restored.length;
   let varSum = 0;
-  for (let i = 0; i < blurred.length; i += 1) {
-    const d = blurred[i] - mean;
+  for (let i = 0; i < restored.length; i += 1) {
+    const d = restored[i] - mean;
     varSum += d * d;
   }
-  const std = Math.sqrt(varSum / blurred.length) + 1e-6;
-  for (let i = 0; i < blurred.length; i += 1) blurred[i] /= std;
-  return blurred;
+  const std = Math.sqrt(varSum / restored.length) + 1e-6;
+  for (let i = 0; i < restored.length; i += 1) restored[i] /= std;
+  return restored;
+}
+
+/** Wrap rotation about the center. Geometry only; not SciPy's cubic `ndi.rotate`. */
+export function rotateWrap(src: Float32Array, width: number, height: number, degrees: number): Float32Array {
+  const rad = (degrees * Math.PI) / 180;
+  const c = Math.cos(rad);
+  const s = Math.sin(rad);
+  const cx = (width - 1) / 2;
+  const cy = (height - 1) / 2;
+  const out = new Float32Array(src.length);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const dx = x - cx;
+      const dy = y - cy;
+      const sx = c * dx + s * dy + cx;
+      const sy = -s * dx + c * dy + cy;
+      const x0 = Math.floor(sx);
+      const y0 = Math.floor(sy);
+      const tx = sx - x0;
+      const ty = sy - y0;
+      const sample = (ix: number, iy: number) => {
+        const xx = ((ix % width) + width) % width;
+        const yy = ((iy % height) + height) % height;
+        return src[yy * width + xx];
+      };
+      const v =
+        sample(x0, y0) * (1 - tx) * (1 - ty) +
+        sample(x0 + 1, y0) * tx * (1 - ty) +
+        sample(x0, y0 + 1) * (1 - tx) * ty +
+        sample(x0 + 1, y0 + 1) * tx * ty;
+      out[y * width + x] = v;
+    }
+  }
+  return out;
 }
 
 export type BevelDetail = {
@@ -583,6 +619,24 @@ export function bevelMicrodetail(
   return { height, speck, glint, anisoRotationPorted: false, noiseMatchesNumpy: false };
 }
 
+/** `build_d871.py` line 39. `linspace(-π, π, 720, endpoint=False)`. */
+export function sourceTheta(count = 720): Float64Array {
+  const theta = new Float64Array(count);
+  const step = (2 * Math.PI) / count;
+  for (let i = 0; i < count; i += 1) theta[i] = -Math.PI + i * step;
+  return theta;
+}
+
+/**
+ * BASE_R is `sum(ray > 0.5) * 0.25 / 600` over `shape_mask(600, 400, 400, 800, 800)`.
+ * That mask is `punktum_shape.py`, which is not in this repo. lib.py is imported by
+ * build.py and is not used by this formula. No substitute silhouette is used.
+ */
+export const MISSING_WARP_FILES = [
+  'punktum_shape.py (shape_mask)',
+  'lib.py (imported by build.py, unused by TH/radii)',
+] as const;
+
 /** Added to the bevel color. `material.py` line 131. `g` is the blurred glint mask. */
 export function glintAdd(rdl: number, g: number): number {
   return g * 4 * rdl * rdl * 120;
@@ -590,8 +644,8 @@ export function glintAdd(rdl: number, g: number): number {
 
 /**
  * `export-gummi.py` lines 36–39. `TH`, `BASE_R`, and `radii` live in
- * `/workspace/design/onboarding/klumpen-a-bli-kjent-2026-11-07/_src/build.py`.
- * That file is not in this repo. No substitute radii are filled in.
+ * `build_d871.py` lines 39–43 and 48–83. BASE_R needs `punktum_shape.shape_mask`.
+ * That file is not here. The tables stay empty. No substitute radii are filled in.
  */
 export type GummiWarpTables = {
   theta: readonly number[] | null;
@@ -600,7 +654,7 @@ export type GummiWarpTables = {
 };
 
 export const GUMMI_WARP_TABLES: GummiWarpTables = { theta: null, baseR: null, restR: null };
-export const GUMMI_WARP_SOURCE = 'build.py TH, BASE_R, radii(240, gummi, rest)';
+export const GUMMI_WARP_SOURCE = 'punktum_shape.py shape_mask → BASE_R; build_d871.py TH and radii';
 
 export function gummiWarpReady(tables: GummiWarpTables): boolean {
   return (
@@ -1081,17 +1135,7 @@ export function buildField(mask: Uint8Array, width: number, height: number, id: 
   const profile = PROFILES[id];
   const phi = profile.kind === 'pillow' ? poissonPhi(mask, width, height) : new Float32Array(mask.length);
   let heightMap = macroHeight(id, dist, phi, radius);
-  let speck: Float32Array | null = null;
-  let glint: Float32Array | null = null;
-  let detailApplied = false;
-  if (profile.kind === 'bevel') {
-    const detail = bevelMicrodetail(profile, dist, radius, width, height);
-    for (let i = 0; i < heightMap.length; i += 1) heightMap[i] += detail.height[i];
-    heightMap = gaussianBlur(heightMap, width, height, profile.heightBlur);
-    speck = detail.speck;
-    glint = detail.glint;
-    detailApplied = true;
-  }
+  if (profile.kind === 'bevel') heightMap = gaussianBlur(heightMap, width, height, profile.heightBlur);
   return {
     width,
     height,
@@ -1100,13 +1144,29 @@ export function buildField(mask: Uint8Array, width: number, height: number, id: 
     phi,
     heightMap,
     normals: normalsFromHeight(heightMap, width, height),
-    speck,
-    glint,
-    detailApplied,
+    speck: null,
+    glint: null,
+    detailApplied: false,
     noiseMatchesNumpy: false,
     gummiWarp: gummiWarpReady(GUMMI_WARP_TABLES) ? 'ready' : 'missing-build-py',
     usesRestLightMaps: false,
   };
+}
+
+/** Lit RGB from the same shade used by the shader, one color per normal. */
+export function litPlate(normals: Float32Array, id: MaterialId): Float32Array {
+  const plate = new Float32Array(normals.length);
+  for (let i = 0; i < normals.length / 3; i += 1) {
+    const color = shadeNormal(id, {
+      x: normals[i * 3],
+      y: normals[i * 3 + 1],
+      z: normals[i * 3 + 2],
+    });
+    plate[i * 3] = color.r;
+    plate[i * 3 + 1] = color.g;
+    plate[i * 3 + 2] = color.b;
+  }
+  return plate;
 }
 
 export function diskMask(size: number, radius: number): Uint8Array {
