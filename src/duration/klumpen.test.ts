@@ -32,6 +32,9 @@ import {
   ROW_WIDTHS,
   RUBBER_C,
   NUMBER_UNIT_GAP,
+  homeNumberSlackBelow,
+  homeUnitMarginTop,
+  homeUnitSlackAbove,
   SHEET_NUMBER_UNIT_GAP,
   glyphFrame,
   SHEET_RADIUS,
@@ -225,6 +228,12 @@ describe('sheet geometry', () => {
     assert.equal(HINT_GAP, 28);
     assert.equal(NUMBER_UNIT_GAP, 4);
     assert.equal(SHEET_NUMBER_UNIT_GAP, 0);
+    const slack = homeNumberSlackBelow(56) + homeUnitSlackAbove();
+    assert.ok(slack > 12, `line-box slack ${slack}`);
+    const margin = homeUnitMarginTop(56);
+    assert.ok(margin < 0);
+    assert.ok(Math.abs(slack + margin - 4) < 1e-9);
+    assert.ok(Math.abs(homeNumberSlackBelow(70) + homeUnitSlackAbove() + homeUnitMarginTop(70) - 4) < 1e-9);
     const tight = glyphFrame(40, 1.4);
     const bare = glyphFrame(40, 0);
     assert.ok(tight.width > bare.width);

@@ -49,8 +49,45 @@ export const ROW_PITCH = 79;
 export const ROW_HIT = 72;
 export const CHOICE_HIT_MIN = 44;
 export const ROW_STROKE = 1.4;
-/** Gap between the hero number’s line box and «min» on Hjem. */
+/** Ink-to-ink gap between the hero numeral and «min» on Hjem, in points. */
 export const NUMBER_UNIT_GAP = 4;
+/**
+ * Figtree OS/2 typo metrics. `useTypoMetrics` is on. unitsPerEm is 1000.
+ * The lowest ink of 0–9 is −12. The dot of «i» in «min» reaches 721.
+ */
+export const FIGTREE_UPM = 1000;
+export const FIGTREE_TYPO_ASCENDER = 950;
+export const FIGTREE_TYPO_DESCENDER = -250;
+export const FIGTREE_DIGIT_YMIN = -12;
+export const FIGTREE_MIN_YMAX = 721;
+export const HOME_UNIT_FONT_SIZE = 13;
+export const HOME_UNIT_LINE_HEIGHT = 16;
+
+/**
+ * Empty points under the numeral inside the hero line.
+ * The line is `numberSize` tall and shorter than the 1.2em typo box, so iOS
+ * keeps the descender side and clips the top. The baseline therefore sits
+ * 250/1000 em above the bottom of that line.
+ */
+export function homeNumberSlackBelow(numberSize: number): number {
+  return (numberSize * (Math.abs(FIGTREE_TYPO_DESCENDER) + FIGTREE_DIGIT_YMIN)) / FIGTREE_UPM;
+}
+
+/** Empty points above the «i» dot inside the «min» line. */
+export function homeUnitSlackAbove(unitSize = HOME_UNIT_FONT_SIZE, lineHeight = HOME_UNIT_LINE_HEIGHT): number {
+  const fontLine = (unitSize * (FIGTREE_TYPO_ASCENDER - FIGTREE_TYPO_DESCENDER)) / FIGTREE_UPM;
+  const baselineOffset = lineHeight >= fontLine ? (lineHeight - fontLine) / 2 : 0;
+  const aboveDot = (unitSize * (FIGTREE_TYPO_ASCENDER - FIGTREE_MIN_YMAX)) / FIGTREE_UPM;
+  return baselineOffset + aboveDot;
+}
+
+/**
+ * `marginTop` on «min» so the ink gap is `gap` points.
+ * A plain margin of 4 leaves the line-box slack in place.
+ */
+export function homeUnitMarginTop(numberSize: number, gap = NUMBER_UNIT_GAP): number {
+  return gap - homeNumberSlackBelow(numberSize) - homeUnitSlackAbove();
+}
 /**
  * Duration sheet only. About 4pt tighter than Hjem.
  * 4 − 4 = 0. Hjem keeps `NUMBER_UNIT_GAP`.

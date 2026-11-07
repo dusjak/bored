@@ -40,7 +40,10 @@ import {
   HOME_STONE_CENTER_Y,
   KLUMP_ASPECT,
   KLUMP_WIDTH_MIN,
+  HOME_UNIT_FONT_SIZE,
+  HOME_UNIT_LINE_HEIGHT,
   NUMBER_UNIT_GAP,
+  homeUnitMarginTop,
   glyphFrame,
   KLUMP_WIDTH_STEP,
   KLUMPEN_BOUNDS,
@@ -260,7 +263,16 @@ export function KlumpenBody({
         {type.hideUnit ? null : (
           <Text
             allowFontScaling={false}
-            style={[styles.unit, { marginTop: unitGap, fontFamily: theme.fonts.sansMedium }]}
+            style={[
+              styles.unit,
+              {
+                marginTop: unitGap === NUMBER_UNIT_GAP ? homeUnitMarginTop(fontSize, unitGap) : unitGap,
+                fontFamily: theme.fonts.sansMedium,
+                fontSize: HOME_UNIT_FONT_SIZE,
+                lineHeight: HOME_UNIT_LINE_HEIGHT,
+                includeFontPadding: false,
+              },
+            ]}
           >
             {DURATION_UNIT}
           </Text>
