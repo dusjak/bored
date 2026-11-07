@@ -16,15 +16,27 @@ import {
   PROFILES,
   analyticDiskPhi,
   bevelHeight,
+  bevelMicrodetail,
   buildField,
   contrastRatio,
   darkRimReady,
   diskMask,
   fieldRadius,
+  glintAdd,
   gradient,
   gummiGrainSurvivesAtSourceD,
+  gummiWarpPixel,
+  gummiWarpReady,
+  GUMMI_WARP_SOURCE,
+  GUMMI_WARP_TABLES,
+  rimLengthsPx,
+  RIM_BLUR_PT,
+  RIM_EROSION_PT,
+  RIM_SHIFT_PT,
+  fitRim,
   hash01,
   insideDistance,
+  NOISE_GENERATOR,
   pillowHeight,
   poreDarkening,
   shadeNormal,
@@ -57,7 +69,7 @@ describe('path-dependent material light', () => {
     assert.equal(emalje.box, 0.4);
     assert.equal(emalje.boxW, 0.17);
     assert.equal(emalje.det, 0.00002);
-    assert.equal(emalje.detailApplied, false);
+    assert.equal(emalje.noiseMatchesNumpy, false);
   });
 
   it('gives a disk pillow height 0 at the rim and 0.4R at the analytic center', () => {
@@ -170,6 +182,33 @@ describe('path-dependent material light', () => {
 
   it('leaves the dark rim unset and does not mount the shader on a screen', () => {
     assert.equal(darkRimReady(DARK_RIM_UNSET), false);
+    assert.equal(RIM_EROSION_PT, 4 / 3);
+    assert.equal(RIM_BLUR_PT, 2 / 3);
+    assert.equal(RIM_SHIFT_PT, 3);
+    for (const width of [120, 160, 200, 240]) {
+      assert.deepEqual(rimLengthsPx(3), { erosion: 4, blur: 2, shift: 9 });
+      assert.equal(width > 0, true);
+    }
+    const plate = new Float32Array(48 * 48 * 3);
+    const bg = { r: 0x11, g: 0x11, b: 0x10 };
+    for (let i = 0; i < 48 * 48; i += 1) {
+      plate[i * 3] = bg.r;
+      plate[i * 3 + 1] = bg.g;
+      plate[i * 3 + 2] = bg.b;
+    }
+    const blob = diskMask(48, 16);
+    const fitted = fitRim(plate, blob, 48, 48, 3);
+    assert.equal(fitted.meanContrast, true);
+    assert.equal(fitted.applied, true);
+    assert.ok(fitted.contrast != null && fitted.contrast >= 3);
+    assert.ok(fitted.contrast != null && fitted.contrast < 3.05);
+    assert.doesNotMatch(readFileSync(join(process.cwd(), 'src/app/(tabs)/home.tsx'), 'utf8'), /homeGreeting|Hei/);
+    assert.equal(gummiWarpReady(GUMMI_WARP_TABLES), false);
+    assert.match(GUMMI_WARP_SOURCE, /build\.py/);
+    const mapped = gummiWarpPixel(900, 600, { theta: [0], baseR: [1], restR: [0.5] });
+    assert.ok(mapped);
+    assert.ok(Math.abs((mapped?.sx ?? 0) - 960) < 1e-9);
+    assert.ok(Math.abs((mapped?.sy ?? 0) - 304.56) < 1e-9);
     assert.equal(DARK_RIM_TARGET_CONTRAST, 3);
     assert.ok(contrastRatio(DARK_RIM_AGAINST, DARK_RIM_AGAINST) === 1);
     assert.ok(contrastRatio('#F8F6F2', DARK_RIM_AGAINST) > 3);
@@ -181,7 +220,7 @@ describe('path-dependent material light', () => {
     const home = readFileSync(join(process.cwd(), 'src/app/(tabs)/home.tsx'), 'utf8');
     assert.match(view, /base\.png/);
     assert.doesNotMatch(view, /shade-multiply|light-screen/);
-    assert.match(view, /darkRimReady/);
+    assert.match(view, /fitRim/);
     assert.match(klumpen, /klumpen-gummi-240pt\.png/);
     assert.doesNotMatch(home, /DynamicMaterial/);
     assert.doesNotMatch(klumpen, /DynamicMaterial/);

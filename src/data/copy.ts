@@ -111,13 +111,6 @@ export function emptyProfile(): OnboardingProfile {
   return {};
 }
 
-/** Hjem greeting. A skipped or blank name is «Hei.» */
-export function homeGreeting(name: string | null | undefined): string {
-  const trimmed = name?.trim() ?? '';
-  if (!trimmed) return 'Hei.';
-  return `Hei, ${trimmed}.`;
-}
-
 /**
  * Lock-hint copy. Placeholders pending UX copy review — keep every variant here.
  * The notification line promises a local alert, so it is only true when permission is granted.

@@ -54,9 +54,20 @@ type BevelProfile = {
   sheenExp: number;
   /** `material.py` line 125 default. Not a JSON field. */
   floorRefl: 0.55;
-  /** Stored from the export. `material.py` `noise()` is not ported, so this is not added to h. */
+  speck: number;
+  speckS: number;
   det: number;
-  detailApplied: false;
+  detS: number;
+  det2: number;
+  det2S: number;
+  layers: number;
+  /** sx, sy as fractions of D, then degrees. The 18° `ndi.rotate` is not ported. */
+  aniso: readonly [number, number, number] | null;
+  glint: number;
+  /** `export.py` calls `render_object` with seed 47. */
+  seed: 47;
+  /** SplitMix32 plus Box–Muller. Not NumPy's PCG64, so the field is not sample-identical. */
+  noiseMatchesNumpy: false;
 };
 
 type PillowProfile = {
@@ -128,8 +139,17 @@ export const PROFILES: Record<MaterialId, MaterialProfile> = {
     sheen: 0,
     sheenExp: 1,
     floorRefl: 0.55,
+    speck: 0.1,
+    speckS: 0.004,
     det: 0.004,
-    detailApplied: false,
+    detS: 0.01,
+    det2: 0.0015,
+    det2S: 0.006,
+    layers: 0.1,
+    aniso: [0.12, 0.018, 18],
+    glint: 0,
+    seed: 47,
+    noiseMatchesNumpy: false,
   },
   kull: {
     kind: 'bevel',
@@ -147,8 +167,17 @@ export const PROFILES: Record<MaterialId, MaterialProfile> = {
     sheen: 0,
     sheenExp: 1,
     floorRefl: 0.55,
+    speck: 0.2,
+    speckS: 0.006,
     det: 0.006,
-    detailApplied: false,
+    detS: 0.008,
+    det2: 0.002,
+    det2S: 0.003,
+    layers: 0,
+    aniso: null,
+    glint: 0.0008,
+    seed: 47,
+    noiseMatchesNumpy: false,
   },
   emalje: {
     kind: 'bevel',
@@ -166,8 +195,17 @@ export const PROFILES: Record<MaterialId, MaterialProfile> = {
     sheen: 0,
     sheenExp: 1,
     floorRefl: 0.55,
+    speck: 0,
+    speckS: 0.01,
     det: 0.00002,
-    detailApplied: false,
+    detS: 0.02,
+    det2: 0,
+    det2S: 0,
+    layers: 0,
+    aniso: null,
+    glint: 0,
+    seed: 47,
+    noiseMatchesNumpy: false,
   },
   floyel: {
     kind: 'bevel',
@@ -185,8 +223,17 @@ export const PROFILES: Record<MaterialId, MaterialProfile> = {
     sheen: 1,
     sheenExp: 1.2,
     floorRefl: 0.55,
+    speck: 0.05,
+    speckS: 0.002,
     det: 0.0015,
-    detailApplied: false,
+    detS: 0.0016,
+    det2: 0,
+    det2S: 0,
+    layers: 0,
+    aniso: null,
+    glint: 0,
+    seed: 47,
+    noiseMatchesNumpy: false,
   },
 };
 
@@ -393,7 +440,7 @@ function upsampleValue(src: Float32Array, sw: number, sh: number, dw: number, dh
 }
 
 /** Separable Gaussian. Pillow φ uses sigma 1. Bevel height uses sigma 0.6. Pillow height does not. */
-export function gaussianBlur(src: Float32Array, width: number, height: number, sigma: number): Float32Array {
+function gaussKernel(sigma: number): { radius: number; kernel: Float64Array } {
   const radius = Math.max(1, Math.ceil(sigma * 3));
   const kernel = new Float64Array(radius * 2 + 1);
   let sum = 0;
@@ -403,14 +450,20 @@ export function gaussianBlur(src: Float32Array, width: number, height: number, s
     sum += w;
   }
   for (let i = 0; i < kernel.length; i += 1) kernel[i] /= sum;
+  return { radius, kernel };
+}
+
+export function gaussianBlur(src: Float32Array, width: number, height: number, sigmaX: number, sigmaY = sigmaX): Float32Array {
+  const kx = gaussKernel(Math.max(sigmaX, 0.5));
+  const ky = gaussKernel(Math.max(sigmaY, 0.5));
   const tmp = new Float32Array(src.length);
   const out = new Float32Array(src.length);
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       let acc = 0;
-      for (let k = -radius; k <= radius; k += 1) {
+      for (let k = -kx.radius; k <= kx.radius; k += 1) {
         const xx = Math.min(width - 1, Math.max(0, x + k));
-        acc += src[y * width + xx] * kernel[k + radius];
+        acc += src[y * width + xx] * kx.kernel[k + kx.radius];
       }
       tmp[y * width + x] = acc;
     }
@@ -418,14 +471,172 @@ export function gaussianBlur(src: Float32Array, width: number, height: number, s
   for (let y = 0; y < height; y += 1) {
     for (let x = 0; x < width; x += 1) {
       let acc = 0;
-      for (let k = -radius; k <= radius; k += 1) {
+      for (let k = -ky.radius; k <= ky.radius; k += 1) {
         const yy = Math.min(height - 1, Math.max(0, y + k));
-        acc += tmp[yy * width + x] * kernel[k + radius];
+        acc += tmp[yy * width + x] * ky.kernel[k + ky.radius];
       }
       out[y * width + x] = acc;
     }
   }
   return out;
+}
+
+/** Not NumPy PCG64. `material.py` `noise()` (lines 11–18) divided by its own std. */
+export const NOISE_GENERATOR = 'splitmix32-box-muller-not-numpy-pcg64' as const;
+
+function splitmix(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x9e3779b9) >>> 0;
+    let z = state;
+    z = Math.imul(z ^ (z >>> 16), 0x85ebca6b) >>> 0;
+    z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35) >>> 0;
+    return ((z ^ (z >>> 16)) >>> 0) / 4294967296;
+  };
+}
+
+export function materialNoise(
+  width: number,
+  rows: number,
+  sigma: number,
+  seed: number,
+  aniso?: readonly [number, number, number] | null,
+): Float32Array {
+  const rng = splitmix(seed);
+  const raw = new Float32Array(width * rows);
+  for (let i = 0; i < raw.length; i += 2) {
+    const u = Math.max(1e-8, rng());
+    const v = rng();
+    const mag = Math.sqrt(-2 * Math.log(u));
+    const ang = Math.PI * 2 * v;
+    raw[i] = mag * Math.cos(ang);
+    if (i + 1 < raw.length) raw[i + 1] = mag * Math.sin(ang);
+  }
+  const sigmaX = aniso ? Math.max(aniso[0], 0.5) : Math.max(sigma, 0.5);
+  const sigmaY = aniso ? Math.max(aniso[1], 0.5) : Math.max(sigma, 0.5);
+  const blurred = gaussianBlur(raw, width, rows, sigmaX, sigmaY);
+  let mean = 0;
+  for (let i = 0; i < blurred.length; i += 1) mean += blurred[i];
+  mean /= blurred.length;
+  let varSum = 0;
+  for (let i = 0; i < blurred.length; i += 1) {
+    const d = blurred[i] - mean;
+    varSum += d * d;
+  }
+  const std = Math.sqrt(varSum / blurred.length) + 1e-6;
+  for (let i = 0; i < blurred.length; i += 1) blurred[i] /= std;
+  return blurred;
+}
+
+export type BevelDetail = {
+  height: Float32Array;
+  speck: Float32Array;
+  glint: Float32Array;
+  /** `ndi.rotate` for the skifer 18° anisotropy is not ported. The blur is axis-aligned. */
+  anisoRotationPorted: false;
+  noiseMatchesNumpy: false;
+};
+
+/** `material.py` lines 87–99 and 106–131. Height blur of 0.6 is applied by the caller, after this. */
+export function bevelMicrodetail(
+  profile: BevelProfile,
+  dist: Float32Array,
+  radius: number,
+  width: number,
+  rows: number,
+): BevelDetail {
+  const D = 2 * radius;
+  const bev = profile.bevel * radius;
+  const det = new Float32Array(dist.length);
+  if (profile.det) {
+    const sigma = (profile.aniso ? 0 : profile.detS) * D;
+    const n = materialNoise(width, rows, sigma, profile.seed + 1, profile.aniso ? [profile.aniso[0] * D, profile.aniso[1] * D, profile.aniso[2]] : null);
+    for (let i = 0; i < det.length; i += 1) det[i] += n[i] * profile.det * D;
+  }
+  if (profile.det2) {
+    const n = materialNoise(width, rows, profile.det2S * D, profile.seed + 2, null);
+    for (let i = 0; i < det.length; i += 1) det[i] += n[i] * profile.det2 * D;
+  }
+  const height = new Float32Array(dist.length);
+  if (profile.layers) {
+    const lay = materialNoise(width, rows, 0, profile.seed + 3, [0.5 * D, 0.03 * D, 18]);
+    for (let i = 0; i < height.length; i += 1) {
+      const t = bev <= 0 ? 1 : Math.min(1, Math.max(0, dist[i] / bev));
+      if (t > 0.6) height[i] += (Math.round(lay[i] * 1.5) / 1.5) * profile.layers * 0.06 * radius;
+    }
+  }
+  for (let i = 0; i < height.length; i += 1) {
+    const t = bev <= 0 ? 1 : Math.min(1, Math.max(0, dist[i] / bev));
+    if (t > 0.02) height[i] += det[i];
+  }
+  const speckNoise = profile.speck ? materialNoise(width, rows, profile.speckS * D, profile.seed + 4, null) : null;
+  const speck = new Float32Array(dist.length);
+  for (let i = 0; i < speck.length; i += 1) speck[i] = 1 + (speckNoise ? profile.speck * speckNoise[i] : 0);
+  const rng = splitmix(profile.seed + 11);
+  const glint = new Float32Array(dist.length);
+  if (profile.glint > 0) {
+    const raw = new Float32Array(dist.length);
+    for (let i = 0; i < raw.length; i += 1) raw[i] = rng() < profile.glint ? 1 : 0;
+    const blurred = gaussianBlur(raw, width, rows, 0.8);
+    for (let i = 0; i < glint.length; i += 1) glint[i] = blurred[i];
+  }
+  return { height, speck, glint, anisoRotationPorted: false, noiseMatchesNumpy: false };
+}
+
+/** Added to the bevel color. `material.py` line 131. `g` is the blurred glint mask. */
+export function glintAdd(rdl: number, g: number): number {
+  return g * 4 * rdl * rdl * 120;
+}
+
+/**
+ * `export-gummi.py` lines 36–39. `TH`, `BASE_R`, and `radii` live in
+ * `/workspace/design/onboarding/klumpen-a-bli-kjent-2026-11-07/_src/build.py`.
+ * That file is not in this repo. No substitute radii are filled in.
+ */
+export type GummiWarpTables = {
+  theta: readonly number[] | null;
+  baseR: readonly number[] | null;
+  restR: readonly number[] | null;
+};
+
+export const GUMMI_WARP_TABLES: GummiWarpTables = { theta: null, baseR: null, restR: null };
+export const GUMMI_WARP_SOURCE = 'build.py TH, BASE_R, radii(240, gummi, rest)';
+
+export function gummiWarpReady(tables: GummiWarpTables): boolean {
+  return (
+    tables.theta != null &&
+    tables.baseR != null &&
+    tables.restR != null &&
+    tables.theta.length > 0 &&
+    tables.theta.length === tables.baseR.length &&
+    tables.theta.length === tables.restR.length
+  );
+}
+
+function interpClosed(angle: number, theta: readonly number[], values: readonly number[]): number {
+  const th = [...theta, Math.PI];
+  const vs = [...values, values[0]];
+  let a = angle;
+  if (a < th[0]) a = th[0];
+  if (a > Math.PI) a = Math.PI;
+  let i = 1;
+  while (i < th.length - 1 && th[i] < a) i += 1;
+  const span = th[i] - th[i - 1];
+  const t = span === 0 ? 0 : (a - th[i - 1]) / span;
+  return vs[i - 1] * (1 - t) + vs[i] * t;
+}
+
+/** Returns source-canvas pixels, or null when the radius tables are missing. */
+export function gummiWarpPixel(x: number, y: number, tables: GummiWarpTables): { sx: number; sy: number } | null {
+  if (!gummiWarpReady(tables) || !tables.theta || !tables.baseR || !tables.restR) return null;
+  const w = 240;
+  const xx = x / 3 - 200;
+  const yy = y / 3 - 200;
+  const ang = Math.atan2(yy, xx);
+  const br = interpClosed(ang, tables.theta, tables.baseR) * w;
+  const target = interpClosed(ang, tables.theta, tables.restR) * w;
+  const rat = br / Math.max(target, 0.001);
+  return { sx: (xx * rat + 0.5 * w) * 3, sy: (yy * rat + 0.423 * w) * 3 };
 }
 
 /**
@@ -657,13 +868,178 @@ export type DarkRimControls = {
   falloffPx: number | null;
 };
 
-/** Nothing here is a chosen look. The 3:1 target is the approved aim, not a stroke. */
+/** Older unset stroke. It is not the source rim and it is not painted. */
 export const DARK_RIM_UNSET: DarkRimControls = { widthPt: null, placement: null, falloffPx: null };
 export const DARK_RIM_AGAINST = '#111110';
 export const DARK_RIM_TARGET_CONTRAST = 3;
 
 export function darkRimReady(controls: DarkRimControls): boolean {
   return controls.widthPt != null && controls.placement != null && controls.falloffPx != null;
+}
+
+/**
+ * `build_6e59.py` `rim` / `fit`, lines 11–21, converted from @3x pixels to points.
+ * 4 px → 4/3 pt, σ 2 px → 2/3 pt, shift 9 px → 3 pt.
+ * These point lengths stay fixed at every Klumpen width. They are not scaled by 120/160/200/240.
+ */
+export const RIM_SAMPLE_PX_PER_PT = 3;
+export const RIM_EROSION_PT = 4 / 3;
+export const RIM_BLUR_PT = 2 / 3;
+export const RIM_SHIFT_PT = 3;
+export const RIM_GAIN = 1.6;
+export const RIM_ADD: RGB = { r: 120, g: 114, b: 104 };
+export const RIM_K_MAX = 1.5;
+export const RIM_BISECTIONS = 14;
+export const RIM_BAND_MIN = 0.3;
+
+export function rimLengthsPx(pxPerPt: number): { erosion: number; blur: number; shift: number } {
+  return {
+    erosion: RIM_EROSION_PT * pxPerPt,
+    blur: RIM_BLUR_PT * pxPerPt,
+    shift: RIM_SHIFT_PT * pxPerPt,
+  };
+}
+
+const ERODE_CROSS = [
+  [0, 0],
+  [1, 0],
+  [-1, 0],
+  [0, 1],
+  [0, -1],
+] as const;
+
+/** SciPy's default cross, border 0, repeated. `binary_erosion(..., iterations=4)`. */
+export function erodeCross(mask: Uint8Array, width: number, height: number, iterations: number): Uint8Array {
+  let cur = mask;
+  for (let iter = 0; iter < iterations; iter += 1) {
+    const next = new Uint8Array(cur.length);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        let keep = 1;
+        for (const [dx, dy] of ERODE_CROSS) {
+          const xx = x + dx;
+          const yy = y + dy;
+          if (xx < 0 || yy < 0 || xx >= width || yy >= height || !cur[yy * width + xx]) keep = 0;
+        }
+        next[y * width + x] = keep;
+      }
+    }
+    cur = next;
+  }
+  return cur;
+}
+
+function roll(mask: Uint8Array, width: number, height: number, dy: number, dx: number): Uint8Array {
+  const out = new Uint8Array(mask.length);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const yy = (y - dy + height) % height;
+      const xx = (x - dx + width) % width;
+      out[y * width + x] = mask[yy * width + xx];
+    }
+  }
+  return out;
+}
+
+export type RimBand = {
+  band: Float32Array;
+  edge: Uint8Array;
+};
+
+/** `rim()` lines 12–13, before k. Lengths are points times the sample scale, not the stone width. */
+export function rimBand(mask: Uint8Array, width: number, height: number, pxPerPt = RIM_SAMPLE_PX_PER_PT): RimBand {
+  const lengths = rimLengthsPx(pxPerPt);
+  const eroded = erodeCross(mask, width, height, Math.round(lengths.erosion));
+  const edge = new Uint8Array(mask.length);
+  const raw = new Float32Array(mask.length);
+  const shift = Math.round(lengths.shift);
+  const shifted = roll(mask, width, height, shift, shift);
+  for (let i = 0; i < mask.length; i += 1) {
+    edge[i] = mask[i] && !eroded[i] && !shifted[i] ? 1 : 0;
+    raw[i] = edge[i];
+  }
+  const blurred = gaussianBlur(raw, width, height, lengths.blur);
+  const band = new Float32Array(mask.length);
+  for (let i = 0; i < band.length; i += 1) {
+    const v = Math.min(1, Math.max(0, blurred[i] * RIM_GAIN));
+    band[i] = mask[i] ? v : 0;
+  }
+  return { band, edge };
+}
+
+export function meanSelectedColor(
+  image: Float32Array,
+  edge: Uint8Array,
+  band: Float32Array,
+): RGB | null {
+  let r = 0;
+  let g = 0;
+  let b = 0;
+  let n = 0;
+  for (let i = 0; i < edge.length; i += 1) {
+    if (!edge[i] || band[i] <= RIM_BAND_MIN) continue;
+    r += image[i * 3];
+    g += image[i * 3 + 1];
+    b += image[i * 3 + 2];
+    n += 1;
+  }
+  if (!n) return null;
+  return { r: r / n, g: g / n, b: b / n };
+}
+
+function contrastOf(color: RGB): number {
+  const f = (c: number) => {
+    const s = Math.min(255, Math.max(0, c)) / 255;
+    const lin = s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+    return lin;
+  };
+  const L = 0.2126 * f(color.r) + 0.7152 * f(color.g) + 0.0722 * f(color.b);
+  const bg = relativeLuminance(DARK_RIM_AGAINST);
+  return (Math.max(L, bg) + 0.05) / (Math.min(L, bg) + 0.05);
+}
+
+function addRim(base: Float32Array, band: Float32Array, k: number): Float32Array {
+  const out = new Float32Array(base.length);
+  for (let i = 0; i < band.length; i += 1) {
+    const w = band[i] * k;
+    out[i * 3] = Math.min(255, Math.max(0, base[i * 3] + RIM_ADD.r * w));
+    out[i * 3 + 1] = Math.min(255, Math.max(0, base[i * 3 + 1] + RIM_ADD.g * w));
+    out[i * 3 + 2] = Math.min(255, Math.max(0, base[i * 3 + 2] + RIM_ADD.b * w));
+  }
+  return out;
+}
+
+export type RimFit = {
+  applied: boolean;
+  k: number;
+  contrast: number | null;
+  band: Float32Array;
+  /** Mean of the selected pixels, not the brightest pixel. */
+  meanContrast: true;
+};
+
+/** Fourteen bisections of [0, 1.5], then the high side. `fit()` lines 16–21. */
+export function fitRim(
+  base: Float32Array,
+  mask: Uint8Array,
+  width: number,
+  height: number,
+  pxPerPt = RIM_SAMPLE_PX_PER_PT,
+  target = DARK_RIM_TARGET_CONTRAST,
+): RimFit {
+  const { band, edge } = rimBand(mask, width, height, pxPerPt);
+  let lo = 0;
+  let hi = RIM_K_MAX;
+  for (let step = 0; step < RIM_BISECTIONS; step += 1) {
+    const k = (lo + hi) / 2;
+    const mean = meanSelectedColor(addRim(base, band, k), edge, band);
+    const c = mean ? contrastOf(mean) : 0;
+    if (c < target) lo = k;
+    else hi = k;
+  }
+  const painted = addRim(base, band, hi);
+  const mean = meanSelectedColor(painted, edge, band);
+  return { applied: mean != null, k: mean ? hi : 0, contrast: mean ? contrastOf(mean) : null, band, meanContrast: true };
 }
 
 export function relativeLuminance(hex: string): number {
@@ -689,17 +1065,33 @@ export type PathField = {
   phi: Float32Array;
   heightMap: Float32Array;
   normals: Float32Array;
-  /** Pillow detail is not in this height. The base.png warp is unresolved. */
-  detailApplied: false;
+  speck: Float32Array | null;
+  glint: Float32Array | null;
+  /** Bevel det/layers are in the height. They are not NumPy-identical. Gummi warp is not. */
+  detailApplied: boolean;
+  noiseMatchesNumpy: false;
+  /** Null until `build.py` supplies TH, BASE_R, and radii. */
+  gummiWarp: 'missing-build-py' | 'ready';
   usesRestLightMaps: false;
 };
 
 export function buildField(mask: Uint8Array, width: number, height: number, id: MaterialId): PathField {
   const dist = insideDistance(mask, width, height);
   const radius = fieldRadius(dist);
-  const phi = id === 'gummi' ? poissonPhi(mask, width, height) : new Float32Array(mask.length);
+  const profile = PROFILES[id];
+  const phi = profile.kind === 'pillow' ? poissonPhi(mask, width, height) : new Float32Array(mask.length);
   let heightMap = macroHeight(id, dist, phi, radius);
-  if (PROFILES[id].kind === 'bevel') heightMap = gaussianBlur(heightMap, width, height, PROFILES[id].heightBlur);
+  let speck: Float32Array | null = null;
+  let glint: Float32Array | null = null;
+  let detailApplied = false;
+  if (profile.kind === 'bevel') {
+    const detail = bevelMicrodetail(profile, dist, radius, width, height);
+    for (let i = 0; i < heightMap.length; i += 1) heightMap[i] += detail.height[i];
+    heightMap = gaussianBlur(heightMap, width, height, profile.heightBlur);
+    speck = detail.speck;
+    glint = detail.glint;
+    detailApplied = true;
+  }
   return {
     width,
     height,
@@ -708,7 +1100,11 @@ export function buildField(mask: Uint8Array, width: number, height: number, id: 
     phi,
     heightMap,
     normals: normalsFromHeight(heightMap, width, height),
-    detailApplied: false,
+    speck,
+    glint,
+    detailApplied,
+    noiseMatchesNumpy: false,
+    gummiWarp: gummiWarpReady(GUMMI_WARP_TABLES) ? 'ready' : 'missing-build-py',
     usesRestLightMaps: false,
   };
 }
@@ -753,6 +1149,8 @@ uniform float lz;
 uniform float floorR;
 uniform float floorG;
 uniform float floorB;
+uniform shader rim;
+uniform float rimK;
 
 float sat(float v) { return clamp(v, 0.0, 1.0); }
 float sstep(float a, float b, float x) {
@@ -763,6 +1161,7 @@ float sstep(float a, float b, float x) {
 half4 main(float2 xy) {
   half4 alb = albedo.eval(xy);
   half4 nn = normals.eval(xy);
+  half4 rimPx = rim.eval(xy);
   float3 n = float3(nn.r, nn.g, nn.b) * 2.0 - 1.0;
   float nz = n.z;
   float ndl = sat(n.x * lx + n.y * ly + n.z * lz);
@@ -784,6 +1183,7 @@ half4 main(float2 xy) {
     col += boxK + float3(floorR, floorG, floorB) * (fres * below * floorRefl);
     col += float3(255.0, 252.0, 246.0) * sheenK;
   }
+  col += float3(120.0, 114.0, 104.0) * rimPx.r * rimK;
   return half4(clamp(col / 255.0, 0.0, 1.0), alb.a);
 }
 `;

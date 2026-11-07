@@ -23,7 +23,6 @@ import {
   HOLD_DONE_TEXT,
   HOLD_PHASE_TEXT,
   HOLD_TO_END_MS,
-  homeGreeting,
   minutesPhrase,
   parseCustomMinutes,
   LOCK_HINT_WITH_NOTIFICATION,
@@ -96,11 +95,6 @@ describe('copy', () => {
 
   it('keeps the hold-to-end placeholders in one list', () => {
     assert.equal(HOLD_TO_END_MS, 4150);
-    assert.equal(homeGreeting('Ada'), 'Hei, Ada.');
-    assert.equal(homeGreeting('  Ada  '), 'Hei, Ada.');
-    assert.equal(homeGreeting(''), 'Hei.');
-    assert.equal(homeGreeting('   '), 'Hei.');
-    assert.equal(homeGreeting(undefined), 'Hei.');
     assert.deepEqual(HOLD_PHASE_TEXT, ['Hold for å avslutte', 'Fortsett å holde …', 'Litt til …']);
     assert.equal(HOLD_DONE_TEXT, 'Avsluttet');
     assert.equal(HOLD_A11Y_LABEL, 'Avslutt økt');

@@ -4,15 +4,14 @@ import { Canvas, Group, ImageShader, Paint, Rect, Shader, Skia, useImage, type S
 
 import { materialLocalMatrix, materialPlacement, MATERIAL_DIGIT_COLOR, MATERIAL_DIGIT_FONT, MATERIAL_TILE } from '@/materials/restMaps';
 import {
-  DARK_RIM_UNSET,
   ENV_LIGHT,
   PATH_LIGHT_SKSL,
   PROFILES,
+  RIM_SAMPLE_PX_PER_PT,
   buildField,
-  darkRimReady,
+  fitRim,
   parseHex,
   unitLight,
-  type DarkRimControls,
   type MaterialId,
 } from '@/materials/pathLight';
 
@@ -36,8 +35,6 @@ type Props = {
   /** Figtree 400 digits, drawn outside the clipped body. */
   digits?: string;
   digitSize?: number;
-  /** Unset until width, placement, and falloff are reviewed. The rim is not drawn. */
-  darkRim?: DarkRimControls;
 };
 
 const FIELD = 48;
@@ -55,7 +52,6 @@ export function DynamicMaterial({
   clip,
   digits,
   digitSize = 56,
-  darkRim = DARK_RIM_UNSET,
 }: Props) {
   const albedo = useImage(BASE[material]);
   const place = materialPlacement(width, cx, cy);
@@ -85,15 +81,46 @@ export function DynamicMaterial({
       FIELD * 4,
     );
   }, [clip, material, place.artboardPt, place.tx, place.ty]);
+  const rimImage = useMemo(() => {
+    const px = RIM_SAMPLE_PX_PER_PT;
+    const cols = Math.max(1, Math.round(place.artboardPt * px));
+    const rows = cols;
+    const mask = new Uint8Array(cols * rows);
+    for (let y = 0; y < rows; y += 1) {
+      for (let x = 0; x < cols; x += 1) {
+        if (clip.contains(place.tx + (x + 0.5) / px, place.ty + (y + 0.5) / px)) mask[y * cols + x] = 1;
+      }
+    }
+    const alb = parseHex(profile.albedo);
+    const plate = new Float32Array(cols * rows * 3);
+    for (let i = 0; i < cols * rows; i += 1) {
+      plate[i * 3] = alb.r;
+      plate[i * 3 + 1] = alb.g;
+      plate[i * 3 + 2] = alb.b;
+    }
+    const fit = fitRim(plate, mask, cols, rows, px);
+    const bytes = new Uint8Array(cols * rows * 4);
+    for (let i = 0; i < cols * rows; i += 1) {
+      bytes[i * 4] = Math.round(Math.min(1, Math.max(0, fit.band[i])) * 255);
+      bytes[i * 4 + 3] = 255;
+    }
+    return {
+      k: fit.k,
+      image: Skia.Image.MakeImage(
+        { width: cols, height: rows, alphaType: 1, colorType: 4 },
+        Skia.Data.fromBytes(bytes),
+        cols * 4,
+      ),
+    };
+  }, [clip, place.artboardPt, place.tx, place.ty, profile.albedo]);
   const light = unitLight();
   const floor = parseHex(ENV_LIGHT.floor);
-  const ready = Boolean(effect && albedo && fieldImage);
-  void darkRimReady(darkRim);
+  const ready = Boolean(effect && albedo && fieldImage && rimImage.image);
 
   return (
     <View style={{ width: place.artboardPt, height: place.artboardPt }}>
       <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">
-        {ready && effect && albedo && fieldImage ? (
+        {ready && effect && albedo && fieldImage && rimImage.image ? (
           <Group clip={clip}>
             <Group layer={<Paint />}>
               <Rect x={place.tx} y={place.ty} width={place.artboardPt} height={place.artboardPt}>
@@ -120,11 +147,20 @@ export function DynamicMaterial({
                   floorR: floor.r,
                   floorG: floor.g,
                   floorB: floor.b,
+                  rimK: rimImage.k,
                 }}
               >
                 <ImageShader image={albedo} tx={MATERIAL_TILE} ty={MATERIAL_TILE} fit="none" matrix={matrix} />
                 <ImageShader
                   image={fieldImage}
+                  fit="fill"
+                  x={place.tx}
+                  y={place.ty}
+                  width={place.artboardPt}
+                  height={place.artboardPt}
+                />
+                <ImageShader
+                  image={rimImage.image}
                   fit="fill"
                   x={place.tx}
                   y={place.ty}
