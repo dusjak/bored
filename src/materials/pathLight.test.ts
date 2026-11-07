@@ -205,9 +205,9 @@ describe('path-dependent material light', () => {
     assert.ok(fitted.contrast != null && fitted.contrast >= 3);
     assert.ok(fitted.contrast != null && fitted.contrast < 3.05);
     assert.doesNotMatch(readFileSync(join(process.cwd(), 'src/app/(tabs)/home.tsx'), 'utf8'), /homeGreeting|Hei/);
-    assert.equal(gummiWarpReady(GUMMI_WARP_TABLES), false);
-    assert.match(GUMMI_WARP_SOURCE, /punktum_shape/);
-    assert.ok(MISSING_WARP_FILES.some((file) => file.includes('punktum_shape.py')));
+    assert.equal(gummiWarpReady(GUMMI_WARP_TABLES), true);
+    assert.equal(MISSING_WARP_FILES.length, 0);
+    assert.match(GUMMI_WARP_SOURCE, /shape_mask/);
     const theta = sourceTheta();
     assert.equal(theta.length, 720);
     assert.ok(Math.abs(theta[0] + Math.PI) < 1e-12);
@@ -232,9 +232,10 @@ describe('path-dependent material light', () => {
     assert.ok(onLit.k < onDark.k);
     const field = buildField(blob, 48, 48, 'skifer');
     assert.equal(field.detailApplied, false);
-    assert.equal(field.noiseMatchesNumpy, false);
-    assert.equal(field.gummiWarp, 'missing-punktum-shape');
+    assert.equal(field.gummiWarp, 'ready');
     assert.equal(PROFILES.skifer.kind === 'bevel' && PROFILES.skifer.aniso?.[2], 18);
+    assert.equal(hash01(3, 5, 7), 0.17528022380353353);
+    assert.equal(hash01(400, 700, 9), 0.9246053650740007);
     const master = new Uint8Array([200, 180, 160, 255]);
     const fromMaster = litFromBase(master, 1, 1, 0, 0, { x: 0, y: 0, z: 1 }, 'emalje');
     const fromFlat = shadeNormal('emalje', { x: 0, y: 0, z: 1 });

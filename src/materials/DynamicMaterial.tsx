@@ -3,14 +3,15 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Canvas, Group, ImageShader, Paint, Rect, Shader, Skia, useImage, type SkPath } from '@shopify/react-native-skia';
 
 import { materialLocalMatrix, materialPlacement, sourcePixelAt, MATERIAL_DIGIT_COLOR, MATERIAL_DIGIT_FONT, MATERIAL_TILE } from '@/materials/restMaps';
+import { SOURCE_MASTER, masterHeightAt } from '@/materials/sourceParity';
 import {
   ENV_LIGHT,
   PATH_LIGHT_SKSL,
   PROFILES,
   RIM_SAMPLE_PX_PER_PT,
-  buildField,
   fitRim,
   litFromBase,
+  normalsFromHeight,
   parseHex,
   rimBand,
   unitLight,
@@ -39,13 +40,14 @@ type Props = {
   digitSize?: number;
 };
 
-const FIELD = 48;
+const FIELD = 120;
 
 /**
  * Path-aware light on the albedo only. Rest shade and light maps are not sampled.
  * Not mounted by Hjem, the session, or onboarding. The shipped gummi rasters stay.
- * Rim gain is fit on this albedo after the path light. It stays 0 when those
- * pixels cannot be read. Gummi warp and NumPy height noise stay off.
+ * Rim gain is fit on this albedo after the source height's light. It stays 0
+ * when those pixels cannot be read. Normals come from the rest master grid:
+ * NumPy bevel height, or the warped gummi pillow. The shader is not mounted.
  */
 export function DynamicMaterial({
   material,
@@ -61,21 +63,19 @@ export function DynamicMaterial({
   const matrix = materialLocalMatrix(width, cx, cy);
   const profile = PROFILES[material];
   const fieldImage = useMemo(() => {
-    const mask = new Uint8Array(FIELD * FIELD);
-    const originX = place.tx;
-    const originY = place.ty;
-    const scale = place.artboardPt / FIELD;
+    const height = new Float32Array(FIELD * FIELD);
+    const step = SOURCE_MASTER / FIELD;
     for (let y = 0; y < FIELD; y += 1) {
       for (let x = 0; x < FIELD; x += 1) {
-        if (clip.contains(originX + (x + 0.5) * scale, originY + (y + 0.5) * scale)) mask[y * FIELD + x] = 1;
+        height[y * FIELD + x] = masterHeightAt(material, ((x + 0.5) / FIELD) * SOURCE_MASTER, ((y + 0.5) / FIELD) * SOURCE_MASTER);
       }
     }
-    const field = buildField(mask, FIELD, FIELD, material);
+    const normals = normalsFromHeight(height, FIELD, FIELD, step);
     const bytes = new Uint8Array(FIELD * FIELD * 4);
     for (let i = 0; i < FIELD * FIELD; i += 1) {
-      bytes[i * 4] = Math.round((field.normals[i * 3] * 0.5 + 0.5) * 255);
-      bytes[i * 4 + 1] = Math.round((field.normals[i * 3 + 1] * 0.5 + 0.5) * 255);
-      bytes[i * 4 + 2] = Math.round((field.normals[i * 3 + 2] * 0.5 + 0.5) * 255);
+      bytes[i * 4] = Math.round((normals[i * 3] * 0.5 + 0.5) * 255);
+      bytes[i * 4 + 1] = Math.round((normals[i * 3 + 1] * 0.5 + 0.5) * 255);
+      bytes[i * 4 + 2] = Math.round((normals[i * 3 + 2] * 0.5 + 0.5) * 255);
       bytes[i * 4 + 3] = 255;
     }
     return Skia.Image.MakeImage(
@@ -83,7 +83,7 @@ export function DynamicMaterial({
       Skia.Data.fromBytes(bytes),
       FIELD * 4,
     );
-  }, [clip, material, place.artboardPt, place.tx, place.ty]);
+  }, [material]);
   const rimImage = useMemo(() => {
     const px = RIM_SAMPLE_PX_PER_PT;
     const cols = Math.max(1, Math.round(place.artboardPt * px));
@@ -107,14 +107,14 @@ export function DynamicMaterial({
     let band = rimBand(mask, cols, rows, px).band;
     let k = 0;
     if (readable && basePx) {
-      const coarse = new Uint8Array(FIELD * FIELD);
-      const scale = place.artboardPt / FIELD;
+      const height = new Float32Array(FIELD * FIELD);
+      const step = SOURCE_MASTER / FIELD;
       for (let y = 0; y < FIELD; y += 1) {
         for (let x = 0; x < FIELD; x += 1) {
-          if (clip.contains(place.tx + (x + 0.5) * scale, place.ty + (y + 0.5) * scale)) coarse[y * FIELD + x] = 1;
+          height[y * FIELD + x] = masterHeightAt(material, ((x + 0.5) / FIELD) * SOURCE_MASTER, ((y + 0.5) / FIELD) * SOURCE_MASTER);
         }
       }
-      const field = buildField(coarse, FIELD, FIELD, material);
+      const normals = normalsFromHeight(height, FIELD, FIELD, step);
       const plate = new Float32Array(cols * rows * 3);
       for (let y = 0; y < rows; y += 1) {
         for (let x = 0; x < cols; x += 1) {
@@ -130,7 +130,7 @@ export function DynamicMaterial({
             baseH,
             src.x,
             src.y,
-            { x: field.normals[n * 3], y: field.normals[n * 3 + 1], z: field.normals[n * 3 + 2] },
+            { x: normals[n * 3], y: normals[n * 3 + 1], z: normals[n * 3 + 2] },
             material,
           );
           const i = y * cols + x;

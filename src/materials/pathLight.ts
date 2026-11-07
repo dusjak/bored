@@ -7,12 +7,14 @@
  * The four other materials keep `material.py` `render_object` lines 84–103 and 111–126.
  * Emalje uses the export overrides box=0.40, box_w=0.17, det=0.00002.
  *
- * Gummi fbm/Worley is the hires hash (`hires.py` lines 12–47). It is not applied:
- * `base.png` is already the warped albedo, and the warp back to height coordinates
- * needs `punktum_shape.shape_mask`. Skifer keeps its 18° anisotropy on the profile.
- * That rotation is not applied, because `noise()` is NumPy PCG64 plus SciPy and
- * the SplitMix stand-in is not the source. `base.png` is the albedo reference.
+ * Gummi height is the hires pillow plus hash fbm, sampled through the radial warp
+ * (`export-gummi.py` lines 36–39) so it sits in the same canvas as `base.png`.
+ * Skifer, Kull, Emalje, and Fløyel use the NumPy height grid from `material.py`
+ * `noise()`, including Skifer's 18° `ndi.rotate`. Those grids are the source run,
+ * not a second generator. `base.png` stays the albedo.
  */
+
+import { SOURCE_BASE_R, SOURCE_REST_R } from './sourceTables.ts';
 
 export const ENV_LIGHT = {
   /** `material.py` line 68. Not a unit vector yet. */
@@ -621,7 +623,7 @@ export function bevelMicrodetail(
   return { height, speck, glint, anisoApplied: false, noiseMatchesNumpy: false };
 }
 
-/** `build_d871.py` line 39. `linspace(-π, π, 720, endpoint=False)`. */
+/** `build.py` line 39. `linspace(-π, π, 720, endpoint=False)`. */
 export function sourceTheta(count = 720): Float64Array {
   const theta = new Float64Array(count);
   const step = (2 * Math.PI) / count;
@@ -630,14 +632,16 @@ export function sourceTheta(count = 720): Float64Array {
 }
 
 /**
- * BASE_R is `sum(ray > 0.5) * 0.25 / 600` over `shape_mask(600, 400, 400, 800, 800)`.
- * That mask is `punktum_shape.py`, which is not in this repo. lib.py is imported by
- * build.py and is not used by this formula. No substitute silhouette is used.
+ * BASE_R is `sum(ray > 0.5) * 0.25 / 600` over `shape_mask(600, 400, 400, 800, 800)`
+ * (`build.py` lines 39–43, `punktum_shape.py` `shape_mask`). The values are in
+ * `sourceTables.ts`. `lib.py` is not imported; only its `BG` and `SBG` are named below.
  */
-export const MISSING_WARP_FILES = [
-  'punktum_shape.py (shape_mask)',
-  'lib.py (imported by build.py, unused by TH/radii)',
-] as const;
+/** Nothing further is required for BASE_R. `lib.py`'s screen chain is not imported. */
+export const MISSING_WARP_FILES = [] as const;
+
+/** Page colors named by `build.py` lines 103–107. From `lib.py` line 18. Not a screen import. */
+export const SOURCE_BG = '#F8F6F2';
+export const SOURCE_SBG = '#0A0A09';
 
 /** Added to the bevel color. `material.py` line 131. `g` is the blurred glint mask. */
 export function glintAdd(rdl: number, g: number): number {
@@ -645,19 +649,25 @@ export function glintAdd(rdl: number, g: number): number {
 }
 
 /**
- * `export-gummi.py` lines 36–39. `TH`, `BASE_R`, and `radii` live in
- * `build_d871.py` lines 39–43 and 48–83. BASE_R needs `punktum_shape.shape_mask`.
- * That file is not here. The tables stay empty. No substitute radii are filled in.
+ * `export-gummi.py` lines 36–39. `TH` and `radii` are `build.py` lines 39–43 and 48–83
+ * (the onboarding `klumpen-a-bli-kjent` `_src/build.py`). `restR` is stored as a
+ * fraction of w=240, the same unit as `BASE_R`.
  */
 export type GummiWarpTables = {
-  theta: readonly number[] | null;
-  baseR: readonly number[] | null;
-  restR: readonly number[] | null;
+  theta: ArrayLike<number> | null;
+  baseR: ArrayLike<number> | null;
+  restR: ArrayLike<number> | null;
 };
 
-export const GUMMI_WARP_TABLES: GummiWarpTables = { theta: null, baseR: null, restR: null };
+const SOURCE_REST_FRACTION = Float64Array.from(SOURCE_REST_R, (radius) => radius / 240);
+
+export const GUMMI_WARP_TABLES: GummiWarpTables = {
+  theta: sourceTheta(),
+  baseR: SOURCE_BASE_R,
+  restR: SOURCE_REST_FRACTION,
+};
 export const GUMMI_WARP_SOURCE =
-  'inactive: punktum_shape.py shape_mask is required for BASE_R; build_d871.py has TH and radii';
+  'punktum_shape.shape_mask → BASE_R; build.py radii(240, gummi, rest); export-gummi.py warp';
 
 export function gummiWarpReady(tables: GummiWarpTables): boolean {
   return (
@@ -670,9 +680,11 @@ export function gummiWarpReady(tables: GummiWarpTables): boolean {
   );
 }
 
-function interpClosed(angle: number, theta: readonly number[], values: readonly number[]): number {
-  const th = [...theta, Math.PI];
-  const vs = [...values, values[0]];
+function interpClosed(angle: number, theta: ArrayLike<number>, values: ArrayLike<number>): number {
+  const th = Array.from(theta);
+  th.push(Math.PI);
+  const vs = Array.from(values);
+  vs.push(values[0]);
   let a = angle;
   if (a < th[0]) a = th[0];
   if (a > Math.PI) a = Math.PI;
@@ -780,12 +792,13 @@ export function gradient(height: Float32Array, width: number, rows: number): { g
   return { gx, gy };
 }
 
-export function normalsFromHeight(height: Float32Array, width: number, rows: number): Float32Array {
+export function normalsFromHeight(height: Float32Array, width: number, rows: number, step = 1): Float32Array {
   const { gx, gy } = gradient(height, width, rows);
+  const scale = step === 0 ? 1 : step;
   const out = new Float32Array(height.length * 3);
   for (let i = 0; i < height.length; i += 1) {
-    const x = -gx[i];
-    const y = -gy[i];
+    const x = -gx[i] / scale;
+    const y = -gy[i] / scale;
     const z = 1;
     const n = Math.hypot(x, y, z);
     out[i * 3] = x / n;
@@ -920,12 +933,16 @@ export function gummiGrainSurvivesAtSourceD(): boolean[] {
   return survivingCells(gummi.grainCell, GUMMI_SOURCE_D);
 }
 
-/** `hires.py` lines 12–16. Unsigned 32-bit, matching the Python mask. */
+/**
+ * `hires.py` `_hash`, lines 12–16. Low 32 bits of the int64 product, then the mask.
+ * `Math.imul` drops bits once an index exceeds int32, so this uses bigint.
+ */
 export function hash01(ix: number, iy: number, seed: number): number {
-  let h = (Math.imul(ix, 374761393) + Math.imul(iy, 668265263) + Math.imul(seed, 982451653)) >>> 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
-  h = (h ^ (h >>> 16)) >>> 0;
-  return (h & 0xffffff) / 0xffffff;
+  const mask = 0xffffffffn;
+  let h = (BigInt(ix) * 374761393n + BigInt(iy) * 668265263n + BigInt(seed) * 982451653n) & mask;
+  h = ((h ^ (h >> 13n)) * 1274126177n) & mask;
+  h = h ^ (h >> 16n);
+  return Number(h & 0xffffffn) / 0xffffff;
 }
 
 /**
@@ -1165,7 +1182,7 @@ export type PathField = {
   /** Bevel det/layers are in the height. They are not NumPy-identical. Gummi warp is not. */
   detailApplied: boolean;
   noiseMatchesNumpy: false;
-  /** Inactive until `punktum_shape.py` supplies `shape_mask` for BASE_R. */
+  /** Ready when BASE_R and the rest radii from `build.py` are loaded. */
   gummiWarp: 'missing-punktum-shape' | 'ready';
   usesRestLightMaps: false;
 };
