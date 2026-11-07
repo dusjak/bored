@@ -31,6 +31,8 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { KLUMPEN_PATH } from '@/components/klumpenPath';
+import { stonePath } from '@/onboarding/formShape';
+import type { MaterialId } from '@/materials/pathLight';
 import { FixedRim, MaterialShade, useLiveMaterial, type LiveFrame } from '@/materials/DynamicMaterial';
 import {
   CROSSFADE_MS,
@@ -184,6 +186,10 @@ type BodyProps = {
   numberFamily?: string;
   /** «min» on the stone. Hjem keeps the shared grey. */
   unitColor?: string;
+  /** Saved surface. The duration sheet leaves this unset and stays gummi. */
+  material?: MaterialId;
+  /** Saved radial form in path units. Empty keeps the base silhouette. */
+  formOffsets?: readonly number[] | null;
 };
 
 /** The matte stone, its number, and the size animation. Layout box is the 20-minute size, so the center stays put. */
@@ -197,11 +203,17 @@ export function KlumpenBody({
   unitGap = NUMBER_UNIT_GAP,
   numberFamily,
   unitColor,
+  material = 'gummi',
+  formOffsets = null,
 }: BodyProps) {
   const { theme } = useTheme();
   const { fontScale } = useWindowDimensions();
   const type = durationType(fontScale);
-  const path = useMemo(() => Skia.Path.MakeFromSVGString(KLUMPEN_PATH), []);
+  const deformed = !!formOffsets?.some((value) => Math.abs(value) > 0.05);
+  const path = useMemo(
+    () => Skia.Path.MakeFromSVGString(deformed && formOffsets ? stonePath(formOffsets) : KLUMPEN_PATH),
+    [deformed, formOffsets],
+  );
   const gummi120 = useImage(require('../../assets/hjem/klumpen-gummi-120pt.png'));
   const gummi160 = useImage(require('../../assets/hjem/klumpen-gummi-160pt.png'));
   const gummi200 = useImage(require('../../assets/hjem/klumpen-gummi-200pt.png'));
@@ -216,7 +228,8 @@ export function KlumpenBody({
   );
   const gummiImage = gummi[band] ?? null;
   const widthPt = KLUMP_WIDTH_MIN + KLUMP_WIDTH_STEP * band;
-  const field = useLiveMaterial('gummi', path, HJEM_WINDOW, widthPt * (1200 / 720), false, HJEM_FRAME, 'hjem');
+  const field = useLiveMaterial(material, path, HJEM_WINDOW, widthPt * (1200 / 720), false, HJEM_FRAME, 'hjem');
+  const raster = material === 'gummi' && !deformed ? gummiImage : null;
   const blank = useMemo(() => Skia.Path.Make(), []);
   const svg = path ?? blank;
   const backPoint = usePathValue((builder) => {
@@ -264,8 +277,8 @@ export function KlumpenBody({
               <Path path={path} style="stroke" strokeWidth={OUTLINE_STROKE} color={OUTLINE} />
             </Group>
           ) : null}
-          <StoneLayer path={path} pointPath={backPoint} transform={backTransform} opacity={backOpacity} rim={rim} image={gummiImage} field={field} />
-          <StoneLayer path={path} pointPath={frontPoint} transform={frontTransform} opacity={frontOpacity} rim={rim} image={gummiImage} field={field} />
+          <StoneLayer path={path} pointPath={backPoint} transform={backTransform} opacity={backOpacity} rim={rim} image={raster} field={field} material={material} />
+          <StoneLayer path={path} pointPath={frontPoint} transform={frontTransform} opacity={frontOpacity} rim={rim} image={raster} field={field} material={material} />
         </Canvas>
       ) : (
         <View style={styles.fallback} />
@@ -313,6 +326,7 @@ function StoneLayer({
   rim,
   image,
   field,
+  material,
 }: {
   path: NonNullable<ReturnType<typeof Skia.Path.MakeFromSVGString>>;
   pointPath: ReturnType<typeof usePathValue>;
@@ -321,6 +335,7 @@ function StoneLayer({
   rim: boolean;
   image: ReturnType<typeof useImage>;
   field: ReturnType<typeof useLiveMaterial>;
+  material: MaterialId;
 }) {
   const live = field.ready && field.rimFilter;
   return (
@@ -333,7 +348,7 @@ function StoneLayer({
         </Group>
         <Path path={path} color={STONE_COLOR}>
           {live ? (
-            <MaterialShade material="gummi" field={field} rect={HJEM_WINDOW} />
+            <MaterialShade material={material} field={field} rect={HJEM_WINDOW} />
           ) : image ? (
             <ImageShader
               image={image}
@@ -469,6 +484,8 @@ export function HomeKlumpen({
   onPress,
   onChange,
   focusRef,
+  material = 'gummi',
+  formOffsets = null,
 }: {
   minutes: number;
   onPress: () => void;
@@ -476,6 +493,8 @@ export function HomeKlumpen({
   onChange: (minutes: number) => void;
   /** Focus returns here when the duration sheet closes. */
   focusRef?: RefObject<HostInstance | null>;
+  material?: MaterialId;
+  formOffsets?: readonly number[] | null;
 }) {
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion() === true;
@@ -602,7 +621,15 @@ export function HomeKlumpen({
           }}
           onPress={onPress}
         >
-          <KlumpenBody index={index} minutes={display} reduce={reduce} reduceMotion={reduceMotion} fade={fade} />
+          <KlumpenBody
+            index={index}
+            minutes={display}
+            reduce={reduce}
+            reduceMotion={reduceMotion}
+            fade={fade}
+            material={material}
+            formOffsets={formOffsets}
+          />
         </Pressable>
       </View>
     </View>

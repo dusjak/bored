@@ -18,6 +18,7 @@ import {
   HOLD_A11Y_HINT,
   HOLD_A11Y_LABEL,
   HOLD_CONFIRM_CONTINUE,
+  REMAINING_LABEL,
   HOLD_CONFIRM_END,
   HOLD_CONFIRM_TITLE,
   HOLD_DONE_TEXT,
@@ -102,6 +103,7 @@ describe('copy', () => {
     assert.equal(HOLD_CONFIRM_TITLE, 'Avslutte økten?');
     assert.equal(HOLD_CONFIRM_END, 'Avslutt');
     assert.equal(HOLD_CONFIRM_CONTINUE, 'Fortsett');
+    assert.equal(REMAINING_LABEL, 'gjenstår');
   });
 
   it('keeps the lock-hint variants in one place', () => {

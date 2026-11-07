@@ -32,11 +32,13 @@ import Reanimated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
+import type { MaterialId } from '@/materials/pathLight';
 import { FixedRim, MaterialShade, useLiveMaterial } from '@/materials/DynamicMaterial';
 import { materialPlacement } from '@/materials/restMaps';
 import {
   KLUMPEN_BOUNDS,
   sessionStoneScale,
+  savedSessionRadii,
   sessionStoneWidth,
   sessionTextureRect,
   writeKlumpenPath,
@@ -132,6 +134,10 @@ type Props = {
    * 0 when the timer is hidden, so the ring and the hint centre as a pair.
    */
   gapAbove: number;
+  /** Saved onboarding surface. Unset stays gummi. */
+  material?: MaterialId;
+  /** Saved radial form. Empty stays the base silhouette. */
+  formOffsets?: readonly number[] | null;
   /** Window Y of the hold caption. The lock hint uses it at large type. */
   hintAnchorRef?: RefObject<ViewInstance | null>;
   onHintLayout?: () => void;
@@ -150,7 +156,7 @@ function gestureOf(press: number, release: number, done: number): HoldGesture {
 /**
  * Session Klumpen with the variant-A hold.
  * The arc, glow and rubber spring run on the UI thread. Releasing early
- * drops the light in 300 ms and lets the shape spring back. No failure haptic.
+ * fades the light in 250 ms and lets the shape spring back. The arc stays put. No failure haptic.
  *
  * expo-haptics 58 has no intensity argument, so touch is Soft, the phase
  * changes are Light, and finishing is Success. That is the same order as the spec.
@@ -173,6 +179,8 @@ export function SessionKlumpen({
   hintAnchorRef,
   onHintLayout,
   children,
+  material = 'gummi',
+  formOffsets = null,
 }: Props) {
   const { theme } = useTheme();
   const [screenReader, setScreenReader] = useState(false);
@@ -431,12 +439,12 @@ export function SessionKlumpen({
   const fillPath = usePathValue((builder) => {
     'worklet';
     const p = pose.value;
-    writeKlumpenPath(builder, CX, CY, p.sq, p.wob, p.size, p.phase, 0, scale);
+    writeKlumpenPath(builder, CX, CY, p.sq, p.wob, p.size, p.phase, 0, scale, customRadii);
   });
   const ringPath = usePathValue((builder) => {
     'worklet';
     const p = pose.value;
-    writeKlumpenPath(builder, CX, CY, p.sq, p.wob, p.size, p.phase, RING_OFFSET, scale);
+    writeKlumpenPath(builder, CX, CY, p.sq, p.wob, p.size, p.phase, RING_OFFSET, scale, customRadii);
   });
 
   const restOpacity = useDerivedValue(() => 1 - fillMix.value);
@@ -462,13 +470,14 @@ export function SessionKlumpen({
   const glowBlur = useDerivedValue(() => (pose.value.glowR < 0.5 ? 0.5 : pose.value.glowR));
   const stoneWidth = sessionStoneWidth(minutes);
   const place = useMemo(() => materialPlacement(stoneWidth, CX, CY), [stoneWidth]);
+  const customRadii = useMemo(() => savedSessionRadii(formOffsets), [formOffsets]);
   const shadePath = useMemo(() => {
     const builder = Skia.PathBuilder.Make();
-    writeKlumpenPath(builder, CX, CY, deform.sq, deform.wob, deform.size, deform.phase, 0, scale);
+    writeKlumpenPath(builder, CX, CY, deform.sq, deform.wob, deform.size, deform.phase, 0, scale, customRadii);
     return builder.build();
-  }, [deform.phase, deform.size, deform.sq, deform.wob, scale]);
+  }, [customRadii, deform.phase, deform.size, deform.sq, deform.wob, scale]);
   const field = useLiveMaterial(
-    'gummi',
+    material,
     shadePath,
     { x: place.tx, y: place.ty, size: place.artboardPt },
     place.artboardPt,
@@ -524,7 +533,7 @@ export function SessionKlumpen({
             <>
               <Path path={fillPath} style="fill" opacity={restOpacity}>
                 <MaterialShade
-                  material="gummi"
+                  material={material}
                   field={field}
                   rect={{ x: place.tx, y: place.ty, size: place.artboardPt }}
                 />
@@ -533,7 +542,7 @@ export function SessionKlumpen({
                 <FixedRim path={fillPath} filter={field.rimFilter} />
               </Group>
             </>
-          ) : restImage ? (
+          ) : material === 'gummi' && restImage ? (
             <Path path={fillPath} style="fill" opacity={restOpacity}>
               <ImageShader
                 image={restImage}
@@ -547,7 +556,7 @@ export function SessionKlumpen({
           ) : (
             <Path path={fillPath} style="fill" color={theme.color.session.object} opacity={restOpacity} />
           )}
-          {!field.ready && pressedImage ? (
+          {!field.ready && material === 'gummi' && pressedImage ? (
             <Path path={fillPath} style="fill" opacity={pressedOpacity}>
               <ImageShader
                 image={pressedImage}

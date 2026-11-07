@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { HOLD_DONE_TEXT, HOLD_PHASE_TEXT, HOLD_TO_END_MS } from '../data/copy.ts';
+import { cubicBezier } from './trackStroke.ts';
 import {
   HOLD,
   arcAlpha,
   contourGradient,
   easeInOutSine,
-  easeOutCubic,
   glowLevel,
   mixHex,
   phaseEndMs,
@@ -74,16 +74,17 @@ describe('hold to end', () => {
     assert.equal(arcAlpha(0.25, 0.3), 1);
   });
 
-  it('falls the light and the arc back over 300 ms and leaves the copy alone until 120 ms', () => {
+  it('fades the light over 250 ms and keeps the arc where it was released', () => {
     const g: HoldGesture = { pressAt: 0, releaseAt: 2400, doneAt: null };
     const atRelease = sampleHold(g, 2400, plain);
-    const halfway = sampleHold(g, 2550, plain);
-    const gone = sampleHold(g, 2700, plain);
-    const k = 1 - easeOutCubic(0.5);
+    const halfway = sampleHold(g, 2400 + HOLD.releaseMs / 2, plain);
+    const gone = sampleHold(g, 2400 + HOLD.releaseMs, plain);
+    const k = 1 - cubicBezier(0.5, 0.42, 0, 1, 1);
+    assert.equal(HOLD.releaseMs, 250);
     assert.ok(Math.abs(halfway.e - atRelease.e * k) < 1e-9);
-    assert.ok(Math.abs(halfway.prog - (2400 / HOLD_TO_END_MS) * k) < 1e-9);
+    assert.equal(halfway.prog, atRelease.prog);
     assert.ok(gone.e < 1e-9);
-    assert.equal(gone.prog, 0);
+    assert.equal(gone.prog, atRelease.prog);
     assert.equal(sampleHold(g, 2519, plain).textCur, 1);
     assert.equal(sampleHold(g, 2520, plain).textCur, 0);
     assert.equal(sampleHold(g, 2400, plain).glowAlpha > 0, true);

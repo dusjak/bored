@@ -1,4 +1,5 @@
 import { PRESET_MINUTES } from '../data/copy.ts';
+import { FORM_BINS, contourInPoints } from '../onboarding/formShape.ts';
 
 /**
  * Session Klumpen («Småstein»). The radii are the 176 pt silhouette sampled
@@ -62,24 +63,51 @@ type PathBuilder = {
   close(): void;
 };
 
-/** Points in a y-up frame, origin at the centroid. `offset` is a geometric outset in pt. */
+/** Radii in the session sample, or null when the saved form is the base silhouette. */
+export function savedSessionRadii(offsets: readonly number[] | null | undefined): number[] | null {
+  if (!offsets || offsets.length !== FORM_BINS || offsets.every((value) => Math.abs(value) < 0.05)) return null;
+  const samples = contourInPoints(offsets, SESSION_STONE_BASE).map((point) => ({
+    angle: Math.atan2(point.y, point.x),
+    radius: Math.hypot(point.x, point.y),
+  }));
+  const n = KLUMPEN_RADII.length;
+  const radii: number[] = [];
+  for (let i = 0; i < n; i += 1) {
+    const phi = (i / n) * TWO_PI;
+    const angle = Math.atan2(-Math.cos(phi), Math.sin(phi));
+    let best = samples[0];
+    let bestDelta = Infinity;
+    for (const sample of samples) {
+      let delta = Math.abs(sample.angle - angle);
+      if (delta > Math.PI) delta = TWO_PI - delta;
+      if (delta < bestDelta) {
+        bestDelta = delta;
+        best = sample;
+      }
+    }
+    radii.push(best?.radius ?? KLUMPEN_RADII[i]);
+  }
+  return radii;
+}
+
 export function klumpenPoints(
   sq: number,
   wob: number,
   size: number,
   phase: number,
   offset: number,
+  radii?: readonly number[] | null,
 ): { xs: number[]; ys: number[] } {
   'worklet';
-  const n = KLUMPEN_RADII.length;
+  const table = radii && radii.length === KLUMPEN_RADII.length ? radii : KLUMPEN_RADII;
+  const n = table.length;
   const xs: number[] = [];
   const ys: number[] = [];
   for (let i = 0; i < n; i += 1) {
     const phi = (i / n) * TWO_PI;
     const th = phi - Math.PI / 2;
-    const r =
-      KLUMPEN_RADII[i] *
-      (1 + size + sq * Math.cos(2 * th) + wob * Math.cos(3 * th - phase));
+    const base = table[i] ?? 0;
+    const r = base * (1 + size + sq * Math.cos(2 * th) + wob * Math.cos(3 * th - phase));
     xs.push(r * Math.sin(phi));
     ys.push(r * Math.cos(phi));
   }
@@ -186,9 +214,10 @@ export function writeKlumpenPath(
   phase: number,
   offset: number,
   scale: number,
+  radii?: readonly number[] | null,
 ): void {
   'worklet';
-  const { xs, ys } = klumpenPoints(sq, wob, size, phase, offset);
+  const { xs, ys } = klumpenPoints(sq, wob, size, phase, offset, radii);
   builder.moveTo(cx + xs[0] * scale, cy - ys[0] * scale);
   for (let i = 1; i < xs.length; i += 1) builder.lineTo(cx + xs[i] * scale, cy - ys[i] * scale);
   builder.close();

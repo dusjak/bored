@@ -16,9 +16,11 @@ import {
   HOLD_CONFIRM_END,
   HOLD_CONFIRM_TITLE,
   HOLD_DONE_TEXT,
+  REMAINING_LABEL,
   chosenMinutes,
   completionSentence,
 } from '@/data/copy';
+import { defaultMaterial } from '@/onboarding/flow';
 import { HOLD } from '@/session/holdToEnd';
 import {
   HOLD_HINT_IDLE,
@@ -44,7 +46,10 @@ export default function Session() {
     noteBackground,
     noteForeground,
     showCountdown,
+    user,
   } = useAppState();
+  const stoneMaterial = defaultMaterial(user.materialId);
+  const stoneForm = user.forms?.[stoneMaterial] ?? null;
 
   const session = activeSession;
   const startedAtMs = session ? Date.parse(session.startedAt) : 0;
@@ -72,6 +77,9 @@ export default function Session() {
   const holdHintRef = useRef<ViewInstance>(null);
   const [holdWindowY, setHoldWindowY] = useState<number | null>(null);
   const lockHintLabel = useSharedValue(1);
+  const remainingStyle = useAnimatedStyle(() => ({
+    opacity: lockHintLabel.value,
+  }));
   const freshLockHint = session != null && session.id === lockHintSessionId;
   const [holdGate, setHoldGate] = useState<HoldHintGate>(HOLD_HINT_IDLE);
   const holdMoment = holdHintMomentAt(holdGate, Date.now());
@@ -305,7 +313,7 @@ export default function Session() {
                   {showCountdown ? (
                     <Animated.Text
                       accessibilityRole="timer"
-                      accessibilityLabel={`${mm} minutter og ${ss} sekunder gjenstår`}
+                      accessibilityLabel={`${mm} minutter og ${ss} sekunder ${REMAINING_LABEL}`}
                       adjustsFontSizeToFit
                       numberOfLines={1}
                       style={[
@@ -316,6 +324,13 @@ export default function Session() {
                     >
                       {mm}:{ss}
                     </Animated.Text>
+                  ) : null}
+                  {showCountdown ? (
+                    <Reanimated.Text
+                      style={[theme.text.caption, styles.remaining, { color: theme.color.session['text-secondary'] }, remainingStyle]}
+                    >
+                      {REMAINING_LABEL}
+                    </Reanimated.Text>
                   ) : null}
                 </View>
               ) : null}
@@ -337,6 +352,8 @@ export default function Session() {
                 fade={holdFade}
                 morph={morph}
                 gapAbove={showCountdown || showDone ? SESSION_RING_GAP : 0}
+                material={stoneMaterial}
+                formOffsets={stoneForm}
                 accessibilityLabel={showDone ? `Økt fullført. ${sentence}` : HOLD_A11Y_LABEL}
                 accessibilityHint={showDone ? undefined : HOLD_A11Y_HINT}
                 accessibilityAction={!showDone}
@@ -389,6 +406,7 @@ const styles = StyleSheet.create({
   column: { alignSelf: 'stretch', alignItems: 'center', overflow: 'visible' },
   timerSlot: { height: SESSION_TIMER_BOX, alignSelf: 'stretch' },
   timer: { height: SESSION_TIMER_BOX, textAlign: 'center', includeFontPadding: false },
+  remaining: { position: 'absolute', top: -20, left: 0, right: 0, textAlign: 'center' },
   doneCopy: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', gap: 8, zIndex: 0 },
   dot: { width: 8, height: 8, borderRadius: 4 },
   error: { position: 'absolute', left: screenPadding, right: screenPadding, bottom: 48, textAlign: 'center', zIndex: 2 },

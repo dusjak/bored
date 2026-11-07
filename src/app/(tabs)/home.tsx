@@ -9,7 +9,7 @@ import { HomeKlumpen } from '@/components/Klumpen';
 import { Screen } from '@/components/Screen';
 import { features } from '@/config/features';
 import { HOME_UNEASE_LATCH, getSetting, setSetting } from '@/data/repository';
-import { homeUneaseState, type EndedSession } from '@/onboarding/flow';
+import { defaultMaterial, homeUneaseState, type EndedSession } from '@/onboarding/flow';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
@@ -58,6 +58,8 @@ export default function Home() {
       <View style={styles.hero}>
         <HomeKlumpen
           minutes={durationMinutes}
+          material={defaultMaterial(user.materialId)}
+          formOffsets={user.forms?.[defaultMaterial(user.materialId)] ?? null}
           onPress={() => setPickerOpen(true)}
           focusRef={durationRef}
           onChange={(next) => {

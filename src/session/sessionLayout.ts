@@ -14,7 +14,7 @@ import {
  */
 export const SESSION_RING_GAP = 32;
 
-/** `text.monoTimer` line box. The spoken «gjenstår» is not drawn. */
+/** `text.monoTimer` line box. «gjenstår» is drawn above this line by the session screen. */
 export const SESSION_TIMER_BOX = 96;
 
 /** `text.caption` line box for the hold hint. */

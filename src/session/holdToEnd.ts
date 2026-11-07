@@ -2,10 +2,10 @@
  * Hold-to-end, variant A. Numbers follow the hold spec (the reference
  * `Scenario.state`): three phases inside `HOLD_TO_END_MS`, an arc that grows
  * clockwise from the top, and a rubber spring on the shape only.
- * Light falls back with ease-out cubic. The shape does not.
+ * An early release freezes the arc and fades the light over 250 ms. The shape springs back.
  */
 import { HOLD_TO_END_MS as COPY_HOLD_TO_END_MS } from '../data/copy.ts';
-import { TRACK_IN_MS } from './trackStroke.ts';
+import { TRACK_IN_MS, TRACK_OUT_MS, cubicBezier } from './trackStroke.ts';
 
 // `export { HOLD_TO_END_MS }` is a getter on the module object. Worklets
 // capture that object and cannot read the getter, so the UI thread throws
@@ -21,7 +21,8 @@ const PHASE_NUM = [13, 27, 40] as const;
 export const GLOW_LEVELS = [0, 0.3, 0.62, 0.9] as const;
 
 export const HOLD = {
-  releaseMs: 300,
+  /** Same 250 ms ease-in as the painted track. The arc does not rewind. */
+  releaseMs: TRACK_OUT_MS,
   textXfadeMs: 180,
   textReturnMs: 120,
   donePeakMs: 140,
@@ -281,10 +282,9 @@ export function sampleHold(g: HoldGesture, now: number, options: HoldOptions): H
     prog = 1;
     fade = easeInOutSine((c - HOLD.doneFadeAtMs) / HOLD.doneFadeMs);
   } else if (g.releaseAt != null && now >= g.releaseAt && g.doneAt == null) {
-    const k = 1 - easeOutCubic((now - g.releaseAt) / HOLD.releaseMs);
+    const k = 1 - cubicBezier((now - g.releaseAt) / HOLD.releaseMs, 0.42, 0, 1, 1);
     const radAt = glowR;
     e *= k;
-    prog *= k;
     glowR = HOLD.glowRMin + (radAt - HOLD.glowRMin) * k;
   }
   const en = clamp01(e / 0.9);

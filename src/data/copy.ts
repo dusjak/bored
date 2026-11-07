@@ -21,6 +21,8 @@ export const HOLD_A11Y_HINT = 'Dobbelttrykk for å avslutte';
 export const HOLD_CONFIRM_TITLE = 'Avslutte økten?';
 export const HOLD_CONFIRM_END = 'Avslutt';
 export const HOLD_CONFIRM_CONTINUE = 'Fortsett';
+/** Visible word above the session clock. The accessibility label uses the same word. */
+export const REMAINING_LABEL = 'gjenstår';
 
 /** Number and unit for a mixed-font duration, e.g. `{ value: '10', unit: 'minutter' }`. */
 export function durationParts(minutes: number): { value: string; unit: string } {
