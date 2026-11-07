@@ -10,7 +10,11 @@
       "bundleIdentifier": "no.bored.app",
       "buildNumber": "1",
       "supportsTablet": true,
-      "icon": "./assets/icon/icon-1024.png",
+      "icon": {
+        "light": "./assets/icon/icon-1024.png",
+        "dark": "./assets/icon/icon-1024-dark.png",
+        "tinted": "./assets/icon/icon-1024-tinted.png"
+      },
       "config": {
         "usesNonExemptEncryption": false
       },

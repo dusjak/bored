@@ -6,6 +6,7 @@ import { Sheet } from '@/components/Sheet';
 import { TimeWheel } from '@/components/TimeWheel';
 import { useRegisterSheetTitle } from '@/sheet/title';
 import { sheetContentPullUp } from '@/sheet/motion';
+import { snapReminderClock } from '@/theme/deg';
 import { useTheme } from '@/theme';
 
 type Props = {
@@ -25,10 +26,10 @@ type Props = {
  * and each wheel keeps its own one-finger drag. Nothing is saved until the check.
  */
 export function ReminderTimeSheet({ visible, hour, minute, onCancel, onConfirm, returnFocusRef }: Props) {
-  const [draft, setDraft] = useState({ hour, minute });
+  const [draft, setDraft] = useState(() => snapReminderClock(hour, minute));
 
   useEffect(() => {
-    if (visible) setDraft({ hour, minute });
+    if (visible) setDraft(snapReminderClock(hour, minute));
   }, [hour, minute, visible]);
 
   return (

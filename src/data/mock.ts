@@ -2,7 +2,9 @@
  * Onboarding copy. Session history lives in the database, not here.
  */
 
-export type Option = { id: string; label: string; sub?: string; icon?: string };
+import type { FyllingName } from './fylling.ts';
+
+export type Option = { id: string; label: string; sub?: string; icon?: FyllingName };
 
 export type QuestionKey = 'distraction' | 'state' | 'goal' | 'duration' | 'time';
 
@@ -82,10 +84,10 @@ export const QUESTIONS: Record<QuestionKey, Question> = {
     next: '/onboarding/name',
     withIcons: true,
     options: [
-      { id: 'morgen', label: 'Morgen', sub: 'Før dagen tar over', icon: '○' },
-      { id: 'lunsj', label: 'Midt på dagen', sub: 'En pause i arbeidsdagen', icon: '◑' },
-      { id: 'kveld', label: 'Kveld', sub: 'Avslutte dagen med ro', icon: '●' },
-      { id: 'varierer', label: 'Varierer', sub: 'Ingen fast rytme ennå', icon: '◌' },
+      { id: 'morgen', label: 'Morgen', sub: 'Før dagen tar over', icon: 'morgen' },
+      { id: 'lunsj', label: 'Midt på dagen', sub: 'En pause i arbeidsdagen', icon: 'lunsj' },
+      { id: 'kveld', label: 'Kveld', sub: 'Avslutte dagen med ro', icon: 'kveld' },
+      { id: 'varierer', label: 'Varierer', sub: 'Ingen fast rytme ennå', icon: 'varierer' },
     ],
   },
 };

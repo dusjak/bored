@@ -13,7 +13,7 @@ Nothing in this repo contains an Apple ID or a team id. Do not invent them. The 
 | Android package | `no.bored.app` |
 | User-facing version | `1.0.0` |
 | iOS build number seed | `1` |
-| Icon | `assets/icon/icon-1024.png` (opaque RGB, no rounded corners added) |
+| Icon | `assets/icon/icon-1024.png` (light, opaque RGB). iOS 18 also uses `ios.icon.dark` (`icon-1024-dark.png`, transparent background) and `ios.icon.tinted` (`icon-1024-tinted.png`, greyscale on black). No rounded corners. The top-level `icon` is the light file. |
 | Icon source | `assets/icon/icon.svg` (not used by the app config) |
 | Export compliance | `ios.config.usesNonExemptEncryption: false` |
 | Notification prompt | `bored. varsler når økta er ferdig.` |

@@ -14,6 +14,7 @@ import Animated, {
 import {
   deg,
   indexFromOffset,
+  snapReminderClock,
   WHEEL_HOURS,
   WHEEL_MINUTES,
   wheelIndex,
@@ -30,7 +31,8 @@ type Props = {
 const PAD = (deg.wheelHeight - deg.wheelRow) / 2;
 
 /**
- * Hour and minute wheels, each its own scroll view. Hours 00–23, minutes 00–59.
+ * Hour and minute wheels, each its own scroll view. Hours 00–23.
+ * Minutes are 00, 05, … 55. An off-grid time snaps when the wheel is open.
  * A parent responder used to take the first finger, so a column only moved
  * once a second finger reached the native scroll view, and then both columns
  * jumped. The value is committed when that column settles.
@@ -42,8 +44,15 @@ export function TimeWheel({ open, hour, minute, onChange }: Props) {
   const reduced = useReducedMotion() === true;
   const height = useSharedValue(open ? deg.wheelHeight : 0);
   const opacity = useSharedValue(open ? 1 : 0);
-  const clock = useRef({ hour, minute });
-  clock.current = { hour, minute };
+  const shown = snapReminderClock(hour, minute);
+  const clock = useRef(shown);
+  clock.current = shown;
+
+  useEffect(() => {
+    if (!open) return;
+    if (shown.hour === hour && shown.minute === minute) return;
+    onChange(shown.hour, shown.minute);
+  }, [hour, minute, onChange, open, shown.hour, shown.minute]);
 
   useEffect(() => {
     if (reduced) {
@@ -98,7 +107,7 @@ export function TimeWheel({ open, hour, minute, onChange }: Props) {
         <Column
           label="Time"
           values={WHEEL_HOURS}
-          selected={String(hour).padStart(2, '0')}
+          selected={String(shown.hour).padStart(2, '0')}
           figure={figure}
           open={open}
           onSelect={(next) => commit(Number(next), clock.current.minute)}
@@ -109,7 +118,7 @@ export function TimeWheel({ open, hour, minute, onChange }: Props) {
         <Column
           label="Minutt"
           values={WHEEL_MINUTES}
-          selected={String(minute).padStart(2, '0')}
+          selected={String(shown.minute).padStart(2, '0')}
           figure={figure}
           open={open}
           onSelect={(next) => commit(clock.current.hour, Number(next))}

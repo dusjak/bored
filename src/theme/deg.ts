@@ -42,8 +42,8 @@ export const deg = {
   wheelHeight: 216,
   wheelRow: 34,
   wheelInset: 8,
-  /** One row per minute, 00–59, same as the iOS alarm picker. */
-  wheelMinuteStep: 1,
+  /** Decision B. Minutes are 00, 05, … 55. The hour column stays one hour per row. */
+  wheelMinuteStep: 5,
   /** Height animation. cubic-bezier(0.32, 0.72, 0, 1). Reduce Motion crossfades. */
   wheelDuration: 300,
   wheelBezier: [0.32, 0.72, 0, 1] as const,
@@ -63,6 +63,25 @@ export const WHEEL_MINUTES = Array.from({ length: 60 / deg.wheelMinuteStep }, (_
 export function wheelIndex(values: readonly string[], selected: string): number {
   const index = values.indexOf(selected);
   return index < 0 ? 0 : index;
+}
+
+/**
+ * Nearest minute on the reminder grid. A stored 58 or 59 is closer to the
+ * next hour than to 55, so it becomes :00 and the hour wraps, including 23 → 0.
+ * 57 stays on 55. An exact step is left alone.
+ */
+export function snapReminderClock(
+  hour: number,
+  minute: number,
+  step = deg.wheelMinuteStep,
+): { hour: number; minute: number } {
+  const hourMod = ((Math.trunc(hour) % 24) + 24) % 24;
+  const minuteClamped = Math.min(59, Math.max(0, Math.trunc(minute)));
+  const down = minuteClamped - (minuteClamped % step);
+  const up = down + step;
+  const snapped = minuteClamped - down < up - minuteClamped ? down : up;
+  if (snapped < 60) return { hour: hourMod, minute: snapped };
+  return { hour: (hourMod + 1) % 24, minute: 0 };
 }
 
 /** Snap a scroll offset to a row. Stays inside the list. */
