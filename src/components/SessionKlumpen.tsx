@@ -351,6 +351,10 @@ export function SessionKlumpen({
         Math.abs(spring.value.wobV) > 0.0004 ||
         Math.abs(spring.value.size) > 0.0004 ||
         Math.abs(spring.value.sizeV) > 0.0004;
+      if (g.doneAt != null && settleSent.value === 0 && now >= g.doneAt + HOLD.doneFadeAtMs + HOLD.doneFadeMs) {
+        settleSent.value = 1;
+        runOnJS(fireSettled)();
+      }
       if (!holding && !releasedRecently && !confirming && !moving) {
         if (deformKey.value !== 'rest') {
           deformKey.value = 'rest';
@@ -390,10 +394,6 @@ export function SessionKlumpen({
             ? { sq: 0, wob: 0, size: 0, phase: 0 }
             : { sq: next.sq, wob: next.wob, size: next.size, phase: Math.abs(next.wob) > 0.004 ? spin : 0 },
         );
-      }
-      if (g.doneAt != null && settleSent.value === 0 && now >= g.doneAt + HOLD.doneFadeAtMs + HOLD.doneFadeMs) {
-        settleSent.value = 1;
-        runOnJS(fireSettled)();
       }
     },
     [

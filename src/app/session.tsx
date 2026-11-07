@@ -30,7 +30,7 @@ import {
 import { SESSION_RING_GAP, SESSION_TIMER_BOX } from '@/session/sessionLayout';
 import { decideUnfinishedSession } from '@/data/sessionRules';
 import { useAppState } from '@/state/AppState';
-import { routeWhenSessionCleared } from '@/state/resetRoute';
+import { noteEntryRoute } from '@/state/resetRoute';
 import { screenPadding, useTheme } from '@/theme';
 
 /** Active session. Always dark. Hold the Klumpen for four seconds to end early. */
@@ -44,7 +44,6 @@ export default function Session() {
     noteBackground,
     noteForeground,
     showCountdown,
-    notesAfterReset,
   } = useAppState();
 
   const session = activeSession;
@@ -105,14 +104,17 @@ export default function Session() {
   }, []);
 
   useEffect(() => {
-    if (session || leaving.current) return;
-    router.replace(routeWhenSessionCleared(notesAfterReset));
-  }, [notesAfterReset, session]);
+    if (session || leaving.current || abortId.current) return;
+    router.replace('/home');
+  }, [session]);
 
   const away = useRef(false);
+  const noted = useRef(false);
 
   const openReflection = useCallback((id: string) => {
-    router.replace({ pathname: '/reflection', params: { sessionId: id } });
+    if (!id || noted.current) return;
+    noted.current = true;
+    router.replace(noteEntryRoute(id));
   }, []);
 
   const finishExpired = useCallback(async () => {
@@ -219,10 +221,13 @@ export default function Session() {
       }
       abortId.current = id;
       maybeNavigate();
+      // The hold frame only reports settle inside a 50 ms window. If that frame
+      // is missed, the note entry still opens with this session id.
+      setTimeout(() => openReflection(id), HOLD.doneFadeAtMs + HOLD.doneFadeMs + 80);
     } catch {
       setError('fikk ikke lagret. prøv igjen.');
     }
-  }, [abortActiveSession, hideHintForComplete, maybeNavigate, playCompletion]);
+  }, [abortActiveSession, hideHintForComplete, maybeNavigate, openReflection, playCompletion]);
 
   const onHoldSettled = useCallback(() => {
     holdSettled.current = true;

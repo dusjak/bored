@@ -89,11 +89,6 @@ type AppStateValue = {
   /** Wipes local data and scheduled alerts. Does not change the OS notification permission. */
   resetLocalData: () => Promise<void>;
   /**
-   * True after Nullstill in this process. Index and a cleared session go to the
-   * notes list instead of Hjem. A later cold start reads storage again.
-   */
-  notesAfterReset: boolean;
-  /**
    * play = MegaSplash. still = Pust or Dråpe (the plate is up).
    * fade = the plate is leaving. enter = MegaSplash handed off and welcome rises.
    * off = no overlay.
@@ -127,7 +122,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [storageError, setStorageError] = useState<string | null>(null);
   const [launch, setLaunch] = useState<LaunchTarget>('onboarding');
-  const [notesAfterReset, setNotesAfterReset] = useState(false);
   const [reflectionSessionId, setReflectionSessionId] = useState<string | null>(null);
   const [user, setUser] = useState<OnboardingProfile>({});
   const [onboarded, setOnboarded] = useState(false);
@@ -459,7 +453,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resetLocalData = useCallback(async () => {
-    setNotesAfterReset(true);
     await cancelAllScheduledNotifications();
     await clearAllLocalData();
     setUser({});
@@ -517,7 +510,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       refreshDailyReminder,
       firstUsedAt,
       resetLocalData,
-      notesAfterReset,
       introPhase,
       splashOccasion,
       splashCalm,
@@ -557,7 +549,6 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       refreshDailyReminder,
       firstUsedAt,
       resetLocalData,
-      notesAfterReset,
       introPhase,
       splashOccasion,
       splashCalm,
