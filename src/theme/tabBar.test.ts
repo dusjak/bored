@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
 import { text, themes } from './theme.ts';
@@ -9,6 +11,7 @@ import {
   TAB_BAR,
   TAB_BAR_DARK,
   degHeadRadius,
+  nativeTabInk,
   tabBarDarkGlass,
   tabBarKind,
   klumpenIconStrokePt,
@@ -50,20 +53,25 @@ describe('tab bar v6', () => {
     ]);
   });
 
-  it('paints the dark v6 glass without changing the light inks', () => {
+  it('keeps one iOS navigator and tints dark without the custom glass', () => {
     assert.equal(TAB_BAR.activeInk, '#111110');
     assert.equal(TAB_BAR.inactiveInk, '#66635D');
-    assert.equal(TAB_BAR_DARK.glass, '#2C2B28');
-    assert.equal(TAB_BAR_DARK.glassOpacity, 0.72);
-    assert.equal(TAB_BAR_DARK.blur, 20);
-    assert.equal(TAB_BAR_DARK.edge, 'rgba(248,246,242,0.10)');
+    assert.equal(tabBarKind('ios'), 'native');
+    assert.equal(tabBarKind('android'), 'v6');
+    assert.deepEqual(nativeTabInk('light'), { active: '#111110', inactive: '#66635D' });
+    assert.deepEqual(nativeTabInk('dark'), { active: '#F8F6F2', inactive: '#8C887F' });
     assert.equal(TAB_BAR_DARK.activePill, '#34322E');
-    assert.equal(TAB_BAR_DARK.activeInk, '#F8F6F2');
-    assert.equal(TAB_BAR_DARK.inactiveInk, '#8C887F');
     assert.equal(tabBarDarkGlass(), 'rgba(44,43,40,0.72)');
-    assert.equal(tabBarKind('ios', 'light'), 'native');
-    assert.equal(tabBarKind('ios', 'dark'), 'v6');
-    assert.equal(tabBarKind('android', 'light'), 'v6');
+    const layout = readFileSync(join(process.cwd(), 'src/app/(tabs)/_layout.tsx'), 'utf8');
+    assert.match(layout, /tabBarKind\(Platform\.OS\)/);
+    assert.doesNotMatch(layout, /tabBarKind\(Platform\.OS, theme/);
+    assert.match(layout, /tabs\/hjem\.png/);
+    assert.match(layout, /tabs\/hjem-fill\.png/);
+    assert.match(layout, /tabs\/logg\.png/);
+    assert.match(layout, /tabs\/logg-fill\.png/);
+    assert.match(layout, /tabs\/deg\.png/);
+    assert.match(layout, /tabs\/deg-fill\.png/);
+    assert.doesNotMatch(layout, /sf:|SFSymbol/);
   });
 
   it('grows the Deg head by half the stroke when it is filled', () => {

@@ -5,7 +5,7 @@ import { NativeTabs } from 'expo-router/native-tabs';
 
 import { GlassTabBar } from '@/components/GlassTabBar';
 import { useTheme } from '@/theme';
-import { tabBarKind } from '@/theme/tabBar';
+import { nativeTabInk, tabBarKind } from '@/theme/tabBar';
 
 const hjem = {
   default: require('../../../assets/tabs/hjem.png'),
@@ -21,19 +21,26 @@ const deg = {
 };
 
 /**
- * iOS uses the system tab bar. The marks stay the v6 Klumpen, bars, and Deg,
- * drawn as template images so the bar tints them. Other platforms keep the blur bar.
+ * iOS keeps one system tab bar in both themes. The marks are the v6 artwork,
+ * template-tinted. Dark does not get the custom glass or pill.
+ * Other platforms keep the existing blur bar.
  */
 export default function TabsLayout() {
   const { theme } = useTheme();
-  if (tabBarKind(Platform.OS, theme.name) === 'native') {
+  const ink = nativeTabInk(theme.name);
+  if (tabBarKind(Platform.OS) === 'native') {
     const background = theme.color.bg.default;
+    const label = { fontSize: theme.text.tab.fontSize, fontFamily: theme.text.tab.fontFamily };
     return (
       <NavigationThemeProvider value={theme.name === 'dark' ? DarkTheme : DefaultTheme}>
         <NativeTabs
           minimizeBehavior="never"
-          iconColor={{ default: theme.color.text.tertiary, selected: theme.color.text.primary }}
-          labelStyle={{ fontSize: theme.text.tab.fontSize, fontFamily: theme.text.tab.fontFamily }}
+          iconColor={{ default: ink.inactive, selected: ink.active }}
+          labelStyle={
+            theme.name === 'dark'
+              ? { default: { ...label, color: ink.inactive }, selected: { ...label, color: ink.active } }
+              : label
+          }
         >
           <NativeTabs.Trigger name="home" contentStyle={{ backgroundColor: background }}>
             <NativeTabs.Trigger.Label>Hjem</NativeTabs.Trigger.Label>

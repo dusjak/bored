@@ -24,9 +24,8 @@ export const TAB_BAR = {
 } as const;
 
 /**
- * Dark v6. The light bar above stays as it is.
- * Native UITabBar cannot draw this pill, this glass, or a 20pt blur,
- * so the existing v6 bar paints it. iOS light keeps the system bar.
+ * Dark ink the system tab bar can tint. The glass fill, blur, edge, and pill
+ * are not passed to UITabBar. Non-iOS still paints them on the existing v6 bar.
  */
 export const TAB_BAR_DARK = {
   glass: '#2C2B28',
@@ -43,10 +42,18 @@ export function tabBarDarkGlass(): string {
   return `rgba(${r},${g},${b},${TAB_BAR_DARK.glassOpacity})`;
 }
 
-/** Light iOS stays on the system tab bar. Dark uses the existing v6 bar. */
-export function tabBarKind(platform: string, themeName: 'light' | 'dark'): 'native' | 'v6' {
-  if (platform === 'ios' && themeName === 'light') return 'native';
+/** iOS always uses one system tab bar. Theme does not choose the navigator. */
+export function tabBarKind(platform: string): 'native' | 'v6' {
+  if (platform === 'ios') return 'native';
   return 'v6';
+}
+
+/** Label and icon tint. Light stays the v6 inks. Dark uses the supported tint only. */
+export function nativeTabInk(themeName: 'light' | 'dark'): { active: string; inactive: string } {
+  if (themeName === 'dark') {
+    return { active: TAB_BAR_DARK.activeInk, inactive: TAB_BAR_DARK.inactiveInk };
+  }
+  return { active: TAB_BAR.activeInk, inactive: TAB_BAR.inactiveInk };
 }
 
 /** Drop shadow on the bar. SVG filter: dy 10, blur 14, #3C3228 at 16%. */
