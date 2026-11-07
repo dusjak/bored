@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Canvas, Group, ImageShader, Paint, Rect, Shader, Skia, useImage, type SkPath } from '@shopify/react-native-skia';
 
-import { materialLocalMatrix, materialPlacement, MATERIAL_DIGIT_COLOR, MATERIAL_DIGIT_FONT, MATERIAL_TILE } from '@/materials/restMaps';
+import { materialLocalMatrix, materialPlacement, sourcePixelAt, MATERIAL_DIGIT_COLOR, MATERIAL_DIGIT_FONT, MATERIAL_TILE } from '@/materials/restMaps';
 import {
   ENV_LIGHT,
   PATH_LIGHT_SKSL,
@@ -10,8 +10,9 @@ import {
   RIM_SAMPLE_PX_PER_PT,
   buildField,
   fitRim,
-  litPlate,
+  litFromBase,
   parseHex,
+  rimBand,
   unitLight,
   type MaterialId,
 } from '@/materials/pathLight';
@@ -43,7 +44,8 @@ const FIELD = 48;
 /**
  * Path-aware light on the albedo only. Rest shade and light maps are not sampled.
  * Not mounted by Hjem, the session, or onboarding. The shipped gummi rasters stay.
- * Pillow detail is not baked onto base.png: the radial warp is unresolved.
+ * Rim gain is fit on this albedo after the path light. It stays 0 when those
+ * pixels cannot be read. Gummi warp and NumPy height noise stay off.
  */
 export function DynamicMaterial({
   material,
@@ -92,42 +94,69 @@ export function DynamicMaterial({
         if (clip.contains(place.tx + (x + 0.5) / px, place.ty + (y + 0.5) / px)) mask[y * cols + x] = 1;
       }
     }
-    const coarse = new Uint8Array(FIELD * FIELD);
-    const scale = place.artboardPt / FIELD;
-    for (let y = 0; y < FIELD; y += 1) {
-      for (let x = 0; x < FIELD; x += 1) {
-        if (clip.contains(place.tx + (x + 0.5) * scale, place.ty + (y + 0.5) * scale)) coarse[y * FIELD + x] = 1;
+    const raw = albedo?.readPixels(0, 0, {
+      width: albedo.width(),
+      height: albedo.height(),
+      colorType: 4,
+      alphaType: 1,
+    });
+    const basePx = raw instanceof Uint8Array ? raw : null;
+    const baseW = albedo?.width() ?? 0;
+    const baseH = albedo?.height() ?? 0;
+    const readable = Boolean(basePx && baseW > 0 && baseH > 0 && basePx.length >= baseW * baseH * 4);
+    let band = rimBand(mask, cols, rows, px).band;
+    let k = 0;
+    if (readable && basePx) {
+      const coarse = new Uint8Array(FIELD * FIELD);
+      const scale = place.artboardPt / FIELD;
+      for (let y = 0; y < FIELD; y += 1) {
+        for (let x = 0; x < FIELD; x += 1) {
+          if (clip.contains(place.tx + (x + 0.5) * scale, place.ty + (y + 0.5) * scale)) coarse[y * FIELD + x] = 1;
+        }
       }
-    }
-    const field = buildField(coarse, FIELD, FIELD, material);
-    const plate = new Float32Array(cols * rows * 3);
-    for (let y = 0; y < rows; y += 1) {
-      for (let x = 0; x < cols; x += 1) {
-        const fx = Math.min(FIELD - 1, Math.max(0, Math.floor(((x + 0.5) / cols) * FIELD)));
-        const fy = Math.min(FIELD - 1, Math.max(0, Math.floor(((y + 0.5) / rows) * FIELD)));
-        const n = fy * FIELD + fx;
-        const color = litPlate(field.normals.subarray(n * 3, n * 3 + 3), material);
-        const i = y * cols + x;
-        plate[i * 3] = color[0];
-        plate[i * 3 + 1] = color[1];
-        plate[i * 3 + 2] = color[2];
+      const field = buildField(coarse, FIELD, FIELD, material);
+      const plate = new Float32Array(cols * rows * 3);
+      for (let y = 0; y < rows; y += 1) {
+        for (let x = 0; x < cols; x += 1) {
+          const fx = Math.min(FIELD - 1, Math.max(0, Math.floor(((x + 0.5) / cols) * FIELD)));
+          const fy = Math.min(FIELD - 1, Math.max(0, Math.floor(((y + 0.5) / rows) * FIELD)));
+          const n = fy * FIELD + fx;
+          const canvasX = place.tx + (x + 0.5) / px;
+          const canvasY = place.ty + (y + 0.5) / px;
+          const src = sourcePixelAt(width, cx, cy, canvasX, canvasY);
+          const color = litFromBase(
+            basePx,
+            baseW,
+            baseH,
+            src.x,
+            src.y,
+            { x: field.normals[n * 3], y: field.normals[n * 3 + 1], z: field.normals[n * 3 + 2] },
+            material,
+          );
+          const i = y * cols + x;
+          plate[i * 3] = color.r;
+          plate[i * 3 + 1] = color.g;
+          plate[i * 3 + 2] = color.b;
+        }
       }
+      const fit = fitRim(plate, mask, cols, rows, px);
+      band = fit.band;
+      k = fit.k;
     }
-    const fit = fitRim(plate, mask, cols, rows, px);
     const bytes = new Uint8Array(cols * rows * 4);
-    for (let i = 0; i < cols * rows; i += 1) {
-      bytes[i * 4] = Math.round(Math.min(1, Math.max(0, fit.band[i])) * 255);
+    for (let i = 0; i < band.length; i += 1) {
+      bytes[i * 4] = Math.round(Math.min(1, Math.max(0, band[i])) * 255);
       bytes[i * 4 + 3] = 255;
     }
     return {
-      k: fit.k,
+      k,
       image: Skia.Image.MakeImage(
         { width: cols, height: rows, alphaType: 1, colorType: 4 },
         Skia.Data.fromBytes(bytes),
         cols * 4,
       ),
     };
-  }, [clip, material, place.artboardPt, place.tx, place.ty]);
+  }, [albedo, clip, cx, cy, material, place.artboardPt, place.tx, place.ty, width]);
   const light = unitLight();
   const floor = parseHex(ENV_LIGHT.floor);
   const ready = Boolean(effect && albedo && fieldImage && rimImage.image);

@@ -16,13 +16,11 @@ import {
   PROFILES,
   analyticDiskPhi,
   bevelHeight,
-  bevelMicrodetail,
   buildField,
   contrastRatio,
   darkRimReady,
   diskMask,
   fieldRadius,
-  glintAdd,
   gradient,
   gummiGrainSurvivesAtSourceD,
   gummiWarpPixel,
@@ -30,6 +28,7 @@ import {
   GUMMI_WARP_SOURCE,
   GUMMI_WARP_TABLES,
   MISSING_WARP_FILES,
+  litFromBase,
   litPlate,
   rimLengthsPx,
   rotateWrap,
@@ -40,7 +39,6 @@ import {
   fitRim,
   hash01,
   insideDistance,
-  NOISE_GENERATOR,
   pillowHeight,
   poreDarkening,
   shadeNormal,
@@ -235,6 +233,12 @@ describe('path-dependent material light', () => {
     const field = buildField(blob, 48, 48, 'skifer');
     assert.equal(field.detailApplied, false);
     assert.equal(field.noiseMatchesNumpy, false);
+    assert.equal(field.gummiWarp, 'missing-punktum-shape');
+    assert.equal(PROFILES.skifer.kind === 'bevel' && PROFILES.skifer.aniso?.[2], 18);
+    const master = new Uint8Array([200, 180, 160, 255]);
+    const fromMaster = litFromBase(master, 1, 1, 0, 0, { x: 0, y: 0, z: 1 }, 'emalje');
+    const fromFlat = shadeNormal('emalje', { x: 0, y: 0, z: 1 });
+    assert.ok(Math.abs(fromMaster.r - fromFlat.r) > 1);
     const mapped = gummiWarpPixel(900, 600, { theta: [0], baseR: [1], restR: [0.5] });
     assert.ok(mapped);
     assert.ok(Math.abs((mapped?.sx ?? 0) - 960) < 1e-9);
@@ -251,6 +255,9 @@ describe('path-dependent material light', () => {
     assert.match(view, /base\.png/);
     assert.doesNotMatch(view, /shade-multiply|light-screen/);
     assert.match(view, /fitRim/);
+    assert.match(view, /readPixels/);
+    assert.match(view, /litFromBase/);
+    assert.doesNotMatch(view, /litPlate/);
     assert.match(klumpen, /klumpen-gummi-240pt\.png/);
     assert.doesNotMatch(home, /DynamicMaterial/);
     assert.doesNotMatch(klumpen, /DynamicMaterial/);

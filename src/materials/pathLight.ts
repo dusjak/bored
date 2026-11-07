@@ -7,9 +7,11 @@
  * The four other materials keep `material.py` `render_object` lines 84–103 and 111–126.
  * Emalje uses the export overrides box=0.40, box_w=0.17, det=0.00002.
  *
- * Detail fbm/Worley is the hires hash (`hires.py` lines 12–47). It is not applied
- * on top of `base.png`: that file was Lanczos-scaled and radially warped, and that
- * warp is not a runtime path coordinate. Octave survival is defined at source D=1440.
+ * Gummi fbm/Worley is the hires hash (`hires.py` lines 12–47). It is not applied:
+ * `base.png` is already the warped albedo, and the warp back to height coordinates
+ * needs `punktum_shape.shape_mask`. Skifer keeps its 18° anisotropy on the profile.
+ * That rotation is not applied, because `noise()` is NumPy PCG64 plus SciPy and
+ * the SplitMix stand-in is not the source. `base.png` is the albedo reference.
  */
 
 export const ENV_LIGHT = {
@@ -61,12 +63,12 @@ type BevelProfile = {
   det2: number;
   det2S: number;
   layers: number;
-  /** sx, sy as fractions of D, then degrees. The 18° `ndi.rotate` is not ported. */
+  /** sx, sy as fractions of D, then degrees. Skifer is 18. Not applied to height. */
   aniso: readonly [number, number, number] | null;
   glint: number;
   /** `export.py` calls `render_object` with seed 47. */
   seed: 47;
-  /** SplitMix32 plus Box–Muller. Not NumPy's PCG64, so the field is not sample-identical. */
+  /** Height does not add `noise()`. The generator below is not NumPy PCG64. */
   noiseMatchesNumpy: false;
 };
 
@@ -568,8 +570,8 @@ export type BevelDetail = {
   height: Float32Array;
   speck: Float32Array;
   glint: Float32Array;
-  /** `ndi.rotate` for the skifer 18° anisotropy is not ported. The blur is axis-aligned. */
-  anisoRotationPorted: false;
+  /** `rotateWrap` knows the 18°. Height does not call it. */
+  anisoApplied: false;
   noiseMatchesNumpy: false;
 };
 
@@ -616,7 +618,7 @@ export function bevelMicrodetail(
     const blurred = gaussianBlur(raw, width, rows, 0.8);
     for (let i = 0; i < glint.length; i += 1) glint[i] = blurred[i];
   }
-  return { height, speck, glint, anisoRotationPorted: false, noiseMatchesNumpy: false };
+  return { height, speck, glint, anisoApplied: false, noiseMatchesNumpy: false };
 }
 
 /** `build_d871.py` line 39. `linspace(-π, π, 720, endpoint=False)`. */
@@ -654,7 +656,8 @@ export type GummiWarpTables = {
 };
 
 export const GUMMI_WARP_TABLES: GummiWarpTables = { theta: null, baseR: null, restR: null };
-export const GUMMI_WARP_SOURCE = 'punktum_shape.py shape_mask → BASE_R; build_d871.py TH and radii';
+export const GUMMI_WARP_SOURCE =
+  'inactive: punktum_shape.py shape_mask is required for BASE_R; build_d871.py has TH and radii';
 
 export function gummiWarpReady(tables: GummiWarpTables): boolean {
   return (
@@ -862,10 +865,48 @@ export function shadeBevel(albedo: RGB, n: Vec3, profile: BevelProfile): RGB {
   };
 }
 
-export function shadeNormal(id: MaterialId, n: Vec3): RGB {
+export function shadeNormal(id: MaterialId, n: Vec3, albedo?: RGB): RGB {
   const profile = PROFILES[id];
-  const albedo = parseHex(profile.albedo);
-  return profile.kind === 'pillow' ? shadePillow(albedo, n, profile) : shadeBevel(albedo, n, profile);
+  const alb = albedo ?? parseHex(profile.albedo);
+  return profile.kind === 'pillow' ? shadePillow(alb, n, profile) : shadeBevel(alb, n, profile);
+}
+
+/** Bilinear sample of an RGBA8888 master. Coordinates are source pixels. */
+export function sampleRgba(pixels: Uint8Array, width: number, height: number, x: number, y: number): RGB {
+  if (width <= 0 || height <= 0 || pixels.length < width * height * 4) return { r: 0, g: 0, b: 0 };
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const tx = x - x0;
+  const ty = y - y0;
+  const at = (ix: number, iy: number): RGB => {
+    const xx = Math.min(width - 1, Math.max(0, ix));
+    const yy = Math.min(height - 1, Math.max(0, iy));
+    const i = (yy * width + xx) * 4;
+    return { r: pixels[i], g: pixels[i + 1], b: pixels[i + 2] };
+  };
+  const a = at(x0, y0);
+  const b = at(x0 + 1, y0);
+  const c = at(x0, y0 + 1);
+  const d = at(x0 + 1, y0 + 1);
+  const mix = (p: number, q: number, t: number) => p * (1 - t) + q * t;
+  return {
+    r: mix(mix(a.r, b.r, tx), mix(c.r, d.r, tx), ty),
+    g: mix(mix(a.g, b.g, tx), mix(c.g, d.g, tx), ty),
+    b: mix(mix(a.b, b.b, tx), mix(c.b, d.b, tx), ty),
+  };
+}
+
+/** One pixel of the shader before the rim is added: master albedo, then the path light. */
+export function litFromBase(
+  pixels: Uint8Array,
+  width: number,
+  height: number,
+  x: number,
+  y: number,
+  normal: Vec3,
+  id: MaterialId,
+): RGB {
+  return shadeNormal(id, normal, sampleRgba(pixels, width, height, x, y));
 }
 
 /** Which fbm cells survive at a given object width. `hires.py` lines 27–31. */
@@ -1124,8 +1165,8 @@ export type PathField = {
   /** Bevel det/layers are in the height. They are not NumPy-identical. Gummi warp is not. */
   detailApplied: boolean;
   noiseMatchesNumpy: false;
-  /** Null until `build.py` supplies TH, BASE_R, and radii. */
-  gummiWarp: 'missing-build-py' | 'ready';
+  /** Inactive until `punktum_shape.py` supplies `shape_mask` for BASE_R. */
+  gummiWarp: 'missing-punktum-shape' | 'ready';
   usesRestLightMaps: false;
 };
 
@@ -1148,7 +1189,7 @@ export function buildField(mask: Uint8Array, width: number, height: number, id: 
     glint: null,
     detailApplied: false,
     noiseMatchesNumpy: false,
-    gummiWarp: gummiWarpReady(GUMMI_WARP_TABLES) ? 'ready' : 'missing-build-py',
+    gummiWarp: gummiWarpReady(GUMMI_WARP_TABLES) ? 'ready' : 'missing-punktum-shape',
     usesRestLightMaps: false,
   };
 }
