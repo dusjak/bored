@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { shouldWriteDefaultCountdownOff, showCountdownFromStored } from './showCountdown.ts';
+import { planCountdownUpgrade, shouldWriteDefaultCountdownOff, showCountdownFromStored } from './showCountdown.ts';
 
 describe('show countdown preference', () => {
   it('keeps an explicit on or off choice', () => {
@@ -22,5 +22,10 @@ describe('show countdown preference', () => {
   it('does not change an existing install that never stored a choice', () => {
     assert.equal(showCountdownFromStored(null, true), true);
     assert.equal(shouldWriteDefaultCountdownOff(null, true), false);
+    const plan = planCountdownUpgrade(null, true);
+    assert.equal(plan.show, true);
+    assert.equal(plan.writeDefaultOff, false);
+    assert.deepEqual(planCountdownUpgrade('1', true), { show: true, writeDefaultOff: false });
+    assert.deepEqual(planCountdownUpgrade('0', true), { show: false, writeDefaultOff: false });
   });
 });

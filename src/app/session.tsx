@@ -20,6 +20,13 @@ import {
   completionSentence,
 } from '@/data/copy';
 import { HOLD } from '@/session/holdToEnd';
+import {
+  HOLD_HINT_IDLE,
+  applyHoldHintTimeout,
+  holdHintGateFor,
+  holdHintMomentAt,
+  type HoldHintGate,
+} from '@/session/lockHintVisibility';
 import { SESSION_RING_GAP, SESSION_TIMER_BOX } from '@/session/sessionLayout';
 import { decideUnfinishedSession } from '@/data/sessionRules';
 import { useAppState } from '@/state/AppState';
@@ -65,24 +72,26 @@ export default function Session() {
   const [holdWindowY, setHoldWindowY] = useState<number | null>(null);
   const lockHintLabel = useSharedValue(1);
   const freshLockHint = session != null && session.id === lockHintSessionId;
-  const [holdHidesHint, setHoldHidesHint] = useState(false);
-  const holdHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [holdGate, setHoldGate] = useState<HoldHintGate>(HOLD_HINT_IDLE);
+  const holdMoment = holdHintMomentAt(holdGate, Date.now());
+  useEffect(() => {
+    if (holdGate.moment !== 'cancel' || holdGate.reopenAt == null) return;
+    const scheduled = holdGate.reopenAt;
+    const delay = Math.max(0, scheduled - Date.now());
+    const id = setTimeout(() => {
+      setHoldGate((current) => applyHoldHintTimeout(current, scheduled, Date.now()));
+    }, delay);
+    return () => clearTimeout(id);
+  }, [holdGate]);
   const hideHintForHold = useCallback(() => {
-    if (holdHintTimer.current) clearTimeout(holdHintTimer.current);
-    holdHintTimer.current = null;
-    setHoldHidesHint(true);
+    setHoldGate(holdHintGateFor('start', Date.now(), HOLD.releaseMs));
   }, []);
   const hideHintForCancel = useCallback(() => {
-    if (holdHintTimer.current) clearTimeout(holdHintTimer.current);
-    setHoldHidesHint(true);
-    holdHintTimer.current = setTimeout(() => setHoldHidesHint(false), HOLD.releaseMs);
+    setHoldGate(holdHintGateFor('cancel', Date.now(), HOLD.releaseMs));
   }, []);
-  useEffect(
-    () => () => {
-      if (holdHintTimer.current) clearTimeout(holdHintTimer.current);
-    },
-    [],
-  );
+  const hideHintForComplete = useCallback(() => {
+    setHoldGate(holdHintGateFor('complete', Date.now(), HOLD.releaseMs));
+  }, []);
   const minutesRef = useRef(minutes);
   if (session) minutesRef.current = minutes;
   const fadeStyle = useAnimatedStyle(() => ({ opacity: holdFade.value }));
@@ -190,7 +199,7 @@ export default function Session() {
   }, [openReflection]);
 
   const finishHeld = useCallback(async () => {
-    hideHintForHold();
+    hideHintForComplete();
     if (remainingRef.current <= 0) {
       playCompletion();
       return;
@@ -210,7 +219,7 @@ export default function Session() {
     } catch {
       setError('fikk ikke lagret. prøv igjen.');
     }
-  }, [abortActiveSession, hideHintForHold, maybeNavigate, playCompletion]);
+  }, [abortActiveSession, hideHintForComplete, maybeNavigate, playCompletion]);
 
   const onHoldSettled = useCallback(() => {
     holdSettled.current = true;
@@ -360,7 +369,7 @@ export default function Session() {
         sessionId={session?.id ?? null}
         labelOpacity={lockHintLabel}
         flowAnchorY={holdWindowY}
-        suppressed={holdHidesHint}
+        holdMoment={holdMoment}
       />
     </Animated.View>
   );

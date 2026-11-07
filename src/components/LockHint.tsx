@@ -53,7 +53,12 @@ import {
   remainingLabelOpacity,
   type LockHintFrame,
 } from '@/session/lockHintState';
-import { isFullscreenWindow, lockHintOffer } from '@/session/lockHintVisibility';
+import {
+  isFullscreenWindow,
+  lockHintFrameVisible,
+  lockHintOffer,
+  type HoldHintMoment,
+} from '@/session/lockHintVisibility';
 import { screenLock } from '@/session/screenLock';
 import { sideButtonCenterForModel } from '@/session/sideButton';
 import { useTheme } from '@/theme';
@@ -84,8 +89,8 @@ type Props = {
   labelOpacity: SharedValue<number>;
   /** Window Y of the hold caption. Large type sits just above it. */
   flowAnchorY: number | null;
-  /** Hold-to-end is in progress: start, early release, or completion. */
-  suppressed?: boolean;
+  /** Hold-to-end gate. Idle keeps the normal hint. Start, cancel, and complete hide it. */
+  holdMoment?: HoldHintMoment;
 };
 
 function readDevice(): { phone: boolean; modelId: string | null } {
@@ -131,7 +136,7 @@ function scaleHex(hex: string, amount: number): string {
  * In-app stand-in for the bezel bulge. The real bezel cannot move.
  * Tap anywhere closes it and is not forwarded to the Klumpen.
  */
-export function LockHint({ enabled, sessionId, labelOpacity, flowAnchorY, suppressed = false }: Props) {
+export function LockHint({ enabled, sessionId, labelOpacity, flowAnchorY, holdMoment = 'idle' }: Props) {
   const { theme } = useTheme();
   const window = useWindowDimensions();
   const device = readDevice();
@@ -430,7 +435,7 @@ export function LockHint({ enabled, sessionId, labelOpacity, flowAnchorY, suppre
     return t;
   });
 
-  if (!live || offer === 'hidden' || suppressed) return null;
+  if (!lockHintFrameVisible({ live, offer, moment: holdMoment })) return null;
 
   const flow = window.fontScale > FLOW_FONT_SCALE;
   const anchor = offer === 'bulge' && centerY != null ? centerY : box.height * TEXT_ONLY_CENTER;

@@ -227,6 +227,22 @@ export async function deleteSession(db: AppDatabase, id: string): Promise<void> 
 }
 
 /**
+ * True when this install already has sessions, notes, app state, or any setting
+ * other than the countdown key. Does not write and does not delete.
+ */
+export async function hasPriorUserData(db: AppDatabase, countdownKey: string): Promise<boolean> {
+  const row = await db.getFirstAsync<{ present: number }>(
+    `SELECT 1 AS present FROM sessions
+     UNION ALL SELECT 1 FROM journal_entries
+     UNION ALL SELECT 1 FROM app_state
+     UNION ALL SELECT 1 FROM settings WHERE key != ?
+     LIMIT 1`,
+    countdownKey,
+  );
+  return row != null;
+}
+
+/**
  * Oldest stored instant. Sessions and settings both count.
  * Empty tables return null. Does not write.
  */

@@ -41,6 +41,11 @@ export async function earliestStoredUse(): Promise<string | null> {
   return queries.earliestStoredUse(connection(await openDatabase()));
 }
 
+/** Existing install evidence. The countdown key alone does not count. Does not write. */
+export async function hasPriorUserData(): Promise<boolean> {
+  return queries.hasPriorUserData(connection(await openDatabase()), SHOW_COUNTDOWN_KEY);
+}
+
 export async function setSetting(key: string, value: string): Promise<void> {
   await queries.setSetting(connection(await openDatabase()), key, value);
 }

@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { AppState as AppActivity } from 'react-native';
 
 import { clampDurationMinutes, DEFAULT_DURATION_MINUTES, formatClock, resolveReminderClock } from '@/data/copy';
-import { shouldWriteDefaultCountdownOff, showCountdownFromStored } from '@/data/showCountdown';
+import { planCountdownUpgrade } from '@/data/showCountdown';
 import {
   cancelAllScheduledNotifications,
   cancelDailyReminder,
@@ -23,6 +23,7 @@ import {
   FIRST_USED_KEY,
   getActiveSession,
   getProfile,
+  hasPriorUserData,
   getSetting,
   initDatabase,
   insertActiveSession,
@@ -179,9 +180,15 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             ? clampDurationMinutes(fromProfile)
             : DEFAULT_DURATION_MINUTES;
         setDurationState(initialDuration);
-        const legacyInstall = isOnboarded || finished.length > 0;
-        setShowCountdownState(showCountdownFromStored(countdownRaw, legacyInstall));
-        if (shouldWriteDefaultCountdownOff(countdownRaw, legacyInstall)) {
+        let priorData = true;
+        try {
+          priorData = await hasPriorUserData();
+        } catch {
+          priorData = true;
+        }
+        const countdownPlan = planCountdownUpgrade(countdownRaw, priorData);
+        setShowCountdownState(countdownPlan.show);
+        if (countdownPlan.writeDefaultOff) {
           await setSetting(SHOW_COUNTDOWN_KEY, '0');
         }
         setSessions(finished);
