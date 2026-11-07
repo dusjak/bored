@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { BlurMask, Canvas, Group, Path, Skia, SweepGradient, vec } from '@shopify/react-native-skia';
 
@@ -6,6 +6,8 @@ import { engravedNumberSize } from '@/onboarding/flow';
 import { contourInPoints, outsetContour } from '@/onboarding/formShape';
 import { DURATION_UNIT, SHEET_NUMBER_UNIT_GAP, klumpWidth, minutesToIndex } from '@/duration/klumpen';
 import { FixedRim, MaterialShade, useLiveMaterial } from '@/materials/DynamicMaterial';
+import { ENGRAVED_DIGIT_COLOR, ENGRAVED_SHADOW } from '@/materials/engraving';
+import { planFormLighting, type LightingCache } from '@/materials/lightingPlan';
 import { materialPlacement } from '@/materials/restMaps';
 import type { KlumpMaterialId } from '@/data/types';
 import { HOLD, RING_OFFSET, contourGradient } from '@/session/holdToEnd';
@@ -22,6 +24,11 @@ type Props = {
   widthPt?: number;
   /** Hold contour. Offset is the source 10 pt gap plus half the rest stroke. */
   ring?: Ring;
+  /**
+   * Form drag. The filled path still follows the finger.
+   * Macro normals and the rim gain wait until the finger lifts.
+   */
+  holdLighting?: boolean;
 };
 
 function toPath(points: readonly { x: number; y: number }[], cx: number, cy: number) {
@@ -42,7 +49,7 @@ function toPath(points: readonly { x: number; y: number }[], cx: number, cy: num
  * Macro normals follow the path. Micro offset stays the bundled master image.
  * The rim is the point-space filter. A rest raster is not stretched over the form.
  */
-export function LiveKlump({ material, minutes, offsets, digits = true, widthPt, ring }: Props) {
+export function LiveKlump({ material, minutes, offsets, digits = true, widthPt, ring, holdLighting = false }: Props) {
   const { theme } = useTheme();
   const width = widthPt ?? klumpWidth(minutesToIndex(minutes));
   const place = materialPlacement(width, 0, 0);
@@ -52,14 +59,26 @@ export function LiveKlump({ material, minutes, offsets, digits = true, widthPt, 
   const body = useMemo(() => contourInPoints(offsets, width), [offsets, width]);
   const fill = useMemo(() => toPath(body, cx, cy), [body, cx, cy]);
   const ringPath = useMemo(() => toPath(outsetContour(body, RING_OFFSET), cx, cy), [body, cx, cy]);
+  const shapeKey = `${width}:${offsets.join(',')}`;
+  const cacheRef = useRef<LightingCache | null>(null);
+  const plan = planFormLighting({
+    holding: holdLighting,
+    material,
+    shapeKey,
+    cache: cacheRef.current,
+  });
+  cacheRef.current = plan.cache;
+  const lightClip = useRef(fill);
+  if (plan.rebuildMacro) lightClip.current = fill;
   const field = useLiveMaterial(
     material,
-    fill,
+    lightClip.current,
     { x: placed.tx, y: placed.ty, size: placed.artboardPt },
     placed.artboardPt,
     false,
     { kind: 'points', width, cx, cy },
     'onboarding',
+    plan.generation,
   );
   const window = { x: placed.tx, y: placed.ty, size: placed.artboardPt };
   const lit = ring ? contourGradient(ring.progress, theme.color.glow.core, ring.opacity, true) : null;
@@ -92,8 +111,9 @@ export function LiveKlump({ material, minutes, offsets, digits = true, widthPt, 
             style={{
               fontFamily: theme.fonts.sans,
               fontSize: engravedNumberSize(minutes),
-              color: '#F8F6F2',
+              color: ENGRAVED_DIGIT_COLOR,
               fontVariant: ['tabular-nums'],
+              ...ENGRAVED_SHADOW,
             }}
           >
             {minutes}
@@ -107,5 +127,12 @@ export function LiveKlump({ material, minutes, offsets, digits = true, widthPt, 
 
 const styles = StyleSheet.create({
   face: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
-  unit: { marginTop: SHEET_NUMBER_UNIT_GAP, fontFamily: 'Figtree_400Regular', fontSize: 13, lineHeight: 16, color: '#F8F6F2' },
+  unit: {
+    marginTop: SHEET_NUMBER_UNIT_GAP,
+    fontFamily: 'Figtree_400Regular',
+    fontSize: 13,
+    lineHeight: 16,
+    color: ENGRAVED_DIGIT_COLOR,
+    ...ENGRAVED_SHADOW,
+  },
 });

@@ -163,12 +163,18 @@ export function useLiveMaterial(
   moving: boolean,
   frame: LiveFrame,
   surface: string,
+  /**
+   * When set, this string replaces the clip object as the rebuild key.
+   * A form drag keeps one generation until release, so the macro, the rim
+   * fit, and the rim-shader compile do not run on each pointer move.
+   */
+  lightingKey?: string,
 ): LiveShade {
   const [imageFailed, setImageFailed] = useState(false);
   const albedo = useImage(BASE[material]);
   const microX = useImage(MICRO_X[material], () => setImageFailed(true));
   const microY = useImage(MICRO_Y[material], () => setImageFailed(true));
-  const kullGlint = useImage(KULL_GLINT, () => {
+  const kullGlint = useImage(material === 'kull' ? KULL_GLINT : null, () => {
     if (material === 'kull') setImageFailed(true);
   });
   const glint = useRef<SkImage | null>(null);
@@ -181,13 +187,17 @@ export function useLiveMaterial(
   const [uploaded, setUploaded] = useState<Uploaded>({ macro: null, rim: null, rimK: 0 });
   const frameRef = useRef(frame);
   frameRef.current = frame;
+  const clipRef = useRef(clip);
+  clipRef.current = clip;
   const frameKey =
     frame.kind === 'hjem'
       ? `hjem:${frame.originX}:${frame.originY}:${frame.boxW}`
       : `points:${frame.width}:${frame.cx}:${frame.cy}`;
+  const fieldKey = lightingKey ?? clip;
 
   useEffect(() => {
-    if (!clip || !albedo || !effect) return;
+    const clipNow = clipRef.current;
+    if (!clipNow || !albedo || !effect) return;
     let cancel = false;
     const placed = frameRef.current;
     const handle = requestAnimationFrame(() => {
@@ -208,12 +218,12 @@ export function useLiveMaterial(
         albedoH: pixels.current?.h ?? 0,
         sourceAt: (x, y) => sourceAt(placed, x, y),
       };
-      const macro = upload(buildMacroField(material, clip, window.x, window.y, window.size), LIVE_MACRO_PX);
+      const macro = upload(buildMacroField(material, clipNow, window.x, window.y, window.size), LIVE_MACRO_PX);
       let rimK = gain.current && gain.current.material === material ? gain.current.k : 0;
       if (!moving || !gain.current || gain.current.material !== material) {
-        const bounds = clip.getBounds();
+        const bounds = clipNow.getBounds();
         const pointsPerUnit = window.size === 0 ? 0 : artboardPt / window.size;
-        rimK = fitPointRimK(material, clip, bounds, pointsPerUnit, sources);
+        rimK = fitPointRimK(material, clipNow, bounds, pointsPerUnit, sources);
         gain.current = { k: rimK, artboardPt, material };
       }
       if (cancel) {
@@ -226,7 +236,7 @@ export function useLiveMaterial(
       cancel = true;
       cancelAnimationFrame(handle);
     };
-  }, [albedo, artboardPt, clip, frameKey, material, moving, window.size, window.x, window.y]);
+  }, [albedo, artboardPt, fieldKey, frameKey, material, moving, window.size, window.x, window.y]);
 
   useEffect(() => {
     const current = uploaded;

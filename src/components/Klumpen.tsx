@@ -34,6 +34,7 @@ import { KLUMPEN_PATH } from '@/components/klumpenPath';
 import { stonePath } from '@/onboarding/formShape';
 import type { MaterialId } from '@/materials/pathLight';
 import { FixedRim, MaterialShade, useLiveMaterial, type LiveFrame } from '@/materials/DynamicMaterial';
+import { ENGRAVED_SHADOW } from '@/materials/engraving';
 import {
   CROSSFADE_MS,
   DURATION_UNIT,
@@ -304,6 +305,7 @@ export function KlumpenBody({
                 fontSize: HOME_UNIT_FONT_SIZE,
                 lineHeight: HOME_UNIT_LINE_HEIGHT,
                 includeFontPadding: false,
+                ...ENGRAVED_SHADOW,
               },
             ]}
           >
@@ -395,6 +397,7 @@ function RollingNumber({
     fontVariant,
     textAlign: 'center',
     includeFontPadding: false,
+    ...ENGRAVED_SHADOW,
   };
   return (
     <View style={{ height: fontSize, minWidth: fontSize * 1.7, overflow: 'hidden', alignItems: 'center' }}>

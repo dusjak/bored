@@ -86,6 +86,26 @@ export function engravedNumberSize(minutes: number): number {
 
 export const MATERIAL_ORDER: readonly KlumpMaterialId[] = ['gummi', 'skifer', 'kull', 'emalje', 'floyel'];
 
+/** Texture step. Kull and Plast stay stored, and they are not choices. */
+export const VISIBLE_MATERIALS = ['gummi', 'skifer', 'floyel'] as const;
+export type VisibleMaterialId = (typeof VISIBLE_MATERIALS)[number];
+
+export function isVisibleMaterial(id: string | undefined): id is VisibleMaterialId {
+  return id === 'gummi' || id === 'skifer' || id === 'floyel';
+}
+
+/**
+ * Unset is Gummi. A stored Kull or Plast id is returned unchanged.
+ * `chip` is null for those, so the step does not pretend Gummi was chosen.
+ */
+export function textureChoice(stored: KlumpMaterialId | undefined): {
+  material: KlumpMaterialId;
+  chip: VisibleMaterialId | null;
+} {
+  const material = stored ?? 'gummi';
+  return { material, chip: isVisibleMaterial(material) ? material : null };
+}
+
 export function defaultMaterial(id: KlumpMaterialId | undefined): KlumpMaterialId {
   return id ?? 'gummi';
 }

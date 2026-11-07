@@ -23,6 +23,8 @@ export default function FormStep() {
   const spec = materialDrag(material);
   const saved = user.forms?.[material] ?? emptyOffsets();
   const [offsets, setOffsets] = useState(saved);
+  const [holding, setHolding] = useState(false);
+  const holdingRef = useRef(false);
   const offsetsRef = useRef(saved);
   offsetsRef.current = offsets;
   const [past, setPast] = useState<number[][]>([]);
@@ -51,6 +53,8 @@ export default function FormStep() {
         const y = event.nativeEvent.locationY - half;
         touch.current = { x, y };
         angle.current = Math.atan2(y, x);
+        holdingRef.current = true;
+        setHolding(true);
       },
       onPanResponderMove: (event, gesture) => {
         const now = Date.now();
@@ -91,6 +95,12 @@ export default function FormStep() {
         if (offsetsRef.current.some((value, index) => value !== start.current[index])) {
           setPast((stack) => [...stack, start.current]);
         }
+        holdingRef.current = false;
+        setHolding(false);
+      },
+      onPanResponderTerminate: () => {
+        holdingRef.current = false;
+        setHolding(false);
       },
     }),
   ).current;
@@ -120,7 +130,7 @@ export default function FormStep() {
       </Text>
       <View style={styles.stone}>
         <View {...pan.panHandlers}>
-          <LiveKlump material={material} minutes={minutes} offsets={offsets} />
+          <LiveKlump material={material} minutes={minutes} offsets={offsets} holdLighting={holdingRef.current || holding} />
         </View>
       </View>
       <Text style={[theme.text.caption, styles.meta, { color: theme.color.text.tertiary }]}>

@@ -4,25 +4,26 @@ import * as Haptics from 'expo-haptics';
 
 import { Button } from '@/components/Button';
 import { IntroStone } from '@/components/IntroStone';
-import { LiveKlump } from '@/components/LiveKlump';
+import { MaterialSwatch } from '@/components/MaterialSwatch';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Screen } from '@/components/Screen';
-import type { KlumpMaterialId } from '@/data/types';
-import { BLI_STEP, confirmedMinutes, defaultMaterial, skipBliKjent } from '@/onboarding/flow';
-import { MATERIAL_DRAG, emptyOffsets } from '@/onboarding/formShape';
+import type { VisibleMaterialId } from '@/onboarding/flow';
+import { BLI_STEP, confirmedMinutes, skipBliKjent, textureChoice, VISIBLE_MATERIALS } from '@/onboarding/flow';
+import { emptyOffsets, materialDrag } from '@/onboarding/formShape';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
-/** Gummi starts selected. Choosing a texture does not advance. */
+/** Gummi starts selected when nothing is stored. Choosing a texture does not advance. */
 export default function TeksturStep() {
   const { theme } = useTheme();
   const { user, updateUser, setDurationMinutes } = useAppState();
   const minutes = confirmedMinutes(user.duration);
-  const material = defaultMaterial(user.materialId);
-  const selected = MATERIAL_DRAG.find((item) => item.id === material) ?? MATERIAL_DRAG[0];
+  const choice = textureChoice(user.materialId);
+  const material = choice.material;
+  const selected = materialDrag(material);
   const offsets = user.forms?.[material] ?? emptyOffsets();
 
-  const choose = (id: KlumpMaterialId) => {
+  const choose = (id: VisibleMaterialId) => {
     if (id === material) return;
     void Haptics.selectionAsync();
     updateUser({ materialId: id });
@@ -48,15 +49,16 @@ export default function TeksturStep() {
         <Text style={[theme.text.caption, styles.line, { color: theme.color.text.tertiary }]}>{selected.line}</Text>
       </View>
       <View style={styles.row}>
-        {MATERIAL_DRAG.map((item) => {
-          const on = item.id === material;
+        {VISIBLE_MATERIALS.map((id) => {
+          const item = materialDrag(id);
+          const on = choice.chip === id;
           return (
             <Pressable
-              key={item.id}
+              key={id}
               accessibilityRole="button"
               accessibilityLabel={item.name}
               accessibilityState={{ selected: on }}
-              onPress={() => choose(item.id)}
+              onPress={() => choose(id)}
               style={[
                 styles.cell,
                 {
@@ -66,7 +68,7 @@ export default function TeksturStep() {
               ]}
             >
               <View style={styles.pip}>
-                <LiveKlump material={item.id} minutes={minutes} offsets={emptyOffsets()} digits={false} widthPt={36} />
+                <MaterialSwatch material={id} />
               </View>
               <Text style={[theme.text.caption, { color: theme.color.text.primary }]}>{item.name}</Text>
             </Pressable>
