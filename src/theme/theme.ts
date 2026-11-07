@@ -121,7 +121,8 @@ const lightColor = {
     band: prim.alpha['ink-6'],
   },
   object: {
-    fill: prim.neutral['150'],
+    /** Approved object black. The S6 wordmark dot is not this token. */
+    fill: prim.neutral['900'],
     content: prim.neutral['800'],
     highlight: prim.alpha['white-70'],
     shade: prim.alpha['black-6'],

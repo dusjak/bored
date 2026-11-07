@@ -39,6 +39,12 @@ describe('theme tokens', () => {
     assert.equal(themes.dark.color.text.destructive, '#FFB4AB');
   });
 
+  it('uses object black for the light fill and leaves the dark fill', () => {
+    assert.equal(themes.light.color.object.fill, '#111110');
+    assert.equal(themes.dark.color.object.fill, '#1A1A18');
+    assert.equal(themes.light.color.ink.default, '#111110');
+  });
+
   it('uses a 24pt screen margin and Automatisk as the default theme', () => {
     assert.equal(space['4'], 16);
     assert.equal(space['6'], 24);
