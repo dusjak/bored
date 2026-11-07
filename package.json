@@ -42,7 +42,7 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "test": "node --experimental-strip-types --test src/data/*.test.ts src/splash/*.test.ts src/config/*.test.ts src/theme/*.test.ts src/backup/*.test.ts src/sheet/*.test.ts src/duration/*.test.ts src/session/*.test.ts src/materials/*.test.ts src/haptics/*.test.ts",
+    "test": "node --experimental-strip-types --test src/data/*.test.ts src/splash/*.test.ts src/config/*.test.ts src/theme/*.test.ts src/backup/*.test.ts src/sheet/*.test.ts src/duration/*.test.ts src/session/*.test.ts src/state/*.test.ts src/materials/*.test.ts src/haptics/*.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "private": true

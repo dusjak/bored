@@ -30,6 +30,7 @@ import {
 import { SESSION_RING_GAP, SESSION_TIMER_BOX } from '@/session/sessionLayout';
 import { decideUnfinishedSession } from '@/data/sessionRules';
 import { useAppState } from '@/state/AppState';
+import { routeWhenSessionCleared } from '@/state/resetRoute';
 import { screenPadding, useTheme } from '@/theme';
 
 /** Active session. Always dark. Hold the Klumpen for four seconds to end early. */
@@ -43,6 +44,7 @@ export default function Session() {
     noteBackground,
     noteForeground,
     showCountdown,
+    notesAfterReset,
   } = useAppState();
 
   const session = activeSession;
@@ -103,8 +105,9 @@ export default function Session() {
   }, []);
 
   useEffect(() => {
-    if (!session && !leaving.current) router.replace('/home');
-  }, [session]);
+    if (session || leaving.current) return;
+    router.replace(routeWhenSessionCleared(notesAfterReset));
+  }, [notesAfterReset, session]);
 
   const away = useRef(false);
 

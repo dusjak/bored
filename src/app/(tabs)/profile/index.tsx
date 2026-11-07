@@ -38,6 +38,7 @@ import { degHeaderLines } from '@/data/sinceLine';
 import { reminderIsOn } from '@/data/reminderPolicy';
 import { hasNotificationPermission } from '@/data/notifications';
 import { useAppState } from '@/state/AppState';
+import { NOTES_AFTER_RESET } from '@/state/resetRoute';
 import { useBackup } from '@/state/BackupState';
 import { deg } from '@/theme/deg';
 import { tabularNums, useTheme } from '@/theme';
@@ -127,7 +128,7 @@ export default function Profile() {
                 forgetPreference();
                 beginIntroSplash();
                 if (router.canDismiss()) router.dismissAll();
-                router.replace('/onboarding');
+                router.replace(NOTES_AFTER_RESET);
               } catch {
                 setError('noe gikk galt. prøv igjen.');
               }
