@@ -808,6 +808,17 @@ export function normalsFromHeight(height: Float32Array, width: number, rows: num
   return out;
 }
 
+/** Smooth silhouette height for the current mask. Detail noise is not included. */
+export function silhouetteMacro(mask: Uint8Array, width: number, height: number, id: MaterialId): Float32Array {
+  const dist = insideDistance(mask, width, height);
+  const radius = fieldRadius(dist);
+  const phi = PROFILES[id].kind === 'pillow' ? poissonPhi(mask, width, height) : new Float32Array(mask.length);
+  let heightMap = macroHeight(id, dist, phi, radius);
+  const profile = PROFILES[id];
+  if (profile.kind === 'bevel') heightMap = gaussianBlur(heightMap, width, height, profile.heightBlur);
+  return heightMap;
+}
+
 export function macroHeight(
   id: MaterialId,
   dist: Float32Array,

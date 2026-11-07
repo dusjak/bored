@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { Canvas, Group, ImageShader, Paint, Rect, Shader, Skia, useImage, type SkPath } from '@shopify/react-native-skia';
 
 import { materialLocalMatrix, materialPlacement, sourcePixelAt, MATERIAL_DIGIT_COLOR, MATERIAL_DIGIT_FONT, MATERIAL_TILE } from '@/materials/restMaps';
-import { SOURCE_MASTER, masterGlintAt, masterNormals } from '@/materials/sourceParity';
+import { SOURCE_MASTER, masterGlintAt, pathNormals } from '@/materials/sourceParity';
 import {
   ENV_LIGHT,
   PATH_LIGHT_SKSL,
@@ -77,7 +77,18 @@ export function DynamicMaterial({
   const place = materialPlacement(width, cx, cy);
   const matrix = materialLocalMatrix(width, cx, cy);
   const profile = PROFILES[material];
-  const fieldImage = useMemo(() => normalImage(masterNormals(material)), [material]);
+  const liveNormals = useMemo(() => {
+    const mask = new Uint8Array(NORMAL_PX * NORMAL_PX);
+    for (let y = 0; y < NORMAL_PX; y += 1) {
+      for (let x = 0; x < NORMAL_PX; x += 1) {
+        const canvasX = place.tx + ((x + 0.5) / NORMAL_PX) * place.artboardPt;
+        const canvasY = place.ty + ((y + 0.5) / NORMAL_PX) * place.artboardPt;
+        if (clip.contains(canvasX, canvasY)) mask[y * NORMAL_PX + x] = 1;
+      }
+    }
+    return pathNormals(material, mask, NORMAL_PX, NORMAL_PX);
+  }, [clip, material, place.artboardPt, place.tx, place.ty]);
+  const fieldImage = useMemo(() => normalImage(liveNormals), [liveNormals]);
   const glintImage = useMemo(() => {
     const bytes = new Uint8Array(NORMAL_PX * NORMAL_PX * 4);
     for (let y = 0; y < NORMAL_PX; y += 1) {
@@ -116,7 +127,7 @@ export function DynamicMaterial({
     let band = rimBand(mask, cols, rows, px).band;
     let k = 0;
     if (readable && basePx) {
-      const normals = masterNormals(material);
+      const normals = liveNormals;
       const plate = new Float32Array(cols * rows * 3);
       for (let y = 0; y < rows; y += 1) {
         for (let x = 0; x < cols; x += 1) {
@@ -159,7 +170,7 @@ export function DynamicMaterial({
         cols * 4,
       ),
     };
-  }, [albedo, clip, cx, cy, material, place.artboardPt, place.tx, place.ty, width]);
+  }, [albedo, clip, cx, cy, liveNormals, material, place.artboardPt, place.tx, place.ty, width]);
   const light = unitLight();
   const floor = parseHex(ENV_LIGHT.floor);
   const ready = Boolean(effect && albedo && fieldImage && glintImage && rimImage.image);

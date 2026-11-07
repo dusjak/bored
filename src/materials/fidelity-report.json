@@ -55,7 +55,10 @@
           "count": 25306,
           "mae": 0.41275089813825744,
           "max": 1.4091911315917969,
-          "p95": 0.7940425872802734
+          "p95": 0.7940425872802734,
+          "count_abs_gt_8": 0,
+          "count_abs_gt_15": 0,
+          "mean_signed_port_minus_source": -0.0021196913439780474
         },
         "previous_10px_interior_gt_12px": {
           "count": 337962,
@@ -109,7 +112,10 @@
           "count": 25250,
           "mae": 0.5116812195494623,
           "max": 1.4929084777832031,
-          "p95": 0.9878210067749023
+          "p95": 0.9878210067749023,
+          "count_abs_gt_8": 0,
+          "count_abs_gt_15": 0,
+          "mean_signed_port_minus_source": -0.0032744533382356167
         },
         "previous_10px_interior_gt_12px": {
           "count": 337904,
@@ -163,7 +169,10 @@
           "count": 25250,
           "mae": 0.5008887655616987,
           "max": 1.20880126953125,
-          "p95": 0.9686772346496582
+          "p95": 0.9686772346496582,
+          "count_abs_gt_8": 0,
+          "count_abs_gt_15": 0,
+          "mean_signed_port_minus_source": -0.003737944643944502
         },
         "previous_10px_interior_gt_12px": {
           "count": 337904,
@@ -217,7 +226,10 @@
           "count": 25250,
           "mae": 0.6235987936340937,
           "max": 1.6101303100585938,
-          "p95": 1.0948150634765623
+          "p95": 1.0948150634765623,
+          "count_abs_gt_8": 0,
+          "count_abs_gt_15": 0,
+          "mean_signed_port_minus_source": -0.0014302664203569293
         },
         "previous_10px_interior_gt_12px": {
           "count": 337904,
@@ -271,7 +283,10 @@
           "count": 25250,
           "mae": 1.3282319776327303,
           "max": 21.096452713012695,
-          "p95": 5.61225423812866
+          "p95": 5.61225423812866,
+          "count_abs_gt_8": 897,
+          "count_abs_gt_15": 99,
+          "mean_signed_port_minus_source": -0.2673878073692322
         },
         "previous_10px_interior_gt_12px": {
           "count": 337904,
@@ -318,7 +333,18 @@
           1980
         ]
       },
-      "normal_note": "Source and runtime heights are the same warp, so the 1 px angle measures float16 rounding. The 10 px figure is the previous renderer."
+      "normal_note": "The 1 px angle is float16 rounding of the warped canvas normals. Differentiating the height after the warp is a different field.",
+      "edge_investigation": {
+        "kept_all_edge_pixels": true,
+        "mae": 1.3282319776327303,
+        "p95": 5.61225423812866,
+        "max": 21.096452713012695,
+        "count": 25250,
+        "count_abs_gt_8": 897,
+        "count_abs_gt_15": 99,
+        "mean_signed_port_minus_source": -0.2673878073692322,
+        "cause": "The tail is the steep rim after Lanczos and the radial warp. The port relights the warped albedo with the warped normal, and that BRDF is darker there than the exported light-screen. Shading on the canvas and then warping the color, and sampling canvas normals without Lanczos, both increase this max. The pixels stay in the score. It is not a mask cutoff and not the 2.94 px difference between 0.423\u00b7w\u00b73 and half the crop."
+      }
     }
   },
   "engineering_diagnostic": {

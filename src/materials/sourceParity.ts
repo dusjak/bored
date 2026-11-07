@@ -18,7 +18,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { hash01, normalsFromHeight } from './pathLight.ts';
+import { hash01, normalsFromHeight, silhouetteMacro, sourceTheta, type MaterialId } from './pathLight.ts';
 import { SOURCE_BASE_R, SOURCE_REST_R } from './sourceTables.ts';
 
 export const SOURCE_MASTER = 1200;
@@ -199,6 +199,81 @@ export function masterNormals(id: string): Float32Array {
   }
   normalCache.set(id, normals);
   return normals;
+}
+
+/** Rest radii polygon on the 1200 master. Skifer stays on BASE_R·w; the others use the smoothed rest curve. */
+export function restSilhouette(id: MaterialId): Uint8Array {
+  const radii = id === 'skifer' ? Float64Array.from(SOURCE_BASE_R, (value) => value * 240) : SOURCE_REST_R;
+  const angle = sourceTheta();
+  const poly: { x: number; y: number }[] = [];
+  for (let i = 0; i < radii.length; i += 1) {
+    poly.push({ x: (200 + radii[i] * Math.cos(angle[i])) * 3, y: (200 + radii[i] * Math.sin(angle[i])) * 3 });
+  }
+  const mask = new Uint8Array(SOURCE_MASTER * SOURCE_MASTER);
+  for (let y = 0; y < SOURCE_MASTER; y += 1) {
+    const ys = y + 0.5;
+    const hits: number[] = [];
+    for (let i = 0; i < poly.length; i += 1) {
+      const a = poly[i];
+      const b = poly[(i + 1) % poly.length];
+      if ((a.y <= ys && b.y > ys) || (b.y <= ys && a.y > ys)) {
+        hits.push(a.x + ((ys - a.y) / (b.y - a.y)) * (b.x - a.x));
+      }
+    }
+    hits.sort((p, q) => p - q);
+    for (let k = 0; k + 1 < hits.length; k += 2) {
+      const x0 = Math.max(0, Math.ceil(hits[k]));
+      const x1 = Math.min(SOURCE_MASTER, Math.floor(hits[k + 1]));
+      for (let x = x0; x < x1; x += 1) mask[y * SOURCE_MASTER + x] = 1;
+    }
+  }
+  return mask;
+}
+
+const detailCache = new Map<string, { x: Float32Array; y: Float32Array }>();
+
+/** Rest normal minus the silhouette macro, in master pixels. Independent of the live path. */
+export function restMicroOffset(id: MaterialId): { x: Float32Array; y: Float32Array } {
+  const hit = detailCache.get(id);
+  if (hit) return hit;
+  const rest = masterNormals(id);
+  const macro = normalsFromHeight(silhouetteMacro(restSilhouette(id), SOURCE_MASTER, SOURCE_MASTER, id), SOURCE_MASTER, SOURCE_MASTER, 1);
+  const x = new Float32Array(SOURCE_MASTER * SOURCE_MASTER);
+  const y = new Float32Array(SOURCE_MASTER * SOURCE_MASTER);
+  for (let i = 0; i < x.length; i += 1) {
+    x[i] = rest[i * 3] - macro[i * 3];
+    y[i] = rest[i * 3 + 1] - macro[i * 3 + 1];
+  }
+  const out = { x, y };
+  detailCache.set(id, out);
+  return out;
+}
+
+/**
+ * Live macro from `mask`, plus rest microdetail sampled in master coordinates.
+ * The same mask as `restSilhouette` reproduces the rest normals. A different mask moves the macro.
+ */
+export function pathNormals(id: MaterialId, mask: Uint8Array, width: number, height: number): Float32Array {
+  const live = normalsFromHeight(silhouetteMacro(mask, width, height, id), width, height, 1);
+  const detail = restMicroOffset(id);
+  const out = new Float32Array(width * height * 3);
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const mx = ((x + 0.5) / width) * SOURCE_MASTER - 0.5;
+      const my = ((y + 0.5) / height) * SOURCE_MASTER - 0.5;
+      const dx = bilinear(detail.x, SOURCE_MASTER, SOURCE_MASTER, mx, my);
+      const dy = bilinear(detail.y, SOURCE_MASTER, SOURCE_MASTER, mx, my);
+      const i = y * width + x;
+      const nx = live[i * 3] + dx;
+      const ny = live[i * 3 + 1] + dy;
+      const nz = live[i * 3 + 2];
+      const n = Math.hypot(nx, ny, nz);
+      out[i * 3] = nx / n;
+      out[i * 3 + 1] = ny / n;
+      out[i * 3 + 2] = nz / n;
+    }
+  }
+  return out;
 }
 
 /** Blurred Kull glint mask, `material.py` lines 130–132, seed 58. Zero for other materials. */

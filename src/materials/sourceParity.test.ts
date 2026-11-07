@@ -6,7 +6,8 @@ import { describe, it } from 'node:test';
 
 import { KLUMPEN_PATH } from '../components/klumpenPath.ts';
 import { GUMMI_WARP_TABLES, SOURCE_BG, SOURCE_SBG, gummiWarpPixel } from './pathLight.ts';
-import { masterHeightAt, masterToCanvas, masterToStone, masterWarp, sourceFbm } from './sourceParity.ts';
+import { diskMask } from './pathLight.ts';
+import { masterHeightAt, masterToCanvas, masterToStone, masterWarp, pathNormals, restMicroOffset, sourceFbm } from './sourceParity.ts';
 import { SOURCE_BASE_R } from './sourceTables.ts';
 
 describe('source parity of the rest warp and height', () => {
@@ -50,8 +51,20 @@ describe('source parity of the rest warp and height', () => {
     const gummi = masterHeightAt('gummi', 600, 600);
     assert.ok(gummi > 100);
     const view = readFileSync(join(process.cwd(), 'src/materials/DynamicMaterial.tsx'), 'utf8');
-    assert.match(view, /masterNormals/);
+    assert.match(view, /pathNormals/);
     assert.match(view, /NORMAL_PX = SOURCE_MASTER/);
     assert.doesNotMatch(view, /const FIELD = 120/);
+    const detail = restMicroOffset('emalje');
+    assert.equal(restMicroOffset('emalje'), detail);
+    const left = diskMask(32, 12);
+    const right = new Uint8Array(32 * 32);
+    for (let y = 0; y < 32; y += 1) {
+      for (let x = 0; x < 32; x += 1) right[y * 32 + x] = left[y * 32 + ((x + 8) % 32)];
+    }
+    const a = pathNormals('emalje', left, 32, 32);
+    const b = pathNormals('emalje', right, 32, 32);
+    let moved = 0;
+    for (let i = 0; i < a.length; i += 1) moved += Math.abs(a[i] - b[i]);
+    assert.ok(moved > 1);
   });
 });

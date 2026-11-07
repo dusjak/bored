@@ -254,8 +254,10 @@ def compare_material(name, height_runtime, height_source, mask, runtime_normals=
     ang = angle_deg(n_rt, n_src)
     ang_old = angle_deg(n_old, n_src)
     base, ref = reference_color(name)
-    lit = shade(base, n_rt, name)
+    lit = np.clip(shade(base, n_rt, name), 0, 255)
     lit_old = shade(base, n_old, name)
+    per = np.abs(lit - ref).max(-1)
+    signed = (lit - ref).mean(-1)
     e_src = band_energy(lum(ref), interior)
     e_rt = band_energy(lum(np.clip(lit, 0, 255)), interior)
     e_old = band_energy(lum(np.clip(lit_old, 0, 255)), interior)
@@ -267,7 +269,12 @@ def compare_material(name, height_runtime, height_source, mask, runtime_normals=
         },
         'color_8bit_vs_base_shade_light': {
             'runtime_1px_interior_gt_12px': color_error(lit, ref, interior),
-            'runtime_1px_edge_0_12px': color_error(lit, ref, edge),
+            'runtime_1px_edge_0_12px': {
+                **color_error(lit, ref, edge),
+                'count_abs_gt_8': int((edge & (per > 8)).sum()),
+                'count_abs_gt_15': int((edge & (per > 15)).sum()),
+                'mean_signed_port_minus_source': float(signed[edge].mean()) if edge.any() else None,
+            },
             'previous_10px_interior_gt_12px': color_error(lit_old, ref, interior),
             'note': 'Shader formula without the export seed-100 grain. Reference composite includes that grain. Not a Skia frame.',
         },
@@ -279,6 +286,7 @@ def compare_material(name, height_runtime, height_source, mask, runtime_normals=
             'ratio_previous_over_reference': None if e_src == 0 else e_old / e_src,
             'definition': 'mean square of gaussian(lum,1) - gaussian(lum,10) on interior>12px',
         },
+        '_frames': (ref, lit, per, edge),
     }
 
 
@@ -451,6 +459,52 @@ def gummi_source_height(base_r, rest_r):
     return warped, warped_n, meta
 
 
+def write_contact(frames, provenance, path):
+    """Source, mathematical port, and amplified error. Not a Skia or device frame."""
+    from PIL import ImageDraw, ImageFont
+    thumb = 220
+    label_h = 48
+    cols = 6
+    sheet = Image.new('RGB', (cols * thumb, label_h + len(frames) * (thumb + 16)), '#F8F6F2')
+    draw = ImageDraw.Draw(sheet)
+    font = ImageFont.load_default()
+    draw.text((8, 4), 'NOT A SKIA OR DEVICE FRAME  |  ' + provenance, fill='#111110', font=font)
+    headers = ('source whole', 'port whole', 'error x8', 'source edge', 'port edge', 'error x8 edge')
+    for i, header in enumerate(headers):
+        draw.text((i * thumb + 6, 22), header, fill='#55524D', font=font)
+
+    def fit(rgb):
+        image = Image.fromarray(np.clip(np.round(rgb), 0, 255).astype(np.uint8))
+        return image.resize((thumb, thumb), Image.Resampling.LANCZOS)
+
+    def crop_at(rgb, y, x):
+        half = 90
+        y0, x0 = max(0, int(y) - half), max(0, int(x) - half)
+        return rgb[y0:y0 + 2 * half, x0:x0 + 2 * half]
+
+    for row, (name, ref, lit, per, edge) in enumerate(frames):
+        if edge.any():
+            pos = np.argwhere(edge)
+            worst = pos[np.argmax(per[edge])]
+        else:
+            worst = np.array([MASTER // 2, MASTER // 2])
+        tiles = (
+            fit(ref), fit(lit), fit(np.stack([np.clip(per * 8, 0, 255)] * 3, -1)),
+            fit(crop_at(ref, worst[0], worst[1])),
+            fit(crop_at(lit, worst[0], worst[1])),
+            fit(crop_at(np.stack([np.clip(per * 8, 0, 255)] * 3, -1), worst[0], worst[1])),
+        )
+        top = label_h + row * (thumb + 16)
+        for i, tile in enumerate(tiles):
+            sheet.paste(tile, (i * thumb, top))
+        draw.rectangle((0, top, 70, top + 14), fill='#F8F6F2')
+        draw.text((4, top + 2), name, fill='#111110', font=font)
+        ey, ex = int(worst[0]), int(worst[1])
+        draw.text((3 * thumb + 4, top + thumb - 14), f'max at ({ex},{ey})', fill='#F8F6F2', font=font)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    sheet.save(path)
+
+
 def main():
     base_r, rest_r = load_tables()
     report = {
@@ -514,7 +568,19 @@ def main():
     row['R'] = meta['R_canvas']
     row['height_sha256_f16'] = sha256_file(SRC / 'height-gummi.f16.zlib')
     row['npz'] = meta
-    row['normal_note'] = 'Source and runtime heights are the same warp, so the 1 px angle measures float16 rounding. The 10 px figure is the previous renderer.'
+    row['normal_note'] = 'The 1 px angle is float16 rounding of the warped canvas normals. Differentiating the height after the warp is a different field.'
+    edge = row['color_8bit_vs_base_shade_light']['runtime_1px_edge_0_12px']
+    row['edge_investigation'] = {
+        'kept_all_edge_pixels': True,
+        'mae': edge['mae'],
+        'p95': edge['p95'],
+        'max': edge['max'],
+        'count': edge['count'],
+        'count_abs_gt_8': edge['count_abs_gt_8'],
+        'count_abs_gt_15': edge['count_abs_gt_15'],
+        'mean_signed_port_minus_source': edge['mean_signed_port_minus_source'],
+        'cause': 'The tail is the steep rim after Lanczos and the radial warp. The port relights the warped albedo with the warped normal, and that BRDF is darker there than the exported light-screen. Shading on the canvas and then warping the color, and sampling canvas normals without Lanczos, both increase this max. The pixels stay in the score. It is not a mask cutoff and not the 2.94 px difference between 0.423·w·3 and half the crop.',
+    }
     report['materials']['gummi'] = row
     def proposal(row):
         color = row['color_8bit_vs_base_shade_light']['runtime_1px_interior_gt_12px']
@@ -527,8 +593,15 @@ def main():
             'normal_p95': p95 is not None and p95 <= 2,
         }
     report['engineering_diagnostic'] = {name: proposal(row) for name, row in report['materials'].items()}
+    frames = []
+    for name, row in report['materials'].items():
+        ref, lit, per, edge = row.pop('_frames')
+        frames.append((name, ref, lit, per, edge))
+    sheet = ROOT / 'src/materials/fidelity-contact.png'
+    write_contact(frames, f"BASE_R {report['sources']['base_r_sha256'][:12]}  parameters {report['sources']['parameters_sha256'][:12]}", sheet)
     OUT.write_text(json.dumps(report, indent=2))
     print(OUT, flush=True)
+    print(sheet, flush=True)
 
 
 if __name__ == '__main__':
