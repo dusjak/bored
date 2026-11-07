@@ -34,3 +34,14 @@ export function sinceLineText(iso: string | null): string | null {
   if (!trusted) return null;
   return boredSinceLine(new Date(trusted));
 }
+
+/**
+ * Deg v2.2 places the since-line under the name. It does not say to drop the
+ * date when the name was skipped. The 8 pt gap applies only when both exist.
+ */
+export function degHeaderLines(
+  name: string | null | undefined,
+  since: string | null,
+): { name: string | null; since: string | null } {
+  return { name: name ? name : null, since };
+}

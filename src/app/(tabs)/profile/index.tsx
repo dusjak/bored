@@ -34,6 +34,7 @@ import { Screen } from '@/components/Screen';
 import { Toggle } from '@/components/Toggle';
 import { features } from '@/config/features';
 import { appearanceLabel, boredSinceLine, durationParts, minutesPhrase, resolveReminderClock } from '@/data/copy';
+import { degHeaderLines } from '@/data/sinceLine';
 import { reminderIsOn } from '@/data/reminderPolicy';
 import { hasNotificationPermission } from '@/data/notifications';
 import { useAppState } from '@/state/AppState';
@@ -72,6 +73,7 @@ export default function Profile() {
   const reminderOn = reminderIsOn(user.notifications, allowed);
   const clock = resolveReminderClock(user.time, user.reminderClock);
   const since = firstUsedAt ? boredSinceLine(new Date(firstUsedAt)) : null;
+  const header = degHeaderLines(user.name, since);
   const duration = durationParts(durationMinutes);
   const canvas = theme.color.bg.grouped;
 
@@ -149,24 +151,31 @@ export default function Profile() {
   return (
     <View style={[styles.fill, { backgroundColor: canvas }]}>
       <Screen scroll edges={['top']} top="none" background={canvas} contentStyle={styles.content}>
-        {user.name ? (
+        {header.name || header.since ? (
           <Pressable accessible={false} onPress={closeTime}>
-            <Text
-              style={[
-                styles.title,
-                { fontFamily: theme.fonts.serif, color: theme.color.text.primary, marginBottom: since ? 0 : deg.afterTitle },
-              ]}
-            >
-              {user.name}
-            </Text>
-            {since ? (
+            {header.name ? (
+              <Text
+                style={[
+                  styles.title,
+                  {
+                    fontFamily: theme.fonts.serif,
+                    color: theme.color.text.primary,
+                    marginBottom: header.since ? 0 : deg.afterTitle,
+                  },
+                ]}
+              >
+                {header.name}
+              </Text>
+            ) : null}
+            {header.since ? (
               <Text
                 style={[
                   styles.since,
+                  !header.name && styles.sinceAlone,
                   { fontFamily: theme.fonts.sans, color: theme.color.text.tertiary },
                 ]}
               >
-                {since}
+                {header.since}
               </Text>
             ) : null}
           </Pressable>
@@ -426,6 +435,8 @@ const styles = StyleSheet.create({
     fontSize: deg.sinceSize,
     lineHeight: deg.sinceLineHeight,
   },
+  /** The 8 pt gap is only the space under a name. A skipped name does not invent one. */
+  sinceAlone: { marginTop: 0 },
   groups: { gap: deg.groupGap },
   row: {
     height: deg.rowMinHeight,

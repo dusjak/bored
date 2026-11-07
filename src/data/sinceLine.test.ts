@@ -3,7 +3,13 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
-import { FIRST_USED_TRUSTED_KEY, sinceLinePlan, sinceLineText, trustedFirstUse } from './sinceLine.ts';
+import {
+  FIRST_USED_TRUSTED_KEY,
+  degHeaderLines,
+  sinceLinePlan,
+  sinceLineText,
+  trustedFirstUse,
+} from './sinceLine.ts';
 
 const NOW = '2026-11-07T06:00:00.000Z';
 const OLD = '2024-03-02T12:00:00.000Z';
@@ -32,10 +38,20 @@ describe('since line', () => {
     assert.equal(sinceLinePlan({ trustedRaw: 'not-a-date', hasPriorData: true, nowIso: NOW }).writeTrusted, null);
   });
 
+  it('keeps a trusted since-line when the name was skipped', () => {
+    const line = 'Kjedet deg siden mars 2024';
+    assert.deepEqual(degHeaderLines(undefined, line), { name: null, since: line });
+    assert.deepEqual(degHeaderLines('', line), { name: null, since: line });
+    assert.deepEqual(degHeaderLines('Dusan', line), { name: 'Dusan', since: line });
+    assert.deepEqual(degHeaderLines('Dusan', null), { name: 'Dusan', since: null });
+    assert.deepEqual(degHeaderLines(null, null), { name: null, since: null });
+  });
+
   it('wires Deg to the trusted line and the inline wheel, not the time sheet', () => {
     const profile = readFileSync(join(process.cwd(), 'src/app/(tabs)/profile/index.tsx'), 'utf8');
     const state = readFileSync(join(process.cwd(), 'src/state/AppState.tsx'), 'utf8');
-    assert.match(profile, /sinceLineText|boredSinceLine/);
+    assert.match(profile, /degHeaderLines/);
+    assert.match(profile, /header\.since/);
     assert.match(profile, /<TimeWheel/);
     assert.equal(profile.includes('ReminderTimeSheet'), false);
     assert.match(state, /sinceLinePlan/);
