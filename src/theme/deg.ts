@@ -22,7 +22,7 @@ export const deg = {
   separator: 0.5,
   footerGap: 7,
   /**
-   * «Dusan» is DM Serif Display Italic 44.
+   * «Dusan» is DM Serif Display Regular 44.
    * The font's own line box is 44 × 1371/1000 = 60, so the ascender sits 34 pt
    * under the safe area and the first card is 24 pt under that line box.
    * The reference has no «Kjedet deg siden» line in this gap.

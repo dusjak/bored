@@ -153,11 +153,11 @@ describe('system F type scale', () => {
     assert.equal(text.tab.fontSize, 10);
     assert.equal(text.tab.lineHeight, 12);
 
-    assert.equal(text.display.fontFamily, fonts.serifItalic);
+    assert.equal(text.display.fontFamily, fonts.serif);
     assert.equal(text.display.fontSize, 30);
     assert.equal(text.display.lineHeight, 34);
     assert.equal(text.display.letterSpacing, -0.6);
-    assert.equal(text.headline.fontFamily, fonts.serifItalic);
+    assert.equal(text.headline.fontFamily, fonts.serif);
     assert.equal(text.note.fontFamily, fonts.serifItalic);
     assert.equal(text.note.fontSize, 15);
     assert.equal(text.note.lineHeight, 20);

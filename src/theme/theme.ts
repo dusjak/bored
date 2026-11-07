@@ -330,8 +330,8 @@ export const tabularNums: TextStyle['fontVariant'] = ['tabular-nums'];
  * Roles follow system F. Keys already used by screens stay, so a parallel tab-bar change
  * can keep reading `fonts.sansMedium`, `text.tab`, and the number styles.
  *
- * display   hero      DM Serif Display Italic 30/34, tracking −2%
- * headline  title     DM Serif Display Italic 28/32
+ * display   hero      DM Serif Display Regular 30/34, tracking −2%
+ * headline  title     DM Serif Display Regular 28/32
  * body                Figtree Regular 16/24
  * bodySmall           Figtree Regular 14/20
  * bodyLarge           Figtree Regular 18/28 (log count word, name field)
@@ -348,8 +348,8 @@ export const tabularNums: TextStyle['fontVariant'] = ['tabular-nums'];
  * note      quote     DM Serif Display Italic 15/20
  */
 export const text = {
-  display: { fontFamily: fonts.serifItalic, fontSize: 30, lineHeight: 34, letterSpacing: -0.6 } as TextStyle,
-  headline: { fontFamily: fonts.serifItalic, fontSize: 28, lineHeight: 32 } as TextStyle,
+  display: { fontFamily: fonts.serif, fontSize: 30, lineHeight: 34, letterSpacing: -0.6 } as TextStyle,
+  headline: { fontFamily: fonts.serif, fontSize: 28, lineHeight: 32 } as TextStyle,
   bodyLarge: { fontFamily: fonts.sans, fontSize: 18, lineHeight: 28 } as TextStyle,
   body: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 24 } as TextStyle,
   bodySmall: { fontFamily: fonts.sans, fontSize: 14, lineHeight: 20 } as TextStyle,

@@ -65,7 +65,7 @@ export function AppearanceSheet({ visible, onClose, onError, returnFocusRef }: P
     <ThemeOverride theme={paint}>
       <Sheet visible={visible} onClose={dismiss} returnFocusRef={returnFocusRef}>
         <ContentColumn style={[styles.body, { gap: paint.space['4'], marginTop: sheetContentPullUp() }]}>
-          <ScreenTitle italic={false}>Velg utseende</ScreenTitle>
+          <ScreenTitle>Velg utseende</ScreenTitle>
 
           <View accessibilityRole="radiogroup" style={styles.options}>
             {APPEARANCE_OPTIONS.map((option, index) => {

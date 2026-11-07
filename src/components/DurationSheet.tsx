@@ -247,7 +247,7 @@ function DurationBody({
   const middle = (
     <>
       <View style={styles.titleBlock}>
-        <ScreenTitle italic={false}>{DURATION_TITLE}</ScreenTitle>
+        <ScreenTitle>{DURATION_TITLE}</ScreenTitle>
         <Text style={[theme.text.body, styles.subtitle, { color: theme.color.text.secondary }]}>{DURATION_SUBTITLE}</Text>
       </View>
 

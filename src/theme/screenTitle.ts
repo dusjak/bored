@@ -19,9 +19,12 @@ export type TitleBox = {
   numberOfLines: null;
 };
 
-/** Roman serif for titles outside onboarding. Onboarding keeps the italic cut. */
-export function screenTitleFamily(italic: boolean, roman: string, italicFace: string): string {
-  return italic ? italicFace : roman;
+/**
+ * Upright DM Serif Display for titles, modal titles, and the profile name.
+ * Onboarding uses the same cut. Logg notes keep the italic file through `text.note`.
+ */
+export function screenTitleFamily(roman: string): string {
+  return roman;
 }
 
 export function screenTitleBox(align: TitleAlign): TitleBox {

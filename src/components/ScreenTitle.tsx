@@ -10,11 +10,6 @@ type Props = {
   variant?: 'headline' | 'display';
   color?: string;
   style?: StyleProp<TextStyle>;
-  /**
-   * Titles outside onboarding are roman.
-   * Onboarding leaves this on until that screen is visually approved.
-   */
-  italic?: boolean;
 };
 
 /**
@@ -22,12 +17,12 @@ type Props = {
  * Italic side bearings paint into that margin; the glyph origin stays on it.
  * No line limit, so a long name is never cut down to one letter.
  */
-export function ScreenTitle({ children, align = 'left', variant = 'headline', color, style, italic = true }: Props) {
+export function ScreenTitle({ children, align = 'left', variant = 'headline', color, style }: Props) {
   const { theme } = useTheme();
   const titleRef = useRegisterSheetTitle();
   const box = screenTitleBox(align);
   const type = variant === 'display' ? theme.text.display : theme.text.headline;
-  const family = screenTitleFamily(italic, theme.fonts.serif, theme.fonts.serifItalic);
+  const family = screenTitleFamily(theme.fonts.serif);
   return (
     <View
       collapsable={false}

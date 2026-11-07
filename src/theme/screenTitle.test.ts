@@ -15,10 +15,10 @@ import { fonts, screenPadding } from './theme.ts';
 const NARROW = 320 - screenPadding * 2;
 
 describe('screen titles', () => {
-  it('keeps serif and drops italic outside onboarding', () => {
-    assert.equal(screenTitleFamily(false, fonts.serif, fonts.serifItalic), fonts.serif);
-    assert.equal(screenTitleFamily(true, fonts.serif, fonts.serifItalic), fonts.serifItalic);
+  it('uses upright DM Serif Display for every title, including onboarding', () => {
+    assert.equal(screenTitleFamily(fonts.serif), fonts.serif);
     assert.equal(fonts.serif, 'DMSerifDisplay_400Regular');
+    assert.equal(fonts.serifItalic, 'DMSerifDisplay_400Regular_Italic');
     assert.notEqual(fonts.serif, fonts.serifItalic);
   });
 
