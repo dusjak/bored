@@ -10,6 +10,7 @@ import {
   Path,
   Skia,
   useImage,
+  usePathValue,
   type Transforms3d,
 } from '@shopify/react-native-skia';
 import Animated, {
@@ -30,7 +31,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { KLUMPEN_PATH } from '@/components/klumpenPath';
-import { MaterialShade, useLiveMaterial, type LiveFrame } from '@/materials/DynamicMaterial';
+import { FixedRim, MaterialShade, useLiveMaterial, type LiveFrame } from '@/materials/DynamicMaterial';
 import {
   CROSSFADE_MS,
   DURATION_HOME_HINT,
@@ -211,7 +212,21 @@ export function KlumpenBody({
   );
   const gummiImage = gummi[band] ?? null;
   const widthPt = KLUMP_WIDTH_MIN + KLUMP_WIDTH_STEP * band;
-  const field = useLiveMaterial('gummi', path, HJEM_WINDOW, widthPt * (1200 / 720), false, HJEM_FRAME);
+  const field = useLiveMaterial('gummi', path, HJEM_WINDOW, widthPt * (1200 / 720), false, HJEM_FRAME, 'hjem');
+  const blank = useMemo(() => Skia.Path.Make(), []);
+  const svg = path ?? blank;
+  const backPoint = usePathValue((builder) => {
+    'worklet';
+    const idx = layerIndex('back', reduce.value, index.value, fade.from.value, fade.to.value);
+    const s = (KLUMP_WIDTH_MIN + KLUMP_WIDTH_STEP * idx) / BOX_W;
+    builder.transform([s, 0, CANVAS_W / 2 - ORIGIN_X * s, 0, s, CANVAS_H / 2 - ORIGIN_Y * s, 0, 0, 1]);
+  }, svg);
+  const frontPoint = usePathValue((builder) => {
+    'worklet';
+    const idx = layerIndex('front', reduce.value, index.value, fade.from.value, fade.to.value);
+    const s = (KLUMP_WIDTH_MIN + KLUMP_WIDTH_STEP * idx) / BOX_W;
+    builder.transform([s, 0, CANVAS_W / 2 - ORIGIN_X * s, 0, s, CANVAS_H / 2 - ORIGIN_Y * s, 0, 0, 1]);
+  }, svg);
   // Tabular hero number. System F is Figtree Light with tabular-nums.
   const hero = theme.text.monoHero;
   const fontSize = (Number(hero.fontSize) || 56) * type.numberScale;
@@ -245,8 +260,8 @@ export function KlumpenBody({
               <Path path={path} style="stroke" strokeWidth={OUTLINE_STROKE} color={OUTLINE} />
             </Group>
           ) : null}
-          <StoneLayer path={path} transform={backTransform} opacity={backOpacity} rim={rim} image={gummiImage} field={field} />
-          <StoneLayer path={path} transform={frontTransform} opacity={frontOpacity} rim={rim} image={gummiImage} field={field} />
+          <StoneLayer path={path} pointPath={backPoint} transform={backTransform} opacity={backOpacity} rim={rim} image={gummiImage} field={field} />
+          <StoneLayer path={path} pointPath={frontPoint} transform={frontTransform} opacity={frontOpacity} rim={rim} image={gummiImage} field={field} />
         </Canvas>
       ) : (
         <View style={styles.fallback} />
@@ -287,6 +302,7 @@ const OUTLINE_STROKE = KLUMPEN_BOUNDS.width / MAX_W;
 
 function StoneLayer({
   path,
+  pointPath,
   transform,
   opacity,
   rim,
@@ -294,35 +310,39 @@ function StoneLayer({
   field,
 }: {
   path: NonNullable<ReturnType<typeof Skia.Path.MakeFromSVGString>>;
+  pointPath: ReturnType<typeof usePathValue>;
   transform: SharedValue<Transforms3d>;
   opacity: SharedValue<number>;
   rim: boolean;
   image: ReturnType<typeof useImage>;
   field: ReturnType<typeof useLiveMaterial>;
 }) {
-  const live = field.ready;
+  const live = field.ready && field.rimFilter;
   return (
-    <Group transform={transform} opacity={opacity}>
-      <Group transform={[{ translateY: 58 }]} opacity={0.55}>
-        <Path path={path} color="rgba(60,50,40,1)">
-          <Blur blur={70} />
+    <Group opacity={opacity}>
+      <Group transform={transform}>
+        <Group transform={[{ translateY: 58 }]} opacity={0.55}>
+          <Path path={path} color="rgba(60,50,40,1)">
+            <Blur blur={70} />
+          </Path>
+        </Group>
+        <Path path={path} color={STONE_COLOR}>
+          {live ? (
+            <MaterialShade material="gummi" field={field} rect={HJEM_WINDOW} />
+          ) : image ? (
+            <ImageShader
+              image={image}
+              fit="fill"
+              x={KLUMPEN_BOUNDS.x}
+              y={KLUMPEN_BOUNDS.y}
+              width={KLUMPEN_BOUNDS.width}
+              height={KLUMPEN_BOUNDS.height}
+            />
+          ) : null}
         </Path>
+        {live || !rim ? null : <Path path={path} style="stroke" strokeWidth={6} color="rgba(255,255,255,0.22)" />}
       </Group>
-      <Path path={path} color={STONE_COLOR}>
-        {live ? (
-          <MaterialShade material="gummi" field={field} rect={HJEM_WINDOW} />
-        ) : image ? (
-          <ImageShader
-            image={image}
-            fit="fill"
-            x={KLUMPEN_BOUNDS.x}
-            y={KLUMPEN_BOUNDS.y}
-            width={KLUMPEN_BOUNDS.width}
-            height={KLUMPEN_BOUNDS.height}
-          />
-        ) : null}
-      </Path>
-      {live || !rim ? null : <Path path={path} style="stroke" strokeWidth={6} color="rgba(255,255,255,0.22)" />}
+      {live && field.rimFilter ? <FixedRim path={pointPath} filter={field.rimFilter} /> : null}
     </Group>
   );
 }

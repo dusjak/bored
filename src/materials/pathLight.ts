@@ -1314,13 +1314,16 @@ export function diskMask(size: number, radius: number): Uint8Array {
 
 /**
  * SKSL for the tested shade. Shader children, in order: albedo, macro normals,
- * micro offset, glint, rim. A mid-gray micro sample adds nothing.
+ * micro X, micro Y, glint, rim. Micro X/Y are 16-bit offsets packed in RG.
+ * The mounted rim is the point-space filter. This rim term stays at 0 there.
  * Rest light maps are not declared.
  */
 export const PATH_LIGHT_SKSL = `
 uniform shader albedo;
 uniform shader normals;
-uniform shader micro;
+uniform shader microX;
+uniform shader microY;
+uniform float microHalf;
 uniform float pillow;
 uniform float key;
 uniform float amb;
@@ -1351,14 +1354,20 @@ float sstep(float a, float b, float x) {
   return t * t * (3.0 - 2.0 * t);
 }
 
+float microChan(half4 px) {
+  float hi = floor(px.r * 255.0 + 0.5);
+  float lo = floor(px.g * 255.0 + 0.5);
+  float u = (hi * 256.0 + lo) / 65535.0;
+  return u * (2.0 * microHalf) - microHalf;
+}
+
 half4 main(float2 xy) {
   half4 alb = albedo.eval(xy);
   half4 nn = normals.eval(xy);
-  half4 microPx = micro.eval(xy);
   half4 glintPx = glint.eval(xy);
   half4 rimPx = rim.eval(xy);
   float3 n = float3(nn.r, nn.g, nn.b) * 2.0 - 1.0;
-  n.xy += float2(microPx.r, microPx.g) * 2.0 - 1.0;
+  n.xy += float2(microChan(microX.eval(xy)), microChan(microY.eval(xy)));
   n *= inversesqrt(max(dot(n, n), 0.0001));
   float nz = n.z;
   float ndl = sat(n.x * lx + n.y * ly + n.z * lz);

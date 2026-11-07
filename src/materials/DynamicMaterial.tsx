@@ -1,8 +1,35 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import type { SharedValue } from 'react-native-reanimated';
 import { StyleSheet, Text, View } from 'react-native';
-import { Canvas, Group, ImageShader, Rect, Shader, Skia, useImage, type SkImage, type SkPath } from '@shopify/react-native-skia';
+import {
+  Canvas,
+  FilterMode,
+  Group,
+  ImageFilter,
+  ImageShader,
+  MipmapMode,
+  Paint,
+  Path,
+  Rect,
+  Shader,
+  Skia,
+  useImage,
+  type SkImage,
+  type SkImageFilter,
+  type SkPath,
+} from '@shopify/react-native-skia';
 
-import { buildLiveFields, LIVE_MACRO_PX, type LiveSources } from '@/materials/liveField';
+import {
+  RIM_BLUR_SAMPLE_RADIUS_PT,
+  RIM_BLUR_X_SKSL,
+  RIM_BLUR_Y_SKSL,
+  RIM_EDGE_SAMPLE_RADIUS_PT,
+  RIM_EDGE_SKSL,
+  RIM_TINT_SKSL,
+} from '@/materials/fixedRim';
+import { buildMacroField, fitPointRimK, LIVE_MACRO_PX, type LiveSources } from '@/materials/liveField';
+import { reportMaterialStatus } from '@/materials/materialStatus';
+import { MICRO_PACK } from '@/materials/microPack';
 import { materialPlacement, MATERIAL_DIGIT_COLOR, MATERIAL_DIGIT_FONT } from '@/materials/restMaps';
 import {
   ENV_LIGHT,
@@ -13,7 +40,60 @@ import {
   type MaterialId,
 } from '@/materials/pathLight';
 
-const GUMMI_BASE = require('../../assets/materials/2026-11-07/gummi/base.png');
+const BASE = {
+  gummi: require('../../assets/materials/2026-11-07/gummi/base.png'),
+  skifer: require('../../assets/materials/2026-11-07/skifer/base.png'),
+  kull: require('../../assets/materials/2026-11-07/kull/base.png'),
+  emalje: require('../../assets/materials/2026-11-07/emalje/base.png'),
+  floyel: require('../../assets/materials/2026-11-07/floyel/base.png'),
+} as const;
+
+const MICRO_X = {
+  gummi: require('../../assets/materials/2026-11-07/gummi/micro-x.png'),
+  skifer: require('../../assets/materials/2026-11-07/skifer/micro-x.png'),
+  kull: require('../../assets/materials/2026-11-07/kull/micro-x.png'),
+  emalje: require('../../assets/materials/2026-11-07/emalje/micro-x.png'),
+  floyel: require('../../assets/materials/2026-11-07/floyel/micro-x.png'),
+} as const;
+
+const MICRO_Y = {
+  gummi: require('../../assets/materials/2026-11-07/gummi/micro-y.png'),
+  skifer: require('../../assets/materials/2026-11-07/skifer/micro-y.png'),
+  kull: require('../../assets/materials/2026-11-07/kull/micro-y.png'),
+  emalje: require('../../assets/materials/2026-11-07/emalje/micro-y.png'),
+  floyel: require('../../assets/materials/2026-11-07/floyel/micro-y.png'),
+} as const;
+
+const NEAREST = { filter: FilterMode.Nearest, mipmap: MipmapMode.None } as const;
+
+export function makeFixedRimFilter(rimK: number): SkImageFilter | null {
+  const edgeFx = Skia.RuntimeEffect.Make(RIM_EDGE_SKSL);
+  const blurXFx = Skia.RuntimeEffect.Make(RIM_BLUR_X_SKSL);
+  const blurYFx = Skia.RuntimeEffect.Make(RIM_BLUR_Y_SKSL);
+  const tintFx = Skia.RuntimeEffect.Make(RIM_TINT_SKSL);
+  if (!edgeFx || !blurXFx || !blurYFx || !tintFx) return null;
+  const edge = Skia.ImageFilter.MakeRuntimeShaderWithChildren(
+    Skia.RuntimeShaderBuilder(edgeFx),
+    RIM_EDGE_SAMPLE_RADIUS_PT,
+    ['coverage'],
+    [null],
+  );
+  const blurX = Skia.ImageFilter.MakeRuntimeShaderWithChildren(
+    Skia.RuntimeShaderBuilder(blurXFx),
+    RIM_BLUR_SAMPLE_RADIUS_PT,
+    ['edge'],
+    [edge],
+  );
+  const blurY = Skia.ImageFilter.MakeRuntimeShaderWithChildren(
+    Skia.RuntimeShaderBuilder(blurYFx),
+    RIM_BLUR_SAMPLE_RADIUS_PT,
+    ['edge'],
+    [blurX],
+  );
+  const tint = Skia.RuntimeShaderBuilder(tintFx);
+  tint.setUniform('rimK', [rimK]);
+  return Skia.ImageFilter.MakeRuntimeShaderWithChildren(tint, 0, ['blurred', 'coverage'], [blurY, null]);
+}
 
 const effect = Skia.RuntimeEffect.Make(PATH_LIGHT_SKSL);
 
@@ -28,9 +108,12 @@ export type LiveShade = {
   ready: boolean;
   albedo: SkImage | null;
   macro: SkImage | null;
-  micro: SkImage | null;
+  microX: SkImage | null;
+  microY: SkImage | null;
+  microHalf: number;
   glint: SkImage | null;
   rim: SkImage | null;
+  rimFilter: SkImageFilter | null;
   rimK: number;
 };
 
@@ -66,9 +149,9 @@ function asBytes(raw: unknown): Uint8Array | null {
 }
 
 /**
- * Builds the macro and the rim off the render path.
- * `moving` reuses the last fitted rim gain. The micro image stays mid-gray:
- * the Node height grids are not in the Expo Go bundle.
+ * Macro normals are rebuilt when the silhouette key changes.
+ * The micro offset is the bundled 16-bit image. The rim is the point-space filter.
+ * Rim gain is fit once, not on every touch frame.
  */
 export function useLiveMaterial(
   material: MaterialId,
@@ -77,12 +160,16 @@ export function useLiveMaterial(
   artboardPt: number,
   moving: boolean,
   frame: LiveFrame,
+  surface: string,
 ): LiveShade {
-  const albedo = useImage(GUMMI_BASE);
-  const micro = useRef<SkImage | null>(null);
+  const [imageFailed, setImageFailed] = useState(false);
+  const albedo = useImage(BASE[material]);
+  const microX = useImage(MICRO_X[material], () => setImageFailed(true));
+  const microY = useImage(MICRO_Y[material], () => setImageFailed(true));
   const glint = useRef<SkImage | null>(null);
-  if (!micro.current) micro.current = solidImage(128, 128, 128);
+  const rimDot = useRef<SkImage | null>(null);
   if (!glint.current) glint.current = solidImage(0, 0, 0);
+  if (!rimDot.current) rimDot.current = solidImage(0, 0, 0);
   const pixels = useRef<{ image: SkImage; px: Uint8Array; w: number; h: number } | null>(null);
   const gain = useRef<{ k: number; artboardPt: number; material: MaterialId } | null>(null);
   const [uploaded, setUploaded] = useState<Uploaded>({ macro: null, rim: null, rimK: 0 });
@@ -94,7 +181,7 @@ export function useLiveMaterial(
       : `points:${frame.width}:${frame.cx}:${frame.cy}`;
 
   useEffect(() => {
-    if (material !== 'gummi' || !clip || !albedo || !effect) return;
+    if (!clip || !albedo || !effect) return;
     let cancel = false;
     const placed = frameRef.current;
     const handle = requestAnimationFrame(() => {
@@ -109,26 +196,25 @@ export function useLiveMaterial(
         const px = asBytes(raw);
         pixels.current = px ? { image: albedo, px, w: albedo.width(), h: albedo.height() } : null;
       }
-      const cached =
-        moving && gain.current && gain.current.material === material && gain.current.artboardPt === artboardPt
-          ? gain.current.k
-          : null;
       const sources: LiveSources = {
         albedo: pixels.current?.px ?? null,
         albedoW: pixels.current?.w ?? 0,
         albedoH: pixels.current?.h ?? 0,
         sourceAt: (x, y) => sourceAt(placed, x, y),
       };
-      const built = buildLiveFields(material, clip, window.x, window.y, window.size, artboardPt, moving, sources, cached);
-      if (built.fitted) gain.current = { k: built.rimK, artboardPt, material };
-      const macro = upload(built.macro, LIVE_MACRO_PX);
-      const rim = upload(built.rim, built.rimSide);
+      const macro = upload(buildMacroField(material, clip, window.x, window.y, window.size), LIVE_MACRO_PX);
+      let rimK = gain.current && gain.current.material === material ? gain.current.k : 0;
+      if (!moving || !gain.current || gain.current.material !== material) {
+        const bounds = clip.getBounds();
+        const pointsPerUnit = window.size === 0 ? 0 : artboardPt / window.size;
+        rimK = fitPointRimK(material, clip, bounds, pointsPerUnit, sources);
+        gain.current = { k: rimK, artboardPt, material };
+      }
       if (cancel) {
         macro?.dispose();
-        rim?.dispose();
         return;
       }
-      setUploaded({ macro, rim, rimK: built.rimK });
+      setUploaded({ macro, rim: null, rimK });
     });
     return () => {
       cancel = true;
@@ -140,18 +226,42 @@ export function useLiveMaterial(
     const current = uploaded;
     return () => {
       current.macro?.dispose();
-      current.rim?.dispose();
     };
   }, [uploaded]);
 
-  const ready = material === 'gummi' && Boolean(effect && albedo && uploaded.macro && uploaded.rim && micro.current && glint.current);
+  const rimFilter = useMemo(() => makeFixedRimFilter(uploaded.rimK), [uploaded.rimK]);
+  const microHalf = MICRO_PACK[material].half;
+  const imagesReady = Boolean(effect && albedo && uploaded.macro && microX && microY && glint.current && rimDot.current);
+  const ready = material !== 'kull' && !imageFailed && imagesReady && Boolean(rimFilter);
+  useEffect(() => {
+    if (material === 'kull') {
+      reportMaterialStatus(surface, { phase: 'fallback', reason: 'kull-glint-unbundled' });
+      return;
+    }
+    if (imageFailed || !effect) {
+      reportMaterialStatus(surface, { phase: 'fallback', reason: imageFailed ? 'micro-offset-unread' : 'light-shader' });
+      return;
+    }
+    if (!rimFilter && imagesReady) {
+      reportMaterialStatus(surface, { phase: 'fallback', reason: 'fixed-rim-shader' });
+      return;
+    }
+    if (!ready) {
+      reportMaterialStatus(surface, { phase: 'pending', reason: 'images-loading' });
+      return;
+    }
+    reportMaterialStatus(surface, { phase: 'live', reason: 'macro-micro-fixed-rim' });
+  }, [effect, imageFailed, imagesReady, material, ready, rimFilter, surface]);
   return {
     ready,
     albedo,
     macro: uploaded.macro,
-    micro: micro.current,
+    microX,
+    microY,
+    microHalf,
     glint: glint.current,
-    rim: uploaded.rim,
+    rim: rimDot.current,
+    rimFilter,
     rimK: uploaded.rimK,
   };
 }
@@ -166,7 +276,7 @@ export function MaterialShade({
   field: LiveShade;
   rect: LiveWindow;
 }) {
-  if (!effect || !field.ready || !field.albedo || !field.macro || !field.micro || !field.glint || !field.rim) return null;
+  if (!effect || !field.ready || !field.albedo || !field.macro || !field.microX || !field.microY || !field.glint || !field.rim) return null;
   const profile = PROFILES[material];
   const light = unitLight();
   const floor = parseHex(ENV_LIGHT.floor);
@@ -194,15 +304,32 @@ export function MaterialShade({
         floorR: floor.r,
         floorG: floor.g,
         floorB: floor.b,
-        rimK: field.rimK,
+        microHalf: field.microHalf,
+        rimK: 0,
       }}
     >
       <ImageShader image={field.albedo} fit="fill" x={rect.x} y={rect.y} width={rect.size} height={rect.size} tx="clamp" ty="clamp" />
       <ImageShader image={field.macro} fit="fill" x={rect.x} y={rect.y} width={rect.size} height={rect.size} tx="clamp" ty="clamp" />
-      <ImageShader image={field.micro} fit="fill" x={rect.x} y={rect.y} width={rect.size} height={rect.size} tx="clamp" ty="clamp" />
+      <ImageShader image={field.microX} sampling={NEAREST} fit="fill" x={rect.x} y={rect.y} width={rect.size} height={rect.size} tx="clamp" ty="clamp" />
+      <ImageShader image={field.microY} sampling={NEAREST} fit="fill" x={rect.x} y={rect.y} width={rect.size} height={rect.size} tx="clamp" ty="clamp" />
       <ImageShader image={field.glint} fit="fill" x={rect.x} y={rect.y} width={rect.size} height={rect.size} tx="clamp" ty="clamp" />
       <ImageShader image={field.rim} fit="fill" x={rect.x} y={rect.y} width={rect.size} height={rect.size} tx="clamp" ty="clamp" />
     </Shader>
+  );
+}
+
+/** Point-space silhouette. The radii inside the filter stay in points. */
+export function FixedRim({
+  path,
+  filter,
+}: {
+  path: SkPath | SharedValue<SkPath>;
+  filter: SkImageFilter;
+}) {
+  return (
+    <Group blendMode="plus" layer={<Paint><ImageFilter filter={filter} /></Paint>}>
+      <Path path={path} color="white" />
+    </Group>
   );
 }
 
@@ -225,7 +352,7 @@ type Props = {
 export function DynamicMaterial({ material, width, cx, cy, clip, digits, digitSize = 56 }: Props) {
   const place = materialPlacement(width, cx, cy);
   const window = { x: place.tx, y: place.ty, size: place.artboardPt };
-  const field = useLiveMaterial(material, clip, window, place.artboardPt, false, { kind: 'points', width, cx, cy });
+  const field = useLiveMaterial(material, clip, window, place.artboardPt, false, { kind: 'points', width, cx, cy }, 'standalone');
   return (
     <View style={{ width: place.artboardPt, height: place.artboardPt }}>
       <Canvas style={StyleSheet.absoluteFill} pointerEvents="none">

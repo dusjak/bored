@@ -250,7 +250,9 @@ describe('path-dependent material light', () => {
     assert.ok(contrastRatio('#F8F6F2', DARK_RIM_AGAINST) > 3);
     assert.match(PATH_LIGHT_SKSL, /uniform shader albedo/);
     assert.match(PATH_LIGHT_SKSL, /uniform shader normals/);
-    assert.match(PATH_LIGHT_SKSL, /uniform shader micro/);
+    assert.match(PATH_LIGHT_SKSL, /uniform shader microX/);
+    assert.match(PATH_LIGHT_SKSL, /uniform shader microY/);
+    assert.match(PATH_LIGHT_SKSL, /microHalf/);
     assert.match(PATH_LIGHT_SKSL, /uniform shader glint/);
     assert.doesNotMatch(PATH_LIGHT_SKSL, /shade-multiply|light-screen/);
     const gain = fitRimGain(litCopy, blob, 48, 48, 3);

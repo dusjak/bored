@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 import {
   BlurMask,
   Canvas,
+  Group,
   ImageShader,
   Path,
   Skia,
@@ -31,7 +32,7 @@ import Reanimated, {
   type SharedValue,
 } from 'react-native-reanimated';
 
-import { MaterialShade, useLiveMaterial } from '@/materials/DynamicMaterial';
+import { FixedRim, MaterialShade, useLiveMaterial } from '@/materials/DynamicMaterial';
 import { materialPlacement } from '@/materials/restMaps';
 import {
   KLUMPEN_BOUNDS,
@@ -473,6 +474,7 @@ export function SessionKlumpen({
     place.artboardPt,
     deform.sq !== 0 || deform.wob !== 0 || deform.size !== 0,
     { kind: 'points', width: stoneWidth, cx: CX, cy: CY },
+    'session',
   );
 
   // The outline origin is the centroid. At 176 pt it sits about +0.7 / +2.4 pt
@@ -518,14 +520,19 @@ export function SessionKlumpen({
           the stone. A parent that returns no hit keeps the picture out of the hold. */}
       <View pointerEvents="none" collapsable={false} style={styles.canvasBox}>
         <Canvas style={styles.canvas} pointerEvents="none">
-          {field.ready ? (
-            <Path path={fillPath} style="fill" opacity={restOpacity}>
-              <MaterialShade
-                material="gummi"
-                field={field}
-                rect={{ x: place.tx, y: place.ty, size: place.artboardPt }}
-              />
-            </Path>
+          {field.ready && field.rimFilter ? (
+            <>
+              <Path path={fillPath} style="fill" opacity={restOpacity}>
+                <MaterialShade
+                  material="gummi"
+                  field={field}
+                  rect={{ x: place.tx, y: place.ty, size: place.artboardPt }}
+                />
+              </Path>
+              <Group opacity={restOpacity}>
+                <FixedRim path={fillPath} filter={field.rimFilter} />
+              </Group>
+            </>
           ) : restImage ? (
             <Path path={fillPath} style="fill" opacity={restOpacity}>
               <ImageShader

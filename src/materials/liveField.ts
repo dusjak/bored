@@ -66,11 +66,67 @@ export function normalBytes(normals: Float32Array): Uint8Array {
   return bytes;
 }
 
+/** @deprecated The displayed rim is the point-space shader. This cap is not used. */
 export function rimResolution(artboardPt: number, moving: boolean): { cols: number; pxPerPt: number; capped: boolean } {
   const full = Math.max(1, Math.round(artboardPt * RIM_SAMPLE_PX_PER_PT));
   const cap = moving ? LIVE_RIM_CAP_MOVING : LIVE_RIM_CAP_REST;
   const cols = Math.min(cap, full);
   return { cols, pxPerPt: cols / Math.max(artboardPt, 1e-6), capped: cols < full };
+}
+
+/** Macro normals only. The rim is not rasterized here. */
+export function buildMacroField(id: MaterialId, clip: ClipLike, x0: number, y0: number, size: number): Uint8Array {
+  return normalBytes(liveMacroNormals(id, rasterMask(clip, x0, y0, size, LIVE_MACRO_PX)));
+}
+
+/**
+ * One rest-pose fit of the rim gain, in point space, at 3 px/pt.
+ * Not called while the pose is moving, and not the pixels that are drawn.
+ */
+export function fitPointRimK(
+  id: MaterialId,
+  clip: ClipLike,
+  bounds: { x: number; y: number; width: number; height: number },
+  pointsPerUnit: number,
+  sources: LiveSources,
+): number {
+  const px = RIM_SAMPLE_PX_PER_PT;
+  const cols = Math.max(1, Math.round(bounds.width * pointsPerUnit * px));
+  const rows = Math.max(1, Math.round(bounds.height * pointsPerUnit * px));
+  const mask = new Uint8Array(cols * rows);
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      const cx = bounds.x + ((x + 0.5) / cols) * bounds.width;
+      const cy = bounds.y + ((y + 0.5) / rows) * bounds.height;
+      if (clip.contains(cx, cy)) mask[y * cols + x] = 1;
+    }
+  }
+  const macro = rasterMask(clip, bounds.x, bounds.y, Math.max(bounds.width, bounds.height), LIVE_MACRO_PX);
+  const normals = liveMacroNormals(id, macro);
+  const { band, edge } = rimBand(mask, cols, rows, px);
+  const albedo = sources.albedo;
+  if (!albedo || sources.albedoW <= 0 || albedo.length < sources.albedoW * sources.albedoH * 4) return 0;
+  const plate = new Float32Array(cols * rows * 3);
+  for (let i = 0; i < edge.length; i += 1) {
+    if (!edge[i] || band[i] <= RIM_BAND_MIN) continue;
+    const x = i % cols;
+    const y = (i - x) / cols;
+    const fx = (x + 0.5) / cols;
+    const fy = (y + 0.5) / rows;
+    const mx = Math.min(LIVE_MACRO_PX - 1, Math.max(0, Math.floor(fx * LIVE_MACRO_PX)));
+    const my = Math.min(LIVE_MACRO_PX - 1, Math.max(0, Math.floor(fy * LIVE_MACRO_PX)));
+    const n = my * LIVE_MACRO_PX + mx;
+    const src = sources.sourceAt(bounds.x + fx * bounds.width, bounds.y + fy * bounds.height);
+    const color = litFromBase(albedo, sources.albedoW, sources.albedoH, src.x, src.y, {
+      x: normals[n * 3],
+      y: normals[n * 3 + 1],
+      z: normals[n * 3 + 2],
+    }, id);
+    plate[i * 3] = color.r;
+    plate[i * 3 + 1] = color.g;
+    plate[i * 3 + 2] = color.b;
+  }
+  return fitRimGainFromBand(plate, band, edge).k;
 }
 
 export function buildLiveFields(
