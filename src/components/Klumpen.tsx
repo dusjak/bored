@@ -40,6 +40,7 @@ import {
   KLUMP_ASPECT,
   KLUMP_WIDTH_MIN,
   NUMBER_UNIT_GAP,
+  glyphFrame,
   KLUMP_WIDTH_STEP,
   KLUMPEN_BOUNDS,
   ROLL_DISTANCE,
@@ -142,14 +143,16 @@ type GlyphProps = {
   fill?: string;
   stroke?: string;
   strokeWidth?: number;
+  /** Room kept for a centred stroke, even on the filled twin. */
+  bleed?: number;
 };
 
 /** Same silhouette as the hero stone, for the row of choices. */
-export function KlumpenGlyph({ width, fill = 'none', stroke, strokeWidth = 0 }: GlyphProps) {
-  const height = width * KLUMP_ASPECT;
+export function KlumpenGlyph({ width, fill = 'none', stroke, strokeWidth = 0, bleed = strokeWidth }: GlyphProps) {
   const box = KLUMPEN_BOUNDS;
+  const frame = glyphFrame(width, bleed, box);
   return (
-    <Svg width={width} height={height} viewBox={`${box.x} ${box.y} ${box.width} ${box.height}`}>
+    <Svg width={frame.width} height={frame.height} viewBox={frame.viewBox}>
       <SvgPath
         d={KLUMPEN_PATH}
         fill={fill}
@@ -169,10 +172,20 @@ type BodyProps = {
   fade: Fade;
   /** Faint 20-minute contour behind the stone. The sheet uses it; Hjem does not. */
   ghost?: boolean;
+  /** Space under the number before «min». Hjem keeps the shared gap. */
+  unitGap?: number;
 };
 
 /** The matte stone, its number, and the size animation. Layout box is the 20-minute size, so the center stays put. */
-export function KlumpenBody({ index, minutes, reduce, reduceMotion, fade, ghost = false }: BodyProps) {
+export function KlumpenBody({
+  index,
+  minutes,
+  reduce,
+  reduceMotion,
+  fade,
+  ghost = false,
+  unitGap = NUMBER_UNIT_GAP,
+}: BodyProps) {
   const { theme } = useTheme();
   const { fontScale } = useWindowDimensions();
   const type = durationType(fontScale);
@@ -239,7 +252,10 @@ export function KlumpenBody({ index, minutes, reduce, reduceMotion, fade, ghost 
           reduceMotion={reduceMotion}
         />
         {type.hideUnit ? null : (
-          <Text allowFontScaling={false} style={[styles.unit, { fontFamily: theme.fonts.sansMedium }]}>
+          <Text
+            allowFontScaling={false}
+            style={[styles.unit, { marginTop: unitGap, fontFamily: theme.fonts.sansMedium }]}
+          >
             {DURATION_UNIT}
           </Text>
         )}
@@ -560,7 +576,7 @@ export function HomeKlumpen({
 }
 
 const styles = StyleSheet.create({
-  stage: { width: MAX_W, height: MAX_H, alignItems: 'center', justifyContent: 'center' },
+  stage: { width: MAX_W, height: MAX_H, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
   canvas: { position: 'absolute', width: CANVAS_W, height: CANVAS_H, left: -PAD, top: -PAD },
   fallback: {
     width: 160,

@@ -7,6 +7,7 @@ import { Icon } from '@/components/Icon';
 import { ScreenTitle } from '@/components/ScreenTitle';
 import { Sheet } from '@/components/Sheet';
 import { APPEARANCE_CONFIRM, APPEARANCE_OPTIONS, APPEARANCE_SYSTEM_CAPTION, type AppearanceId } from '@/data/copy';
+import { sheetContentPullUp } from '@/sheet/motion';
 import { ThemeOverride, useTheme, type ThemePreference } from '@/theme';
 
 type Props = {
@@ -63,8 +64,8 @@ export function AppearanceSheet({ visible, onClose, onError, returnFocusRef }: P
   return (
     <ThemeOverride theme={paint}>
       <Sheet visible={visible} onClose={dismiss} returnFocusRef={returnFocusRef}>
-        <ContentColumn style={[styles.body, { gap: paint.space['4'] }]}>
-          <ScreenTitle>Velg utseende</ScreenTitle>
+        <ContentColumn style={[styles.body, { gap: paint.space['4'], marginTop: sheetContentPullUp() }]}>
+          <ScreenTitle italic={false}>Velg utseende</ScreenTitle>
 
           <View accessibilityRole="radiogroup" style={styles.options}>
             {APPEARANCE_OPTIONS.map((option, index) => {

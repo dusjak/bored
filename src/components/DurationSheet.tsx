@@ -28,6 +28,7 @@ import { ContentColumn } from '@/components/ContentColumn';
 import { KlumpenBody, KlumpenGlyph, crossfadeTo } from '@/components/Klumpen';
 import { ScreenTitle } from '@/components/ScreenTitle';
 import { Sheet } from '@/components/Sheet';
+import { sheetContentPullUp } from '@/sheet/motion';
 import { features } from '@/config/features';
 import { PRESET_MINUTES } from '@/data/copy';
 import {
@@ -56,7 +57,9 @@ import {
   indexVelocity,
   presetIndex,
   rowPitch,
+  glyphFrame,
   selectionFromIndex,
+  SHEET_NUMBER_UNIT_GAP,
   snapIndex,
   useButtonLabel,
 } from '@/duration/klumpen';
@@ -247,7 +250,7 @@ function DurationBody({
   const middle = (
     <>
       <View style={styles.titleBlock}>
-        <ScreenTitle>{DURATION_TITLE}</ScreenTitle>
+        <ScreenTitle italic={false}>{DURATION_TITLE}</ScreenTitle>
         <Text style={[theme.text.body, styles.subtitle, { color: theme.color.text.secondary }]}>{DURATION_SUBTITLE}</Text>
       </View>
 
@@ -259,6 +262,7 @@ function DurationBody({
           reduceMotion={reduceMotion}
           fade={fade}
           ghost
+          unitGap={SHEET_NUMBER_UNIT_GAP}
         />
       </View>
 
@@ -362,6 +366,7 @@ function Choices({
 }
 
 function Pip({ width, selected, ink, stroke }: { width: number; selected: boolean; ink: string; stroke: string }) {
+  const frame = glyphFrame(width, ROW_STROKE);
   const fill = useSharedValue(selected ? 1 : 0);
   useEffect(() => {
     fill.value = withTiming(selected ? 1 : 0, { duration: FILL_MS, easing: Easing.inOut(Easing.sin) });
@@ -369,12 +374,12 @@ function Pip({ width, selected, ink, stroke }: { width: number; selected: boolea
   const on = useAnimatedStyle(() => ({ opacity: fill.value }));
   const off = useAnimatedStyle(() => ({ opacity: 1 - fill.value }));
   return (
-    <View style={{ width, height: width * KLUMP_ASPECT }}>
+    <View style={{ width: frame.width, height: frame.height, overflow: 'visible' }}>
       <Animated.View style={[StyleSheet.absoluteFill, off]}>
-        <KlumpenGlyph width={width} stroke={stroke} strokeWidth={ROW_STROKE} />
+        <KlumpenGlyph width={width} stroke={stroke} strokeWidth={ROW_STROKE} bleed={ROW_STROKE} />
       </Animated.View>
       <Animated.View style={[StyleSheet.absoluteFill, on]}>
-        <KlumpenGlyph width={width} fill={ink} />
+        <KlumpenGlyph width={width} fill={ink} bleed={ROW_STROKE} />
       </Animated.View>
     </View>
   );
@@ -409,10 +414,10 @@ function ChoiceLabel({ label, selected, beside = false }: { label: string; selec
 }
 
 const styles = StyleSheet.create({
-  // Shared Sheet already spends 56 pt on the drag zone. The frame math used a 10 pt grabber.
-  titleBlock: { marginTop: sheetLayout.titleMargin - 46 },
+  // 24pt from the sheet edge. The shared drag band stays 56pt for the grabber hit.
+  titleBlock: { marginTop: sheetContentPullUp() },
   subtitle: { marginTop: sheetLayout.subtitleMargin },
-  stone: { marginTop: sheetLayout.stoneMargin, alignItems: 'center' },
+  stone: { marginTop: sheetLayout.stoneMargin, alignItems: 'center', overflow: 'visible' },
   row: { marginTop: sheetLayout.rowMargin, flexDirection: 'row', alignSelf: 'center' },
   list: { marginTop: sheetLayout.rowMargin, alignSelf: 'stretch' },
   choice: { minWidth: CHOICE_HIT_MIN, minHeight: CHOICE_HIT_MIN, alignItems: 'center' },

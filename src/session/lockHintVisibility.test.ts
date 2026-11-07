@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { isFullscreenWindow, lockHintOffer } from './lockHintVisibility.ts';
+import { isFullscreenWindow, lockHintOffer, lockHintOfferWhileHolding } from './lockHintVisibility.ts';
 
 const phone = { fresh: true, phone: true, portrait: true, fullscreen: true, centerY: 319 };
 
@@ -19,6 +19,14 @@ describe('lock hint offer', () => {
     assert.equal(lockHintOffer({ ...phone, phone: false }), 'hidden');
     assert.equal(lockHintOffer({ ...phone, portrait: false }), 'hidden');
     assert.equal(lockHintOffer({ ...phone, fullscreen: false }), 'hidden');
+  });
+
+  it('hides the lock hint for the whole hold-to-end gesture', () => {
+    assert.equal(lockHintOfferWhileHolding('bulge', 'idle'), 'bulge');
+    assert.equal(lockHintOfferWhileHolding('text', 'idle'), 'text');
+    assert.equal(lockHintOfferWhileHolding('bulge', 'start'), 'hidden');
+    assert.equal(lockHintOfferWhileHolding('text', 'cancel'), 'hidden');
+    assert.equal(lockHintOfferWhileHolding('bulge', 'complete'), 'hidden');
   });
 
   it('treats a window that matches the screen as full screen', () => {

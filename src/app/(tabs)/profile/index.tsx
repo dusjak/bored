@@ -34,6 +34,7 @@ import { Screen } from '@/components/Screen';
 import { Toggle } from '@/components/Toggle';
 import { features } from '@/config/features';
 import { appearanceLabel, durationParts, minutesPhrase, resolveReminderClock } from '@/data/copy';
+import { reminderIsOn } from '@/data/reminderPolicy';
 import { hasNotificationPermission } from '@/data/notifications';
 import { useAppState } from '@/state/AppState';
 import { useBackup } from '@/state/BackupState';
@@ -68,7 +69,7 @@ export default function Profile() {
   const [timeOpen, setTimeOpen] = useState(false);
   const [allowed, setAllowed] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const reminderOn = user.notifications === true && allowed;
+  const reminderOn = reminderIsOn(user.notifications, allowed);
   const clock = resolveReminderClock(user.time, user.reminderClock);
   const duration = durationParts(durationMinutes);
   const canvas = theme.color.bg.grouped;
@@ -152,7 +153,7 @@ export default function Profile() {
             <Text
               style={[
                 styles.title,
-                { fontFamily: theme.fonts.serifItalic, color: theme.color.text.primary },
+                { fontFamily: theme.fonts.serif, color: theme.color.text.primary },
               ]}
             >
               {user.name}
@@ -178,7 +179,7 @@ export default function Profile() {
                   <Text style={styles.figure}>{duration.value}</Text>
                   {` ${duration.unit}`}
                 </Text>
-                <RowChevron />
+                <DegChevron />
               </View>
             </Pressable>
             <Pressable
@@ -282,7 +283,7 @@ export default function Profile() {
               <Text style={label}>Utseende</Text>
               <View style={styles.trailing}>
                 <Text style={value}>{appearanceLabel(preference)}</Text>
-                <RowChevron />
+                <DegChevron />
               </View>
             </Pressable>
           </SettingsGroup>
@@ -307,7 +308,7 @@ export default function Profile() {
                 <Text style={label}>Sikkerhetskopi</Text>
                 <View style={styles.trailing}>
                   <Text style={value}>{backupLabel}</Text>
-                  <RowChevron />
+                  <DegChevron />
                 </View>
               </Pressable>
             </SettingsGroup>
@@ -396,6 +397,14 @@ export default function Profile() {
   );
 }
 
+function DegChevron() {
+  return (
+    <View style={styles.chevron}>
+      <RowChevron />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   content: { paddingTop: deg.titleTop, paddingBottom: 160 },
@@ -427,6 +436,7 @@ const styles = StyleSheet.create({
   },
   figure: { fontVariant: tabularNums },
   trailing: { flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '100%' },
+  chevron: { transform: [{ translateY: deg.rowTextShift }] },
   capsule: {
     minHeight: deg.capsuleHeight,
     paddingHorizontal: 10,

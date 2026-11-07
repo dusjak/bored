@@ -6,6 +6,7 @@ import type { PreviewForce } from '@/backup/model';
 import { ContentColumn } from '@/components/ContentColumn';
 import { Sheet } from '@/components/Sheet';
 import { useRegisterSheetTitle } from '@/sheet/title';
+import { sheetContentPullUp } from '@/sheet/motion';
 import { useTheme } from '@/theme';
 
 const OPTIONS: { id: PreviewForce | null; label: string }[] = [
@@ -33,11 +34,11 @@ export function PreviewStateSheet({ visible, onClose, onPick, returnFocusRef }: 
 
   return (
     <Sheet visible={visible} onClose={onClose} returnFocusRef={returnFocusRef}>
-      <ContentColumn style={[styles.body, { gap: theme.space['2'] }]}>
+      <ContentColumn style={[styles.body, { gap: theme.space['2'], marginTop: sheetContentPullUp() }]}>
         <Text
           ref={titleRef}
           accessibilityRole="header"
-          style={[theme.text.headline, { color: theme.color.text.primary }]}
+          style={[theme.text.headline, { fontFamily: theme.fonts.serif, color: theme.color.text.primary }]}
         >
           {PREVIEW_MENU_TITLE}
         </Text>
@@ -58,6 +59,6 @@ export function PreviewStateSheet({ visible, onClose, onPick, returnFocusRef }: 
 }
 
 const styles = StyleSheet.create({
-  body: { paddingTop: 4 },
+  body: { paddingTop: 0 },
   row: { minHeight: 44, justifyContent: 'center', borderBottomWidth: StyleSheet.hairlineWidth },
 });

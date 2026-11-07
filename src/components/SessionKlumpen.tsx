@@ -112,6 +112,10 @@ type Props = {
   accessibilityAction?: boolean;
   onComplete: () => void;
   onSettled: () => void;
+  /** Finger down. The lock hint must hide. */
+  onHoldStart?: () => void;
+  /** Early release. The lock hint stays hidden through the exit. */
+  onHoldCancel?: () => void;
   onAccessibilityEnd: () => void;
   /**
    * Space from the previous sibling to the outer edge of the track stroke.
@@ -152,6 +156,8 @@ export function SessionKlumpen({
   accessibilityAction,
   onComplete,
   onSettled,
+  onHoldStart,
+  onHoldCancel,
   onAccessibilityEnd,
   gapAbove,
   hintAnchorRef,
@@ -422,6 +428,7 @@ export function SessionKlumpen({
     releaseAt.value = -1;
     pressAt.value = Date.now();
     fireTouch();
+    onHoldStart?.();
   };
   const onPressOut = () => {
     if (doneAt.value >= 0 || locked.value === 1) return;
@@ -430,6 +437,7 @@ export function SessionKlumpen({
     const now = Date.now();
     if (now - press >= HOLD_TO_END_MS) return;
     releaseAt.value = now;
+    onHoldCancel?.();
   };
   const onPress = () => {
     if (!reader.current) return;

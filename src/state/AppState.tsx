@@ -1,7 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState as AppActivity } from 'react-native';
 
-import { clampDurationMinutes, DEFAULT_DURATION_MINUTES, earliestIso, formatClock, resolveReminderClock } from '@/data/copy';
+import { clampDurationMinutes, DEFAULT_DURATION_MINUTES, formatClock, resolveReminderClock } from '@/data/copy';
+import { shouldWriteDefaultCountdownOff, showCountdownFromStored } from '@/data/showCountdown';
 import {
   cancelAllScheduledNotifications,
   cancelDailyReminder,
@@ -18,7 +19,6 @@ import {
   deleteJournal,
   deleteSession as deleteStoredSession,
   DURATION_KEY,
-  earliestStoredUse,
   finishSession,
   FIRST_USED_KEY,
   getActiveSession,
@@ -127,7 +127,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<SessionWithJournal[]>([]);
   const [activeSession, setActiveSession] = useState<SessionRecord | null>(null);
   const [lockHintSessionId, setLockHintSessionId] = useState<string | null>(null);
-  const [showCountdown, setShowCountdownState] = useState(true);
+  const [showCountdown, setShowCountdownState] = useState(false);
   const [firstUsedAt, setFirstUsedAt] = useState<string | null>(null);
   const [introPhase, setIntroPhaseState] = useState<IntroPhase>('off');
   const [splashOccasion, setSplashOccasion] = useState<SplashOccasion>('later-launch');
@@ -179,12 +179,19 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             ? clampDurationMinutes(fromProfile)
             : DEFAULT_DURATION_MINUTES;
         setDurationState(initialDuration);
-        setShowCountdownState(countdownRaw !== '0');
+        const legacyInstall = isOnboarded || finished.length > 0;
+        setShowCountdownState(showCountdownFromStored(countdownRaw, legacyInstall));
+        if (shouldWriteDefaultCountdownOff(countdownRaw, legacyInstall)) {
+          await setSetting(SHOW_COUNTDOWN_KEY, '0');
+        }
         setSessions(finished);
         try {
-          if (profile.notifications === true && (await hasNotificationPermission())) {
+          const wantsReminder = profile.notifications === true && (await hasNotificationPermission());
+          if (wantsReminder) {
             const clock = resolveReminderClock(profile.time, profile.reminderClock);
             await scheduleDailyReminder(clock.hour, clock.minute);
+          } else {
+            await cancelDailyReminder();
           }
         } catch {
           // A reminder failure must not block the first screen.
@@ -192,15 +199,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         try {
           const storedFirst = await getSetting(FIRST_USED_KEY);
           const known = storedFirst && !Number.isNaN(Date.parse(storedFirst)) ? storedFirst : null;
-          if (known) {
-            setFirstUsedAt(known);
-          } else {
-            const first = earliestIso([await earliestStoredUse()]);
-            await setSetting(FIRST_USED_KEY, first);
-            setFirstUsedAt(first);
-          }
+          setFirstUsedAt(known);
         } catch {
-          // The since-line falls back to this month until the next launch.
+          // No reliable first-start date. The since-line stays hidden.
         }
 
         if (active) {
@@ -447,7 +448,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setUser({});
     setOnboarded(false);
     setDurationState(DEFAULT_DURATION_MINUTES);
-    setShowCountdownState(true);
+    setShowCountdownState(false);
+    await setSetting(SHOW_COUNTDOWN_KEY, '0');
     setFirstUsedAt(null);
     setSessions([]);
     setActiveSession(null);

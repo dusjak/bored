@@ -7,7 +7,9 @@ import {
   SHEET_CLOSE_MS,
   SHEET_DISMISS_FRACTION,
   SHEET_DISMISS_VELOCITY,
+  SHEET_CONTENT_TOP,
   SHEET_DRAG_ZONE,
+  sheetContentPullUp,
   SHEET_GRABBER,
   SHEET_GRABBER_HEIGHT,
   SHEET_GRABBER_TOP,
@@ -97,5 +99,7 @@ describe('sheet motion', () => {
     assert.equal(SHEET_GRABBER_TOP, 5);
     assert.equal(SHEET_HIT_MIN, 44);
     assert.equal(SHEET_DRAG_ZONE, 56);
+    assert.equal(SHEET_CONTENT_TOP, 24);
+    assert.equal(sheetContentPullUp(), 24 - 56);
   });
 });

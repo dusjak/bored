@@ -5,6 +5,7 @@ import { SymbolView } from 'expo-symbols';
 import { Sheet } from '@/components/Sheet';
 import { TimeWheel } from '@/components/TimeWheel';
 import { useRegisterSheetTitle } from '@/sheet/title';
+import { sheetContentPullUp } from '@/sheet/motion';
 import { useTheme } from '@/theme';
 
 type Props = {
@@ -61,7 +62,7 @@ function TimeSheetBody({
 
   return (
     <>
-      <View style={styles.header}>
+      <View style={[styles.header, { marginTop: sheetContentPullUp() }]}>
         <Pressable
           accessibilityLabel="Avbryt"
           accessibilityRole="button"

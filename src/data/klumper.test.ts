@@ -2,7 +2,17 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import { KLUMPEN_PATH } from '../components/klumpenPath.ts';
-import { KLUMP, LOG_KLUMP_SPACING, groupKlumper, klumpRowWidth, klumpenFrame } from './klumper.ts';
+import {
+  KLUMP,
+  LOG_COUNT_WORD_GAP,
+  LOG_DELETE_FLEX,
+  LOG_KLUMP_SPACING,
+  LOG_NOTE_ACTION_GAP,
+  LOG_SAVE_FLEX,
+  groupKlumper,
+  klumpRowWidth,
+  klumpenFrame,
+} from './klumper.ts';
 
 describe('log lumps', () => {
   it('groups sessions five by five and keeps order', () => {
@@ -26,6 +36,10 @@ describe('log lumps', () => {
     assert.equal(KLUMP.groupGap, 16);
     assert.equal(LOG_KLUMP_SPACING.aboveCount, 9);
     assert.equal(LOG_KLUMP_SPACING.aboveSummary, 13);
+    assert.equal(LOG_COUNT_WORD_GAP, 8);
+    assert.equal(LOG_NOTE_ACTION_GAP, 8);
+    assert.equal(LOG_SAVE_FLEX / (LOG_SAVE_FLEX + LOG_DELETE_FLEX), 2 / 3);
+    assert.equal(LOG_DELETE_FLEX / (LOG_SAVE_FLEX + LOG_DELETE_FLEX), 1 / 3);
   });
 
   it('keeps a 1.4pt stroke when the lump is 16pt wide', () => {

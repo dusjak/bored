@@ -8,7 +8,13 @@ import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { SessionKlumps } from '@/components/SessionKlumps';
 import { abortedPhrase, chosenMinutes, formatSessionDate, minutesPhrase, sessionsPhrase } from '@/data/copy';
-import { LOG_KLUMP_SPACING } from '@/data/klumper';
+import {
+  LOG_COUNT_WORD_GAP,
+  LOG_DELETE_FLEX,
+  LOG_KLUMP_SPACING,
+  LOG_NOTE_ACTION_GAP,
+  LOG_SAVE_FLEX,
+} from '@/data/klumper';
 import { sessionTotals } from '@/data/sessionQueries';
 import { MOODS, type MoodId, type SessionWithJournal } from '@/data/types';
 import { useAppState } from '@/state/AppState';
@@ -66,7 +72,7 @@ export default function Log() {
           accessibilityLabel={sessionsPhrase(total)}
         >
           <Text style={[theme.text.monoHero, styles.count, { color: theme.color.text.primary }]}>{total}</Text>
-          <Text style={[theme.text.bodyLarge, { color: theme.color.text.primary, marginLeft: theme.space['3'] }]}>
+          <Text style={[theme.text.bodyLarge, { color: theme.color.text.primary, marginLeft: LOG_COUNT_WORD_GAP }]}>
             {total === 1 ? 'økt' : 'økter'}
           </Text>
         </View>
@@ -142,41 +148,41 @@ export default function Log() {
                     placeholder="Hva som helst. En tanke, en idé, ingenting spesielt."
                     placeholderTextColor={theme.color.text.tertiary}
                     accessibilityLabel="Notat"
-                    style={[
-                      theme.text.body,
-                      styles.input,
-                      { color: theme.color.text.primary, borderBottomColor: theme.color.border.strong },
-                    ]}
+                    style={[theme.text.body, styles.input, { color: theme.color.text.primary }]}
                   />
                   {error ? (
                     <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginTop: theme.space['2'] }]}>
                       {error}
                     </Text>
                   ) : null}
-                  <View style={styles.actions}>
-                    <Button
-                      title="Lagre"
-                      size="compact"
-                      onPress={() => {
-                        saveReflection(session.id, session.journal?.mood ?? null, draft.trim())
-                          .then(() => setError(null))
-                          .catch(() => setError('fikk ikke lagret. prøv igjen.'));
-                      }}
-                    />
-                    {session.journal ? (
+                  <View style={[styles.actions, session.journal ? styles.actionsRow : null]}>
+                    <View style={session.journal ? styles.saveSlot : undefined}>
                       <Button
-                        title="Slett"
-                        variant="ghost"
+                        title="Lagre"
                         size="compact"
                         onPress={() => {
-                          removeReflection(session.id)
-                            .then(() => {
-                              setDraft('');
-                              setError(null);
-                            })
+                          saveReflection(session.id, session.journal?.mood ?? null, draft.trim())
+                            .then(() => setError(null))
                             .catch(() => setError('fikk ikke lagret. prøv igjen.'));
                         }}
                       />
+                    </View>
+                    {session.journal ? (
+                      <View style={styles.deleteSlot}>
+                        <Button
+                          title="Slett"
+                          variant="ghost"
+                          size="compact"
+                          onPress={() => {
+                            removeReflection(session.id)
+                              .then(() => {
+                                setDraft('');
+                                setError(null);
+                              })
+                              .catch(() => setError('fikk ikke lagret. prøv igjen.'));
+                          }}
+                        />
+                      </View>
                     ) : null}
                   </View>
                 </View>
@@ -198,6 +204,9 @@ const styles = StyleSheet.create({
   row: { borderBottomWidth: 1 },
   rowHit: { minHeight: 44, flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
   preview: { maxWidth: 140, textAlign: 'right' },
-  input: { minHeight: 88, paddingTop: 8, borderBottomWidth: 1, textAlignVertical: 'top' },
-  actions: { marginTop: 16, gap: 4 },
+  input: { minHeight: 88, paddingTop: 8, textAlignVertical: 'top' },
+  actions: { marginTop: 16 },
+  actionsRow: { flexDirection: 'row', alignItems: 'center', gap: LOG_NOTE_ACTION_GAP },
+  saveSlot: { flex: LOG_SAVE_FLEX },
+  deleteSlot: { flex: LOG_DELETE_FLEX },
 });

@@ -73,7 +73,7 @@ export default function Reflection() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={{ marginBottom: theme.space['8'] }}>
-          <ScreenTitle>{heading}</ScreenTitle>
+          <ScreenTitle italic={false}>{heading}</ScreenTitle>
         </View>
 
         <Text style={[theme.text.label, { color: theme.color.text.primary, marginBottom: theme.space['3'] }]}>

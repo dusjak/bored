@@ -65,6 +65,24 @@ export default function Session() {
   const [holdWindowY, setHoldWindowY] = useState<number | null>(null);
   const lockHintLabel = useSharedValue(1);
   const freshLockHint = session != null && session.id === lockHintSessionId;
+  const [holdHidesHint, setHoldHidesHint] = useState(false);
+  const holdHintTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hideHintForHold = useCallback(() => {
+    if (holdHintTimer.current) clearTimeout(holdHintTimer.current);
+    holdHintTimer.current = null;
+    setHoldHidesHint(true);
+  }, []);
+  const hideHintForCancel = useCallback(() => {
+    if (holdHintTimer.current) clearTimeout(holdHintTimer.current);
+    setHoldHidesHint(true);
+    holdHintTimer.current = setTimeout(() => setHoldHidesHint(false), HOLD.releaseMs);
+  }, []);
+  useEffect(
+    () => () => {
+      if (holdHintTimer.current) clearTimeout(holdHintTimer.current);
+    },
+    [],
+  );
   const minutesRef = useRef(minutes);
   if (session) minutesRef.current = minutes;
   const fadeStyle = useAnimatedStyle(() => ({ opacity: holdFade.value }));
@@ -172,6 +190,7 @@ export default function Session() {
   }, [openReflection]);
 
   const finishHeld = useCallback(async () => {
+    hideHintForHold();
     if (remainingRef.current <= 0) {
       playCompletion();
       return;
@@ -191,7 +210,7 @@ export default function Session() {
     } catch {
       setError('fikk ikke lagret. prøv igjen.');
     }
-  }, [abortActiveSession, maybeNavigate, playCompletion]);
+  }, [abortActiveSession, hideHintForHold, maybeNavigate, playCompletion]);
 
   const onHoldSettled = useCallback(() => {
     holdSettled.current = true;
@@ -289,7 +308,7 @@ export default function Session() {
                 accessibilityElementsHidden={!showDone}
               >
                 <Text style={[theme.text.eyebrow, { color: theme.color.text.primary }]}>Økt fullført</Text>
-                <ScreenTitle align="center" variant="display">
+                <ScreenTitle align="center" variant="display" italic={false}>
                   {sentence}
                 </ScreenTitle>
               </Animated.View>
@@ -306,6 +325,8 @@ export default function Session() {
                 accessibilityAction={!showDone}
                 onComplete={finishHeld}
                 onSettled={onHoldSettled}
+                onHoldStart={hideHintForHold}
+                onHoldCancel={hideHintForCancel}
                 onAccessibilityEnd={confirmEnd}
                 hintAnchorRef={holdHintRef}
                 onHintLayout={() => {
@@ -339,6 +360,7 @@ export default function Session() {
         sessionId={session?.id ?? null}
         labelOpacity={lockHintLabel}
         flowAnchorY={holdWindowY}
+        suppressed={holdHidesHint}
       />
     </Animated.View>
   );

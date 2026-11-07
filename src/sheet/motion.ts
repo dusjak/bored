@@ -39,6 +39,16 @@ export const SHEET_GRABBER_TOP = 5;
 /** Drag starts from the grabber or anywhere in this band at the top of the sheet. */
 export const SHEET_DRAG_ZONE = 56;
 export const SHEET_HIT_MIN = 44;
+/**
+ * Modal content starts this far from the sheet edge.
+ * Same 24pt as the side margin. The drag band stays 56 so the grabber keeps a 44pt hit.
+ */
+export const SHEET_CONTENT_TOP = 24;
+
+/** Negative margin that pulls sheet content up to `SHEET_CONTENT_TOP`. */
+export function sheetContentPullUp(dragZone: number = SHEET_DRAG_ZONE, top: number = SHEET_CONTENT_TOP): number {
+  return top - dragZone;
+}
 
 export const SHEET_REDUCE_IN_MS = 200;
 export const SHEET_REDUCE_OUT_MS = 160;

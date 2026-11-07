@@ -1,5 +1,13 @@
 export type LockHintOffer = 'hidden' | 'text' | 'bulge';
 
+/** Hold-to-end moments. The lock hint stays hidden for all three. */
+export type HoldHintMoment = 'idle' | 'start' | 'cancel' | 'complete';
+
+export function lockHintOfferWhileHolding(offer: LockHintOffer, moment: HoldHintMoment): LockHintOffer {
+  if (moment === 'idle') return offer;
+  return 'hidden';
+}
+
 /**
  * The hint is one per fresh session, on a phone, portrait, and full screen.
  * Landscape, iPad, Stage Manager, and split view stay on the plain session.

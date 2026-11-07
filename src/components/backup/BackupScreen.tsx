@@ -231,7 +231,10 @@ export function BackupScreen({ backLabel }: Props) {
       </Pressable>
 
       <View style={[styles.titleRow, { gap: theme.space['2'], marginTop: theme.space['4'] }]}>
-        <Text accessibilityRole="header" style={[theme.text.headline, { color: theme.color.text.primary }]}>
+        <Text
+          accessibilityRole="header"
+          style={[theme.text.headline, { fontFamily: theme.fonts.serif, color: theme.color.text.primary }]}
+        >
           {BACKUP_TITLE}
         </Text>
         {backup.mode === 'preview' ? (

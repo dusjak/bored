@@ -19,6 +19,11 @@ export type TitleBox = {
   numberOfLines: null;
 };
 
+/** Roman serif for titles outside onboarding. Onboarding keeps the italic cut. */
+export function screenTitleFamily(italic: boolean, roman: string, italicFace: string): string {
+  return italic ? italicFace : roman;
+}
+
 export function screenTitleBox(align: TitleAlign): TitleBox {
   const bleed = ITALIC_BLEED;
   if (align === 'center') {

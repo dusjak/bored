@@ -49,8 +49,13 @@ export const ROW_PITCH = 79;
 export const ROW_HIT = 72;
 export const CHOICE_HIT_MIN = 44;
 export const ROW_STROKE = 1.4;
-/** Gap between the hero number’s line box and «min». Same on Hjem and in the sheet. */
+/** Gap between the hero number’s line box and «min» on Hjem. */
 export const NUMBER_UNIT_GAP = 4;
+/**
+ * Duration sheet only. About 4pt tighter than Hjem.
+ * 4 − 4 = 0. Hjem keeps `NUMBER_UNIT_GAP`.
+ */
+export const SHEET_NUMBER_UNIT_GAP = NUMBER_UNIT_GAP - 4;
 
 /**
  * Breathing-room sheet on the 852 pt frame.
@@ -152,6 +157,28 @@ export function klumpWidth(index: number): number {
 
 export function klumpHeight(width: number): number {
   return width * KLUMP_ASPECT;
+}
+
+/**
+ * Row glyph box. The stroke is centred on the silhouette, so half of it
+ * sits outside the path bounds and was clipped by the viewBox.
+ * Pixel size grows by the stroke; the silhouette stays the same size.
+ */
+export function glyphFrame(
+  width: number,
+  strokeWidth: number,
+  bounds: { x: number; y: number; width: number; height: number } = KLUMPEN_BOUNDS,
+): { width: number; height: number; viewBox: string } {
+  const safeWidth = width > 0 ? width : 1;
+  const height = safeWidth * (bounds.height / bounds.width);
+  const stroke = strokeWidth > 0 ? strokeWidth : 0;
+  const strokeUnits = stroke * (bounds.width / safeWidth);
+  const pad = strokeUnits / 2;
+  return {
+    width: safeWidth + stroke,
+    height: height + stroke,
+    viewBox: `${bounds.x - pad} ${bounds.y - pad} ${bounds.width + strokeUnits} ${bounds.height + strokeUnits}`,
+  };
 }
 
 /** Continuous index for a stored length. Presets land on 0, 1, 2, 3. */

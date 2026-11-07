@@ -32,6 +32,8 @@ import {
   ROW_WIDTHS,
   RUBBER_C,
   NUMBER_UNIT_GAP,
+  SHEET_NUMBER_UNIT_GAP,
+  glyphFrame,
   SHEET_RADIUS,
   SHEET_TOP,
   SIZE_SPRING,
@@ -219,6 +221,12 @@ describe('sheet geometry', () => {
     assert.equal(HOME_STONE_CENTER_Y, 348);
     assert.equal(HINT_GAP, 28);
     assert.equal(NUMBER_UNIT_GAP, 4);
+    assert.equal(SHEET_NUMBER_UNIT_GAP, 0);
+    const tight = glyphFrame(40, 1.4);
+    const bare = glyphFrame(40, 0);
+    assert.ok(tight.width > bare.width);
+    assert.ok(tight.height > bare.height);
+    assert.ok(tight.viewBox.startsWith('-'));
     const layout = durationSheetLayout(klumpHeight(klumpWidth(3)), (ROW_WIDTHS[3] ?? 40) * KLUMP_ASPECT);
     assert.equal(layout.titleMargin, 36);
     assert.equal(layout.subtitleMargin, 4);

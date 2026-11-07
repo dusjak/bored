@@ -30,6 +30,17 @@ export const LOG_KLUMP_SPACING = {
   aboveSummary: 13,
 } as const;
 
+/**
+ * Space between the Logg count and «økt» / «økter».
+ * Was `space['3']` (12). Reduced by 4pt. Engineering choice, not a mandated measure.
+ */
+export const LOG_COUNT_WORD_GAP = 8;
+
+/** Side-by-side note actions. Same 8pt gap as `space['2']`. Save is 2/3, delete is 1/3. */
+export const LOG_NOTE_ACTION_GAP = 8;
+export const LOG_SAVE_FLEX = 2;
+export const LOG_DELETE_FLEX = 1;
+
 /** Curve bounds of `KLUMPEN_PATH`, sampled so the stroke can stay 1.4pt at any size. */
 export const KLUMPEN_CURVE = {
   minX: 0,
