@@ -3,13 +3,23 @@ import type { KlumpMaterialId } from '../data/types.ts';
 
 /**
  * Edge drag for Form klumpen.
- * Thresholds, gains and outward limits are the part-1 material table.
- * The one stated sector is 40°. It is shared, because the other materials do not name one.
- * The preview is the silhouette. It does not invent a second material renderer.
+ * Thresholds, gains and limits are the part-1 material table.
+ * Gummi's sector is the stated 40°. Stein uses its 0.014w facet, not 40°.
+ * Plast and Fløyel are only described as broader than that 40°, so they use twice the stated angle.
+ * Kull has no other sector. Its stated difference is inward 0.55 and outward 0.25.
  */
 
 export const FORM_BINS = 48;
-export const FORM_SECTOR_DEG = 40;
+/** The only sector the source names, in degrees. Gummi. */
+export const GUMMI_SECTOR_DEG = 40;
+/**
+ * Plast is «bredere påvirkning» and Fløyel is «en bred sektor».
+ * The source gives no second angle, so both are twice Gummi's 40°.
+ */
+export const BROAD_SECTOR_DEG = GUMMI_SECTOR_DEG * 2;
+export const STEIN_FACET = 0.014;
+export const STEIN_WAIT_MS = 350;
+export const VELVET_LOWPASS_MS = 80;
 
 type MaterialDrag = {
   id: KlumpMaterialId;
@@ -110,6 +120,26 @@ export function materialDrag(id: KlumpMaterialId): MaterialDrag {
   return MATERIAL_DRAG.find((item) => item.id === id) ?? MATERIAL_DRAG[0];
 }
 
+/** Angular width of one drag. Stein's facet and the broader materials are not Gummi's 40°. */
+export function sectorRadians(id: KlumpMaterialId, widthPt: number, radiusPt: number): number {
+  if (id === 'skifer') {
+    const facet = STEIN_FACET * widthPt;
+    const radius = Math.max(radiusPt, 1);
+    const angle = 2 * Math.asin(Math.min(1, facet / 2 / radius));
+    // The facet is narrower than one sample, so the nearest sample is that facet.
+    return Math.max(angle, (Math.PI * 2) / FORM_BINS);
+  }
+  if (id === 'emalje' || id === 'floyel') return (BROAD_SECTOR_DEG * Math.PI) / 180;
+  return (GUMMI_SECTOR_DEG * Math.PI) / 180;
+}
+
+/** Fløyel's 80 ms lowpass. A zero step holds the previous travel. */
+export function velvetTravel(previous: number, raw: number, dtMs: number): number {
+  if (dtMs <= 0) return previous;
+  const k = 1 - Math.exp(-dtMs / VELVET_LOWPASS_MS);
+  return previous + (raw - previous) * k;
+}
+
 function textField(minutes: number): { w: number; h: number } {
   if (minutes <= 5) return TEXT_FIELD[5];
   if (minutes <= 10) return TEXT_FIELD[10];
@@ -148,27 +178,69 @@ export function deform(input: {
   widthPt: number;
   travelPt: number;
   angle: number;
+  /** Finger moving away from the centre is outward. Kull uses a different gain. */
+  radial?: 'in' | 'out';
+  /** Stein does not move until 350 ms of calm drag. */
+  elapsedMs?: number;
 }): { offsets: number[]; changed: boolean } {
   const spec = materialDrag(input.material);
   const start = input.start.length === FORM_BINS ? [...input.start] : emptyOffsets();
+  if (input.material === 'skifer' && (input.elapsedMs ?? 0) < STEIN_WAIT_MS) return { offsets: start, changed: false };
   if (input.travelPt < spec.thresholdPt) return { offsets: start, changed: false };
   const scale = input.widthPt / 1000;
-  const cap = spec.maxOut * input.widthPt;
-  const push = Math.min(cap, spec.gain * input.travelPt);
-  const sector = (FORM_SECTOR_DEG * Math.PI) / 180;
+  const outward = input.radial !== 'in';
+  const gain = input.material === 'kull' ? (outward ? 0.25 : 0.55) : spec.gain;
+  const capFrac = input.material === 'kull' ? (outward ? 0.045 : 0.1) : spec.maxOut;
+  const sign = outward ? 1 : -1;
+  const cap = capFrac * input.widthPt;
+  const push = Math.min(cap, gain * input.travelPt) * sign;
   const next = start.map((offset, index) => {
     const angle = binAngle(index);
+    const basePt = BASE.radii[index] * scale;
+    const sector = sectorRadians(input.material, input.widthPt, Math.max(basePt, 1));
     let delta = Math.abs(angle - input.angle);
     if (delta > Math.PI) delta = Math.PI * 2 - delta;
     if (delta > sector) return offset;
     const weight = Math.cos((delta / sector) * (Math.PI / 2));
-    const basePt = BASE.radii[index] * scale;
     const limits = radiusLimitsPt(input.minutes, input.widthPt, angle);
     const proposed = basePt + offset * scale + push * weight;
     const clamped = Math.min(limits.max, Math.max(limits.min, proposed));
     return (clamped - basePt) / scale;
   });
   return { offsets: next, changed: next.some((value, index) => value !== start[index]) };
+}
+
+/** Contour around the centroid, in points, y down. A saved offset moves the real samples radially. */
+export function contourInPoints(offsets: readonly number[], widthPt: number): { x: number; y: number }[] {
+  const scale = widthPt / 1000;
+  const extra = offsets.length === FORM_BINS ? offsets : emptyOffsets();
+  return SAMPLES.map((point) => {
+    const dx = point.x - BASE.cx;
+    const dy = point.y - BASE.cy;
+    const angle = Math.atan2(dy, dx);
+    const bin = Math.min(FORM_BINS - 1, Math.max(0, Math.floor(((angle + Math.PI) / (Math.PI * 2)) * FORM_BINS)));
+    const radius = Math.hypot(dx, dy) + (extra[bin] ?? 0);
+    return { x: Math.cos(angle) * radius * scale, y: Math.sin(angle) * radius * scale };
+  });
+}
+
+/** Outward offset of the current contour. The session ring uses the same normal step. */
+export function outsetContour(points: readonly { x: number; y: number }[], distance: number): { x: number; y: number }[] {
+  const n = points.length;
+  return points.map((point, index) => {
+    const prev = points[(index + n - 1) % n];
+    const next = points[(index + 1) % n];
+    const tx = next.x - prev.x;
+    const ty = next.y - prev.y;
+    const len = Math.hypot(tx, ty) || 1;
+    let nx = -ty / len;
+    let ny = tx / len;
+    if (nx * point.x + ny * point.y < 0) {
+      nx = -nx;
+      ny = -ny;
+    }
+    return { x: point.x + nx * distance, y: point.y + ny * distance };
+  });
 }
 
 export function stonePath(offsets: readonly number[]): string {

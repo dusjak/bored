@@ -4,6 +4,7 @@ import * as Haptics from 'expo-haptics';
 
 import { Button } from '@/components/Button';
 import { IntroStone } from '@/components/IntroStone';
+import { LiveKlump } from '@/components/LiveKlump';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Screen } from '@/components/Screen';
 import type { KlumpMaterialId } from '@/data/types';
@@ -64,7 +65,9 @@ export default function TeksturStep() {
                 },
               ]}
             >
-              <View style={[styles.pip, { backgroundColor: theme.color.ink.default }]} />
+              <View style={styles.pip}>
+                <LiveKlump material={item.id} minutes={minutes} offsets={emptyOffsets()} digits={false} widthPt={36} />
+              </View>
               <Text style={[theme.text.caption, { color: theme.color.text.primary }]}>{item.name}</Text>
             </Pressable>
           );
@@ -82,5 +85,5 @@ const styles = StyleSheet.create({
   line: { marginTop: 16, textAlign: 'center' },
   row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 },
   cell: { width: 61, height: 92, borderRadius: 12, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
-  pip: { width: 28, height: 22, borderRadius: 10, marginBottom: 8 },
+  pip: { width: 44, height: 44, marginBottom: 4, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
 });

@@ -12,7 +12,19 @@ import {
   practiceWelcomeReady,
   skipBliKjent,
 } from './flow.ts';
-import { deform, FORM_BINS, radiusLimitsPt } from './formShape.ts';
+import { RING_OFFSET } from '../session/holdToEnd.ts';
+import {
+  BROAD_SECTOR_DEG,
+  GUMMI_SECTOR_DEG,
+  contourInPoints,
+  deform,
+  emptyOffsets,
+  FORM_BINS,
+  outsetContour,
+  radiusLimitsPt,
+  sectorRadians,
+  velvetTravel,
+} from './formShape.ts';
 
 describe('bli kjent flow', () => {
   it('asks for duration once, then continues, and does not ask again in Del 2', () => {
@@ -93,6 +105,20 @@ describe('bli kjent flow', () => {
     const veiskille = readFileSync(join(process.cwd(), 'src/app/onboarding/veiskille.tsx'), 'utf8');
     assert.match(veiskille, /replace\('\/session'\)/);
     assert.doesNotMatch(veiskille, /\/home/);
+    const stone = readFileSync(join(process.cwd(), 'src/components/LiveKlump.tsx'), 'utf8');
+    const practice = readFileSync(join(process.cwd(), 'src/app/onboarding/ov.tsx'), 'utf8');
+    const intro = readFileSync(join(process.cwd(), 'src/components/IntroStone.tsx'), 'utf8');
+    const material = readFileSync(join(process.cwd(), 'src/materials/DynamicMaterial.tsx'), 'utf8');
+    assert.match(stone, /useLiveMaterial/);
+    assert.match(stone, /FixedRim/);
+    assert.match(stone, /RING_OFFSET/);
+    assert.match(stone, /outsetContour/);
+    assert.match(intro, /LiveKlump/);
+    assert.doesNotMatch(intro, /STONE_COLOR/);
+    assert.match(practice, /drawProgress/);
+    assert.doesNotMatch(practice, /borderRadius:\s*999/);
+    assert.match(material, /kull\/glint\.png/);
+    assert.doesNotMatch(material, /material !== 'kull'/);
     const chooser = readFileSync(join(process.cwd(), 'src/components/DurationChooser.tsx'), 'utf8');
     assert.match(chooser, /SHEET_NUMBER_UNIT_GAP/);
     assert.equal(SHEET_NUMBER_UNIT_GAP, 0);
@@ -112,6 +138,43 @@ describe('form drag', () => {
     assert.equal(moved.changed, true);
     const limits = radiusLimitsPt(10, 160, 0);
     assert.ok(limits.min < limits.max);
+    const early = deform({ start, material: 'skifer', minutes: 10, widthPt: 160, travelPt: 30, angle: 0, elapsedMs: 100 });
+    assert.equal(early.changed, false);
+    const later = deform({ start, material: 'skifer', minutes: 10, widthPt: 160, travelPt: 30, angle: 0, elapsedMs: 400 });
+    assert.equal(later.changed, true);
+    const gummiFar = deform({ start, material: 'gummi', minutes: 10, widthPt: 160, travelPt: 20, angle: 0 });
+    const plastFar = deform({ start, material: 'emalje', minutes: 10, widthPt: 160, travelPt: 20, angle: 0 });
+    const target = (50 * Math.PI) / 180;
+    let bin = 0;
+    let best = Infinity;
+    for (let i = 0; i < FORM_BINS; i += 1) {
+      const angle = -Math.PI + ((i + 0.5) / FORM_BINS) * Math.PI * 2;
+      let delta = Math.abs(angle - target);
+      if (delta > Math.PI) delta = Math.PI * 2 - delta;
+      if (delta < best) {
+        best = delta;
+        bin = i;
+      }
+    }
+    assert.equal(gummiFar.offsets[bin], 0);
+    assert.notEqual(plastFar.offsets[bin], 0);
+    assert.ok(sectorRadians('skifer', 160, 70) < (GUMMI_SECTOR_DEG * Math.PI) / 180);
+    assert.equal(sectorRadians('gummi', 160, 70), (GUMMI_SECTOR_DEG * Math.PI) / 180);
+    assert.equal(sectorRadians('floyel', 160, 70), (BROAD_SECTOR_DEG * Math.PI) / 180);
+    const out = deform({ start, material: 'kull', minutes: 10, widthPt: 160, travelPt: 20, angle: 0, radial: 'out' });
+    const inn = deform({ start, material: 'kull', minutes: 10, widthPt: 160, travelPt: 20, angle: 0, radial: 'in' });
+    const peak = (values: number[]) => Math.max(...values.map((value) => Math.abs(value)));
+    assert.ok(peak(inn.offsets) > peak(out.offsets));
+    assert.ok(velvetTravel(0, 10, 80) > 5 && velvetTravel(0, 10, 80) < 8);
+    assert.equal(velvetTravel(3, 10, 0), 3);
+    const body = contourInPoints(emptyOffsets(), 160);
+    const ring = outsetContour(body, RING_OFFSET);
+    const radius = (points: { x: number; y: number }[]) => points.map((point) => Math.hypot(point.x, point.y));
+    const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
+    const bodyR = radius(body);
+    const ringR = radius(ring);
+    assert.ok(Math.abs(mean(ringR) - mean(bodyR) - RING_OFFSET) < 1.5);
+    assert.ok(Math.max(...ringR) - Math.min(...ringR) > 8);
     const scale = 160 / 1000;
     for (let i = 0; i < moved.offsets.length; i += 1) {
       const angle = -Math.PI + ((i + 0.5) / FORM_BINS) * Math.PI * 2;

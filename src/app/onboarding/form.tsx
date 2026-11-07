@@ -4,14 +4,15 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
 import { Button } from '@/components/Button';
+import { LiveKlump } from '@/components/LiveKlump';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Screen } from '@/components/Screen';
-import { BLI_STEP, confirmedMinutes, defaultMaterial, engravedNumberSize, skipBliKjent } from '@/onboarding/flow';
-import { deform, emptyOffsets, materialDrag, stonePath } from '@/onboarding/formShape';
-import { DURATION_UNIT, KLUMP_ASPECT, STONE_COLOR, klumpWidth, minutesToIndex } from '@/duration/klumpen';
+import { BLI_STEP, confirmedMinutes, defaultMaterial, skipBliKjent } from '@/onboarding/flow';
+import { deform, emptyOffsets, materialDrag, velvetTravel } from '@/onboarding/formShape';
+import { klumpWidth, minutesToIndex } from '@/duration/klumpen';
+import { materialPlacement } from '@/materials/restMaps';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
-import Svg, { Path } from 'react-native-svg';
 
 /** Drag the edge. Nothing here advances on its own. The gesture mark in the stills is not UI. */
 export default function FormStep() {
@@ -27,9 +28,14 @@ export default function FormStep() {
   const [past, setPast] = useState<number[][]>([]);
   const start = useRef(saved);
   const fired = useRef(false);
+  const extra = useRef(false);
+  const began = useRef(0);
+  const lastAt = useRef(0);
+  const smoothed = useRef(0);
+  const touch = useRef({ x: 0, y: 0 });
   const angle = useRef(0);
   const width = klumpWidth(minutesToIndex(minutes));
-  const height = width * KLUMP_ASPECT;
+  const half = materialPlacement(width, 0, 0).artboardPt / 2;
 
   const pan = useRef(
     PanResponder.create({
@@ -37,12 +43,24 @@ export default function FormStep() {
       onPanResponderGrant: (event) => {
         start.current = offsetsRef.current;
         fired.current = false;
-        const x = event.nativeEvent.locationX - width / 2;
-        const y = event.nativeEvent.locationY - height / 2;
+        extra.current = false;
+        began.current = Date.now();
+        lastAt.current = began.current;
+        smoothed.current = 0;
+        const x = event.nativeEvent.locationX - half;
+        const y = event.nativeEvent.locationY - half;
+        touch.current = { x, y };
         angle.current = Math.atan2(y, x);
       },
-      onPanResponderMove: (_, gesture) => {
-        const travel = Math.hypot(gesture.dx, gesture.dy);
+      onPanResponderMove: (event, gesture) => {
+        const now = Date.now();
+        const raw = Math.hypot(gesture.dx, gesture.dy);
+        const travel = material === 'floyel' ? velvetTravel(smoothed.current, raw, now - lastAt.current) : raw;
+        smoothed.current = travel;
+        lastAt.current = now;
+        const x = event.nativeEvent.locationX - half;
+        const y = event.nativeEvent.locationY - half;
+        const radial = Math.hypot(x, y) >= Math.hypot(touch.current.x, touch.current.y) ? 'out' : 'in';
         const next = deform({
           start: start.current,
           material,
@@ -50,15 +68,29 @@ export default function FormStep() {
           widthPt: width,
           travelPt: travel,
           angle: angle.current,
+          radial,
+          elapsedMs: now - began.current,
         });
-        if (next.changed && !fired.current) {
-          fired.current = true;
-          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
+        if (next.changed && material !== 'emalje') {
+          const waited = now - began.current;
+          if (!fired.current) {
+            fired.current = true;
+            const style = material === 'skifer' ? Haptics.ImpactFeedbackStyle.Rigid : material === 'kull' ? Haptics.ImpactFeedbackStyle.Light : Haptics.ImpactFeedbackStyle.Soft;
+            void Haptics.impactAsync(style);
+          } else if (material === 'skifer' && !extra.current && waited >= 950) {
+            extra.current = true;
+            void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Rigid);
+          }
         }
         setOffsets(next.offsets);
       },
       onPanResponderRelease: () => {
-        if (fired.current) setPast((stack) => [...stack, start.current]);
+        if (material === 'emalje' && offsetsRef.current.some((value, index) => value !== start.current[index])) {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        }
+        if (offsetsRef.current.some((value, index) => value !== start.current[index])) {
+          setPast((stack) => [...stack, start.current]);
+        }
       },
     }),
   ).current;
@@ -86,17 +118,9 @@ export default function FormStep() {
       <Text style={[theme.text.caption, styles.meta, { color: theme.color.text.tertiary }]}>
         {spec.name} · {minutes} minutter
       </Text>
-      <View style={styles.stone} {...pan.panHandlers}>
-        <View style={{ width, height }}>
-          <Svg width={width} height={height} viewBox="0 77.233 1000 845.53">
-            <Path d={stonePath(offsets)} fill={STONE_COLOR} />
-          </Svg>
-          <View pointerEvents="none" style={styles.face}>
-            <Text style={{ fontFamily: theme.fonts.sans, fontSize: engravedNumberSize(minutes), color: '#F8F6F2', fontVariant: ['tabular-nums'] }}>
-              {minutes}
-            </Text>
-            <Text style={{ fontFamily: theme.fonts.sans, fontSize: 13, color: '#F8F6F2' }}>{DURATION_UNIT}</Text>
-          </View>
+      <View style={styles.stone}>
+        <View {...pan.panHandlers}>
+          <LiveKlump material={material} minutes={minutes} offsets={offsets} />
         </View>
       </View>
       <Text style={[theme.text.caption, styles.meta, { color: theme.color.text.tertiary }]}>
@@ -137,7 +161,6 @@ const styles = StyleSheet.create({
   content: { paddingBottom: 24 },
   meta: { textAlign: 'center', marginBottom: 8 },
   stone: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  face: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
   actions: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   half: { width: '46%' },
 });

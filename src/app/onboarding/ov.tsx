@@ -11,7 +11,7 @@ import { Screen } from '@/components/Screen';
 import { HOLD_TO_END_MS } from '@/data/copy';
 import { BLI_STEP, confirmedMinutes, defaultMaterial, practiceWelcomeReady, skipBliKjent } from '@/onboarding/flow';
 import { emptyOffsets } from '@/onboarding/formShape';
-import { strokeOpacity } from '@/session/trackStroke';
+import { drawProgress, strokeOpacity } from '@/session/trackStroke';
 import { phaseIndex } from '@/session/holdToEnd';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
@@ -25,7 +25,7 @@ export default function PracticeStep() {
   const material = defaultMaterial(user.materialId);
   const offsets = user.forms?.[material] ?? emptyOffsets();
   const [done, setDone] = useState(false);
-  const [ring, setRing] = useState(0);
+  const [ring, setRing] = useState({ progress: 0, opacity: 0 });
   const pressAt = useRef(-1);
   const releaseAt = useRef(-1);
   const doneAt = useRef(-1);
@@ -52,7 +52,10 @@ export default function PracticeStep() {
         }
       }
     }
-    setRing(strokeOpacity(pressAt.current >= 0, holdMs, now, releaseAt.current, doneAt.current, reduceMotion));
+    setRing({
+      progress: drawProgress(Math.min(holdMs, HOLD_TO_END_MS)),
+      opacity: strokeOpacity(pressAt.current >= 0, holdMs, now, releaseAt.current, doneAt.current, reduceMotion),
+    });
     const moving = pressed || (releaseAt.current >= 0 && doneAt.current < 0 && now - releaseAt.current < 300);
     if (moving) frame.current = requestAnimationFrame(tick);
   };
@@ -76,7 +79,7 @@ export default function PracticeStep() {
   const finishPractice = () => {
     doneAt.current = Date.now();
     setDone(true);
-    setRing(1);
+    setRing({ progress: 1, opacity: 1 });
   };
 
   const skip = () => {
@@ -110,12 +113,10 @@ export default function PracticeStep() {
           onPressIn={begin}
           onPressOut={end}
         >
-          <View style={{ opacity: 0.35 + ring * 0.65, borderWidth: ring > 0.04 ? 2.5 : 0, borderColor: theme.color.glow.amber, borderRadius: 999, padding: 8 }}>
-            <IntroStone minutes={minutes} material={material} offsets={offsets} dark />
-          </View>
+          <IntroStone minutes={minutes} material={material} offsets={offsets} ring={ring} />
         </Pressable>
         <Text style={[theme.text.caption, styles.status, { color: theme.color.session['text-secondary'] }]}>
-          {done ? 'Øving avsluttet' : ring > 0.04 ? 'Hold for å avslutte' : ''}
+          {done ? 'Øving avsluttet' : ring.opacity > 0.04 ? 'Hold for å avslutte' : ''}
         </Text>
       </View>
       <Button

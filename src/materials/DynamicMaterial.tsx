@@ -65,6 +65,8 @@ const MICRO_Y = {
 } as const;
 
 const NEAREST = { filter: FilterMode.Nearest, mipmap: MipmapMode.None } as const;
+/** Blurred Kull glint, `material.py` lines 130–132, packed from `glint-kull.f16.zlib`. */
+const KULL_GLINT = require('../../assets/materials/2026-11-07/kull/glint.png');
 
 export function makeFixedRimFilter(rimK: number): SkImageFilter | null {
   const edgeFx = Skia.RuntimeEffect.Make(RIM_EDGE_SKSL);
@@ -166,10 +168,14 @@ export function useLiveMaterial(
   const albedo = useImage(BASE[material]);
   const microX = useImage(MICRO_X[material], () => setImageFailed(true));
   const microY = useImage(MICRO_Y[material], () => setImageFailed(true));
+  const kullGlint = useImage(KULL_GLINT, () => {
+    if (material === 'kull') setImageFailed(true);
+  });
   const glint = useRef<SkImage | null>(null);
   const rimDot = useRef<SkImage | null>(null);
   if (!glint.current) glint.current = solidImage(0, 0, 0);
   if (!rimDot.current) rimDot.current = solidImage(0, 0, 0);
+  const glintImage = material === 'kull' ? kullGlint : glint.current;
   const pixels = useRef<{ image: SkImage; px: Uint8Array; w: number; h: number } | null>(null);
   const gain = useRef<{ k: number; artboardPt: number; material: MaterialId } | null>(null);
   const [uploaded, setUploaded] = useState<Uploaded>({ macro: null, rim: null, rimK: 0 });
@@ -231,10 +237,10 @@ export function useLiveMaterial(
 
   const rimFilter = useMemo(() => makeFixedRimFilter(uploaded.rimK), [uploaded.rimK]);
   const microHalf = MICRO_PACK[material].half;
-  const imagesReady = Boolean(effect && albedo && uploaded.macro && microX && microY && glint.current && rimDot.current);
-  const ready = material !== 'kull' && !imageFailed && imagesReady && Boolean(rimFilter);
+  const imagesReady = Boolean(effect && albedo && uploaded.macro && microX && microY && glintImage && rimDot.current);
+  const ready = !imageFailed && imagesReady && Boolean(rimFilter);
   useEffect(() => {
-    if (material === 'kull') {
+    if (material === 'kull' && imageFailed) {
       reportMaterialStatus(surface, { phase: 'fallback', reason: 'kull-glint-unbundled' });
       return;
     }
@@ -259,7 +265,7 @@ export function useLiveMaterial(
     microX,
     microY,
     microHalf,
-    glint: glint.current,
+    glint: glintImage,
     rim: rimDot.current,
     rimFilter,
     rimK: uploaded.rimK,
@@ -347,7 +353,7 @@ type Props = {
 /**
  * Standalone artboard. Hjem and the session draw `MaterialShade` inside their
  * own canvases instead, so the digits stay in the existing overlay.
- * Gummi is the only mounted surface. The other four stay unwired.
+ * Onboarding mounts all five surfaces through the same shader.
  */
 export function DynamicMaterial({ material, width, cx, cy, clip, digits, digitSize = 56 }: Props) {
   const place = materialPlacement(width, cx, cy);
