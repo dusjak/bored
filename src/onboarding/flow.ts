@@ -17,17 +17,14 @@ export const BLI_STEP = {
   ov: 4,
 } as const;
 
-export type BliSkip =
-  | { minutes: 10; to: 'velkommen' }
-  | { minutes: 10; to: 'rom' }
-  | { minutes: number; to: 'velkommen' };
+/**
+ * Part 1 routes. Each one is mandatory. The stack pop gesture is off on these
+ * screens. Velkommen and Veiskille are after this list.
+ */
+export const PART1_ROUTES = ['index', 'tid', 'rom', 'tekstur', 'form', 'ov'] as const;
 
-/** A1 skip leaves before a time choice. Tid skip forces 10 and continues to Rom. Later skips keep the confirmed minutes and go to Velkommen. */
-export function skipBliKjent(step: 'a1' | 'tid' | 'rom' | 'tekstur' | 'form' | 'ov', confirmedMinutes: number): BliSkip {
-  if (step === 'a1') return { minutes: 10, to: 'velkommen' };
-  if (step === 'tid') return { minutes: 10, to: 'rom' };
-  return { minutes: confirmedMinutes, to: 'velkommen' };
-}
+/** Part 1 duration help, under «Velg varighet». The Hjem sheet keeps its own line. */
+export const PART1_DURATION_INGRESS = 'Hvor lenge tror du at du klarer å kjede deg om gangen?';
 
 export function confirmedMinutes(stored: string | undefined): 5 | 10 | 15 | 20 {
   const n = parseInt(stored ?? '', 10);
@@ -39,7 +36,7 @@ export function confirmDuration(minutes: number): { minutes: number; to: 'rom' }
   return { minutes, to: 'rom' };
 }
 
-/** «Til velkommen» exists only after the practice hold completes. Hopp over is separate. */
+/** «Til velkommen» exists only after the practice hold completes. */
 export function practiceWelcomeReady(completed: boolean): boolean {
   return completed;
 }

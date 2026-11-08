@@ -16,6 +16,8 @@ export function OnboardingHeader({
   slideSub = false,
   total = ONBOARDING_STEPS,
   helpGap = 8,
+  /** Part 2 keeps the dots. Part 1 turns them off. */
+  dots = true,
   ink,
   subInk,
   dot,
@@ -29,6 +31,7 @@ export function OnboardingHeader({
   total?: number;
   /** Space between the title and the help line. The last Del 2 screen uses 4. */
   helpGap?: number;
+  dots?: boolean;
   /** Title, help and back icon. The practice screen is on the session ground. */
   ink?: string;
   subInk?: string;
@@ -45,7 +48,7 @@ export function OnboardingHeader({
         <Pressable hitSlop={12} onPress={() => router.back()} accessibilityLabel="Tilbake" style={styles.back}>
           <Icon name="chevronLeft" size={18} color={subInk ?? theme.color.text.tertiary} />
         </Pressable>
-        <ProgressDots total={total} current={step} activeColor={dot} idleColor={dotIdle} />
+        {dots ? <ProgressDots total={total} current={step} activeColor={dot} idleColor={dotIdle} /> : <View style={styles.spacer} />}
         <View style={styles.back} />
       </View>
       <View style={styles.copy}>
@@ -75,5 +78,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  spacer: { flex: 1 },
   copy: { marginTop: questionContentInset },
 });

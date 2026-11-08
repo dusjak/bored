@@ -7,7 +7,7 @@ import { Button } from '@/components/Button';
 import { LiveKlump } from '@/components/LiveKlump';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Screen } from '@/components/Screen';
-import { BLI_STEP, confirmedMinutes, defaultMaterial, skipBliKjent } from '@/onboarding/flow';
+import { BLI_STEP, confirmedMinutes, defaultMaterial } from '@/onboarding/flow';
 import { deform, emptyOffsets, materialDrag, velvetTravel } from '@/onboarding/formShape';
 import { klumpWidth, minutesToIndex } from '@/duration/klumpen';
 import { materialPlacement } from '@/materials/restMaps';
@@ -17,7 +17,7 @@ import { useTheme } from '@/theme';
 /** Drag the edge. Nothing here advances on its own. The gesture mark in the stills is not UI. */
 export default function FormStep() {
   const { theme } = useTheme();
-  const { user, updateUser, setDurationMinutes } = useAppState();
+  const { user, updateUser } = useAppState();
   const minutes = confirmedMinutes(user.duration);
   const material = defaultMaterial(user.materialId);
   const spec = materialDrag(material);
@@ -105,13 +105,6 @@ export default function FormStep() {
     }),
   ).current;
 
-  const skip = () => {
-    const next = skipBliKjent('form', minutes);
-    updateUser({ duration: String(next.minutes), materialId: material });
-    void setDurationMinutes(next.minutes);
-    router.push('/onboarding/velkommen');
-  };
-
   const keep = () => {
     updateUser({ materialId: material, forms: { ...user.forms, [material]: offsets } });
     router.push('/onboarding/ov');
@@ -120,6 +113,7 @@ export default function FormStep() {
   return (
     <Screen top="none" contentStyle={styles.content}>
       <OnboardingHeader
+        dots={false}
         step={BLI_STEP.form}
         total={5}
         title="Gi den din form."
@@ -162,7 +156,6 @@ export default function FormStep() {
         />
       </View>
       <Button title="Behold formen" onPress={keep} />
-      <Button title="Hopp over" variant="ghost" style={{ marginTop: 8 }} onPress={skip} />
     </Screen>
   );
 }

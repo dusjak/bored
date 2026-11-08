@@ -32,16 +32,15 @@ import { KlumpenBody, KlumpenGlyph, crossfadeTo } from './Klumpen';
 type Props = {
   minutes: number;
   onConfirm: (minutes: number) => void;
-  onSkip?: () => void;
   confirmTitle?: string;
 };
 
 /**
  * The existing duration stone, full screen.
- * Fortsett confirms. Hopp over is optional. A choice does not advance.
+ * Fortsett confirms the minutes the pan or the row selected. A choice does not advance.
  * The number-to-«min» gap stays the sheet gap. Hjem keeps its own 4pt gap.
  */
-export function DurationChooser({ minutes, onConfirm, onSkip, confirmTitle = 'Fortsett' }: Props) {
+export function DurationChooser({ minutes, onConfirm, confirmTitle = 'Fortsett' }: Props) {
   const { theme } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const reduceMotion = useReducedMotion() === true;
@@ -194,12 +193,10 @@ export function DurationChooser({ minutes, onConfirm, onSkip, confirmTitle = 'Fo
           );
         })}
       </View>
-      <Text style={[theme.text.caption, styles.hint, { color: theme.color.text.tertiary }]}>{DURATION_ADJUST_HINT}</Text>
       <Button
         title={confirmTitle}
         onPress={() => onConfirm(PRESET_MINUTES[selectedRef.current] ?? PRESET_MINUTES[1])}
       />
-      {onSkip ? <Button title="Hopp over" variant="ghost" style={{ marginTop: 8 }} onPress={onSkip} /> : null}
     </View>
   );
 }
@@ -209,5 +206,4 @@ const styles = StyleSheet.create({
   stone: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: ROW_HIT },
   row: { flexDirection: 'row', alignSelf: 'center', marginBottom: 8 },
   choice: { alignItems: 'center', minHeight: ROW_HIT },
-  hint: { textAlign: 'center', marginBottom: 16 },
 });

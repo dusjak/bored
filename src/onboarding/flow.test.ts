@@ -9,8 +9,9 @@ import {
   BLI_KJENT_STEPS,
   confirmDuration,
   homeUneaseState,
+  PART1_DURATION_INGRESS,
+  PART1_ROUTES,
   practiceWelcomeReady,
-  skipBliKjent,
 } from './flow.ts';
 import { RING_OFFSET } from '../session/holdToEnd.ts';
 import {
@@ -30,17 +31,62 @@ describe('bli kjent flow', () => {
   it('asks for duration once, then continues, and does not ask again in Del 2', () => {
     assert.equal(BLI_KJENT_STEPS, 5);
     assert.deepEqual(confirmDuration(20), { minutes: 20, to: 'rom' });
-    assert.equal(skipBliKjent('tid', 20).minutes, 10);
-    assert.equal(skipBliKjent('tid', 20).to, 'rom');
     assert.equal(QUESTIONS.goal.next, '/onboarding/time');
     assert.equal(ONBOARDING_STEPS, 6);
     assert.equal(QUESTIONS.time.step, 3);
   });
 
-  it('skips A1 to Velkommen at 10, and later skips keep the confirmed minutes', () => {
-    assert.deepEqual(skipBliKjent('a1', 20), { minutes: 10, to: 'velkommen' });
-    assert.deepEqual(skipBliKjent('rom', 15), { minutes: 15, to: 'velkommen' });
-    assert.deepEqual(skipBliKjent('ov', 20), { minutes: 20, to: 'velkommen' });
+  it('keeps every Part 1 step mandatory and leaves Veiskille able to skip Del 2', () => {
+    const root = process.cwd();
+    const dir = join(root, 'src/app/onboarding');
+    for (const route of PART1_ROUTES) {
+      const source = readFileSync(join(dir, `${route}.tsx`), 'utf8');
+      assert.equal(source.includes('Hopp over'), false, route);
+      assert.equal(source.includes('skipBliKjent'), false, route);
+      assert.equal(source.includes('velkommen'), route === 'ov', route);
+    }
+    const tid = readFileSync(join(dir, 'tid.tsx'), 'utf8');
+    assert.match(tid, /PART1_DURATION_INGRESS/);
+    assert.equal(PART1_DURATION_INGRESS, 'Hvor lenge tror du at du klarer å kjede deg om gangen?');
+    assert.match(tid, /onConfirm=\{save\}/);
+    assert.doesNotMatch(tid, /onSkip/);
+    assert.match(tid, /router\.push\('\/onboarding\/rom'\)/);
+    const veiskille = readFileSync(join(dir, 'veiskille.tsx'), 'utf8');
+    assert.match(veiskille, /Hopp over og start første økt/);
+    assert.match(veiskille, /replace\('\/session'\)/);
+    const name = readFileSync(join(dir, 'name.tsx'), 'utf8');
+    assert.match(name, /title="Hopp over"/);
+    const questions = readFileSync(join(root, 'src/components/QuestionStep.tsx'), 'utf8');
+    assert.match(questions, /<OnboardingHeader/);
+    assert.doesNotMatch(questions, /dots=\{false\}/);
+  });
+
+  it('drops the Part 1 dots and the stack pop, and keeps the duration pan on the stone', () => {
+    const root = process.cwd();
+    const dir = join(root, 'src/app/onboarding');
+    const header = readFileSync(join(root, 'src/components/OnboardingHeader.tsx'), 'utf8');
+    const layout = readFileSync(join(dir, '_layout.tsx'), 'utf8');
+    const chooser = readFileSync(join(root, 'src/components/DurationChooser.tsx'), 'utf8');
+    assert.match(header, /accessibilityLabel="Tilbake"/);
+    assert.match(header, /router\.back\(\)/);
+    assert.match(header, /dots \? <ProgressDots/);
+    assert.doesNotMatch(header, /updateUser/);
+    for (const route of PART1_ROUTES) {
+      if (route === 'index') continue;
+      const source = readFileSync(join(dir, `${route}.tsx`), 'utf8');
+      assert.match(source, /dots=\{false\}/, route);
+    }
+    assert.match(layout, /gestureEnabled: true/);
+    assert.match(layout, /PART1_ROUTES\.map/);
+    assert.match(layout, /gestureEnabled: false/);
+    assert.match(layout, /fullScreenGestureEnabled: false/);
+    assert.match(chooser, /PanResponder/);
+    assert.match(chooser, /stoneReleaseAction/);
+    assert.match(chooser, /accessibilityHint=\{DURATION_ADJUST_HINT\}/);
+    assert.doesNotMatch(chooser, />\{DURATION_ADJUST_HINT\}<\/Text>/);
+    assert.doesNotMatch(chooser, /from 'expo-router'|router\.back|Hopp over|onSkip/);
+    const sheet = readFileSync(join(root, 'src/duration/klumpen.ts'), 'utf8');
+    assert.match(sheet, /Hvor lang tid har du i dag\?/);
   });
 
   it('opens Til velkommen only after the practice hold', () => {

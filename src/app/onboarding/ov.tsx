@@ -9,7 +9,7 @@ import { IntroStone } from '@/components/IntroStone';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Screen } from '@/components/Screen';
 import { HOLD_TO_END_MS } from '@/data/copy';
-import { BLI_STEP, confirmedMinutes, defaultMaterial, practiceWelcomeReady, skipBliKjent } from '@/onboarding/flow';
+import { BLI_STEP, confirmedMinutes, defaultMaterial, practiceWelcomeReady } from '@/onboarding/flow';
 import { emptyOffsets } from '@/onboarding/formShape';
 import { drawProgress, strokeOpacity } from '@/session/trackStroke';
 import { phaseIndex } from '@/session/holdToEnd';
@@ -20,7 +20,7 @@ import { useTheme } from '@/theme';
 export default function PracticeStep() {
   const { theme } = useTheme();
   const reduceMotion = useReducedMotion() === true;
-  const { user, updateUser, setDurationMinutes } = useAppState();
+  const { user } = useAppState();
   const minutes = confirmedMinutes(user.duration);
   const material = defaultMaterial(user.materialId);
   const offsets = user.forms?.[material] ?? emptyOffsets();
@@ -82,16 +82,10 @@ export default function PracticeStep() {
     setRing({ progress: 1, opacity: 1 });
   };
 
-  const skip = () => {
-    const next = skipBliKjent('ov', minutes);
-    updateUser({ duration: String(next.minutes), materialId: material });
-    void setDurationMinutes(next.minutes);
-    router.push('/onboarding/velkommen');
-  };
-
   return (
     <Screen session top="none" contentStyle={styles.content}>
       <OnboardingHeader
+        dots={false}
         step={BLI_STEP.ov}
         total={5}
         title="Du bestemmer."
@@ -125,7 +119,6 @@ export default function PracticeStep() {
         disabled={!practiceWelcomeReady(done)}
         onPress={() => router.push('/onboarding/velkommen')}
       />
-      <Button title="Hopp over" variant="darkGhost" style={{ marginTop: 8 }} onPress={skip} />
     </Screen>
   );
 }

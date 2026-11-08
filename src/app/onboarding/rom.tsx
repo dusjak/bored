@@ -5,27 +5,21 @@ import { Button } from '@/components/Button';
 import { IntroStone } from '@/components/IntroStone';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Screen } from '@/components/Screen';
-import { BLI_STEP, confirmedMinutes, defaultMaterial, skipBliKjent } from '@/onboarding/flow';
+import { BLI_STEP, confirmedMinutes, defaultMaterial } from '@/onboarding/flow';
 import { emptyOffsets } from '@/onboarding/formShape';
 import { useAppState } from '@/state/AppState';
 
 /** Rom without the unease box. That box lives on Hjem. */
 export default function RomStep() {
-  const { user, updateUser, setDurationMinutes } = useAppState();
+  const { user } = useAppState();
   const minutes = confirmedMinutes(user.duration);
   const material = defaultMaterial(user.materialId);
   const offsets = user.forms?.[material] ?? emptyOffsets();
 
-  const skip = () => {
-    const next = skipBliKjent('rom', minutes);
-    updateUser({ duration: String(next.minutes) });
-    void setDurationMinutes(next.minutes);
-    router.push('/onboarding/velkommen');
-  };
-
   return (
     <Screen top="none" contentStyle={styles.content}>
       <OnboardingHeader
+        dots={false}
         step={BLI_STEP.rom}
         total={5}
         title="Din egen kjedsomhet."
@@ -35,7 +29,6 @@ export default function RomStep() {
         <IntroStone minutes={minutes} material={material} offsets={offsets} />
       </View>
       <Button title="Gjør den til din" onPress={() => router.push('/onboarding/tekstur')} />
-      <Button title="Hopp over" variant="ghost" style={{ marginTop: 8 }} onPress={skip} />
     </Screen>
   );
 }

@@ -1,25 +1,14 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
-import { Button } from '@/components/Button';
 import { KlumpenGlyph } from '@/components/Klumpen';
 import { Screen } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
-import { skipBliKjent } from '@/onboarding/flow';
-import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
-/** A1. The meeting. No stepper and no unease box. */
+/** A1. The meeting. No stepper, no skip, and no unease box. */
 export default function MeetKlumpen() {
   const { theme } = useTheme();
-  const { updateUser, setDurationMinutes } = useAppState();
-
-  const skip = () => {
-    const next = skipBliKjent('a1', 10);
-    updateUser({ duration: String(next.minutes), materialId: 'gummi' });
-    void setDurationMinutes(next.minutes);
-    router.push('/onboarding/velkommen');
-  };
 
   return (
     <Screen top="app" contentStyle={styles.content}>
@@ -37,7 +26,6 @@ export default function MeetKlumpen() {
         </Pressable>
         <Text style={[theme.text.caption, styles.hint, { color: theme.color.text.tertiary }]}>Trykk på klumpen</Text>
       </View>
-      <Button title="Hopp over" variant="ghost" onPress={skip} />
     </Screen>
   );
 }

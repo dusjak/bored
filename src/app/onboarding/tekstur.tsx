@@ -8,7 +8,7 @@ import { MaterialSwatch } from '@/components/MaterialSwatch';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Screen } from '@/components/Screen';
 import type { VisibleMaterialId } from '@/onboarding/flow';
-import { BLI_STEP, confirmedMinutes, skipBliKjent, textureChoice, VISIBLE_MATERIALS } from '@/onboarding/flow';
+import { BLI_STEP, confirmedMinutes, textureChoice, VISIBLE_MATERIALS } from '@/onboarding/flow';
 import { emptyOffsets, materialDrag } from '@/onboarding/formShape';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
@@ -16,7 +16,7 @@ import { useTheme } from '@/theme';
 /** Gummi starts selected when nothing is stored. Choosing a texture does not advance. */
 export default function TeksturStep() {
   const { theme } = useTheme();
-  const { user, updateUser, setDurationMinutes } = useAppState();
+  const { user, updateUser } = useAppState();
   const minutes = confirmedMinutes(user.duration);
   const choice = textureChoice(user.materialId);
   const material = choice.material;
@@ -29,16 +29,10 @@ export default function TeksturStep() {
     updateUser({ materialId: id });
   };
 
-  const skip = () => {
-    const next = skipBliKjent('tekstur', minutes);
-    updateUser({ duration: String(next.minutes), materialId: material });
-    void setDurationMinutes(next.minutes);
-    router.push('/onboarding/velkommen');
-  };
-
   return (
     <Screen top="none" contentStyle={styles.content}>
       <OnboardingHeader
+        dots={false}
         step={BLI_STEP.tekstur}
         total={5}
         title="Hvordan kjennes din?"
@@ -76,7 +70,6 @@ export default function TeksturStep() {
         })}
       </View>
       <Button title="Form klumpen" onPress={() => router.push('/onboarding/form')} />
-      <Button title="Hopp over" variant="ghost" style={{ marginTop: 8 }} onPress={skip} />
     </Screen>
   );
 }
