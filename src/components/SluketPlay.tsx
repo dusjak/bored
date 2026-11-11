@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { PixelRatio, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useLowPowerMode } from 'expo-battery';
 import { useSharedValue } from 'react-native-reanimated';
-import { Canvas, Group, Image, Picture, Rect, Skia } from '@shopify/react-native-skia';
+import { Canvas, FilterMode, Group, Image, MipmapMode, Picture, Rect, Skia } from '@shopify/react-native-skia';
 
 import { SplashLogo } from '@/components/S6Mark';
 import type { SplashProps } from '@/components/StillSplash';
@@ -15,7 +15,6 @@ import {
   createStimuli,
   MEGA_MS,
   MIX_OFF_AT,
-  mixCellPt,
   SPLASH_BG,
   stimulusLimit,
   WORDMARK_EXIT_MS,
@@ -64,7 +63,6 @@ export function SluketPlay({ onHandoff, onFirstPaint, armed }: SplashProps) {
     let last = 0;
     let phase: 'warm' | 'run' = 'warm';
     const low = batteryRef.current;
-    const cell = mixCellPt(low);
     const limit = stimulusLimit(low);
     const stone = makeStonePath();
     const mixOn = colorMixEnabled(features.sluketColorMix) && sluketMixEffect != null;
@@ -118,7 +116,7 @@ export function SluketPlay({ onHandoff, onFirstPaint, armed }: SplashProps) {
             picture,
             width: w,
             height: h,
-            cell,
+            pixelRatio: PixelRatio.get(),
             mix: mixed ? { m: drawn.mixM, radius: drawn.mixR, sigma: drawn.sigma } : null,
             effect: mixed ? sluketMixEffect : null,
           });
@@ -154,10 +152,26 @@ export function SluketPlay({ onHandoff, onFirstPaint, armed }: SplashProps) {
       <Canvas style={styles.fill} pointerEvents="none">
         <Rect x={0} y={0} width={width} height={height} color={SPLASH_BG} />
         {plate?.kind === 'image' && plate.under ? (
-          <Image image={plate.under} x={0} y={0} width={width} height={height} fit="fill" />
+          <Image
+            image={plate.under}
+            x={0}
+            y={0}
+            width={width}
+            height={height}
+            fit="fill"
+            sampling={{ filter: FilterMode.Linear, mipmap: MipmapMode.None }}
+          />
         ) : null}
         {plate?.kind === 'image' ? (
-          <Image image={plate.image} x={0} y={0} width={width} height={height} fit="fill" />
+          <Image
+            image={plate.image}
+            x={0}
+            y={0}
+            width={width}
+            height={height}
+            fit="fill"
+            sampling={{ filter: FilterMode.Linear, mipmap: MipmapMode.None }}
+          />
         ) : null}
         {plate?.kind === 'picture' ? <Picture picture={plate.picture} /> : null}
         <Group transform={[{ translateX: width / 2 }, { translateY: height / 2 }]}>

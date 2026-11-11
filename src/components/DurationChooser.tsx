@@ -19,6 +19,8 @@ import {
   glyphFrame,
   indexFromSwipe,
   indexVelocity,
+  klumpHeight,
+  klumpWidth,
   minutesToIndex,
   rowPitch,
   selectionFromIndex,
@@ -29,6 +31,7 @@ import {
 import { useTheme } from '@/theme';
 import { Button } from './Button';
 import { KlumpenBody, KlumpenGlyph, crossfadeTo } from './Klumpen';
+import { StoneAnchor } from './StoneAnchor';
 
 type Props = {
   minutes: number;
@@ -138,8 +141,8 @@ export function DurationChooser({
 
   return (
     <View style={styles.fill}>
-      <View style={styles.stone} {...pan.panHandlers}>
-        <View style={styles.lump}>
+      <StoneAnchor height={klumpHeight(klumpWidth(3))} style={styles.stone}>
+        <View style={styles.lump} {...pan.panHandlers}>
           {stone ? (
             stone(shown)
           ) : (
@@ -156,11 +159,11 @@ export function DurationChooser({
               unitColor={STONE_NUMBER_COLOR}
             />
           )}
-          {showChoices || !hint ? null : (
+          {hint ? (
             <Text style={[theme.text.caption, styles.hint, { color: theme.color.text.tertiary }]}>{hint}</Text>
-          )}
+          ) : null}
         </View>
-      </View>
+      </StoneAnchor>
       {showChoices ? (
         <View
           accessible
@@ -227,7 +230,7 @@ export function DurationChooser({
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  stone: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: ROW_HIT, overflow: 'visible' },
+  stone: { minHeight: ROW_HIT },
   lump: { alignItems: 'center', overflow: 'visible' },
   hint: { position: 'absolute', top: '100%', marginTop: 18, textAlign: 'center', width: 280 },
   row: { flexDirection: 'row', alignSelf: 'center', marginBottom: 8 },

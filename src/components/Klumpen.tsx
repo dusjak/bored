@@ -46,7 +46,7 @@ import {
   CROSSFADE_MS,
   DURATION_UNIT,
   HOME_APPLY_DELAY,
-  HOME_STONE_CENTER_Y,
+  stoneCenterY,
   KLUMP_ASPECT,
   KLUMP_WIDTH_MIN,
   HOME_UNIT_FONT_SIZE,
@@ -607,7 +607,8 @@ export function HomeKlumpen({
     else index.value = withSpring(target, SIZE_SPRING);
   }, [fade, index, shown]);
 
-  const natural = HOME_STONE_CENTER_Y - insets.top - screenPadding;
+  const { height: windowHeight } = useWindowDimensions();
+  const natural = stoneCenterY(windowHeight) - insets.top - screenPadding;
   const maxCenter = heroHeight > 0 ? heroHeight - MAX_H / 2 : natural;
   const center = Math.min(natural, Math.max(maxCenter, MAX_H / 2));
 

@@ -9,6 +9,7 @@ import { GummiPicture } from '@/components/GummiPicture';
 import { PracticeRing, type PracticeRingLook } from '@/components/PracticeRing';
 import { Screen } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
+import { StoneAnchor } from '@/components/StoneAnchor';
 import { HOLD_PHASE_TEXT, HOLD_TO_END_MS } from '@/data/copy';
 import {
   confirmedMinutes,
@@ -149,7 +150,7 @@ export default function PracticeStep() {
       <ScreenTitle style={{ marginBottom: 8 }}>{HOLD_TITLE}</ScreenTitle>
       <Text style={[theme.text.body, { color: theme.color.text.link }]}>{HOLD_BODY}</Text>
       </View>
-      <View style={styles.stone}>
+      <StoneAnchor height={stoneH} style={styles.stone}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Øv hold"
@@ -175,7 +176,7 @@ export default function PracticeStep() {
         >
           {hint}
         </Text>
-      </View>
+      </StoneAnchor>
       {showContinue ? (
         <Button title="Fortsett" onPress={() => router.push('/onboarding/veiskille')} />
       ) : null}
@@ -192,6 +193,6 @@ export default function PracticeStep() {
 const styles = StyleSheet.create({
   content: { paddingBottom: 24 },
   copy: { minHeight: 140 },
-  stone: { flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
+  stone: { overflow: 'visible' },
   status: { textAlign: 'center' },
 });

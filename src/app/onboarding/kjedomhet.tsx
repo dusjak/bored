@@ -5,6 +5,8 @@ import { Button } from '@/components/Button';
 import { GummiPicture } from '@/components/GummiPicture';
 import { Screen } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
+import { StoneAnchor } from '@/components/StoneAnchor';
+import { klumpHeight, klumpWidth } from '@/duration/klumpen';
 import { KJEDOMHET_BODY } from '@/onboarding/flow';
 import { useTheme } from '@/theme';
 
@@ -17,9 +19,9 @@ export default function KjedomhetStep() {
       <ScreenTitle style={{ marginBottom: 8 }}>Hva er kjedsomhet?</ScreenTitle>
       <Text style={[theme.text.body, { color: theme.color.text.secondary }]}>{KJEDOMHET_BODY}</Text>
       </View>
-      <View style={styles.stone}>
+      <StoneAnchor height={klumpHeight(klumpWidth(3))} style={styles.stone}>
         <GummiPicture minutes={10} digits={false} />
-      </View>
+      </StoneAnchor>
       <Button title="Fortsett" onPress={() => router.push('/onboarding/tid')} />
     </Screen>
   );
@@ -28,5 +30,5 @@ export default function KjedomhetStep() {
 const styles = StyleSheet.create({
   content: { paddingBottom: 24 },
   copy: { minHeight: 140 },
-  stone: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  stone: {},
 });

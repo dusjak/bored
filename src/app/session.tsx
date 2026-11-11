@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Alert, Animated, AppState, Easing, StyleSheet, Text, View, type ViewInstance } from 'react-native';
+import { AccessibilityInfo, Alert, Animated, AppState, Easing, StyleSheet, Text, View, useWindowDimensions, type ViewInstance } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
 import Reanimated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { LockHint } from '@/components/LockHint';
 import { ScreenTitle } from '@/components/ScreenTitle';
@@ -28,7 +28,8 @@ import {
   holdHintMomentAt,
   type HoldHintGate,
 } from '@/session/lockHintVisibility';
-import { SESSION_RING_GAP, SESSION_TIMER_BOX } from '@/session/sessionLayout';
+import { SESSION_TIMER_BOX, sessionRingReach } from '@/session/sessionLayout';
+import { stoneCenterY } from '@/duration/klumpen';
 import { decideUnfinishedSession } from '@/data/sessionRules';
 import { useAppState } from '@/state/AppState';
 import { noteEntryRoute } from '@/state/resetRoute';
@@ -37,6 +38,8 @@ import { screenPadding, useTheme } from '@/theme';
 /** Active session. Always dark. Hold the Klumpen for four seconds to end early. */
 export default function Session() {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const {
     activeSession,
     lockHintSessionId,
@@ -314,7 +317,13 @@ export default function Session() {
       <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
         <Animated.View style={[styles.root, { opacity: dissolve }]}>
             <View pointerEvents="box-none" style={styles.stage}>
-            <View pointerEvents="box-none" style={styles.column}>
+            <View
+              pointerEvents="box-none"
+              style={[
+                styles.column,
+                { marginTop: stoneCenterY(windowHeight) - insets.top - sessionRingReach(minutesRef.current).top },
+              ]}
+            >
               <Animated.View
                 style={[styles.doneCopy, { opacity: doneOpacity }]}
                 pointerEvents="none"
@@ -383,7 +392,7 @@ export default function Session() {
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
-  stage: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: screenPadding },
+  stage: { flex: 1, alignItems: 'center', paddingHorizontal: screenPadding },
   column: { alignSelf: 'stretch', alignItems: 'center', overflow: 'visible' },
   timerSlot: { height: SESSION_TIMER_BOX, alignSelf: 'stretch' },
   timer: { height: SESSION_TIMER_BOX, textAlign: 'center', includeFontPadding: false },

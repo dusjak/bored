@@ -305,7 +305,10 @@ describe('sluket v5 preset C', () => {
     assert.equal(play.includes('renderBlobs'), true);
     assert.equal(play.includes('onFirstPaint'), true);
     assert.equal(draw.includes('Surface.Make'), true);
+    assert.equal(draw.includes('pixelRatio'), true);
     assert.equal(draw.includes('MakeOffscreen'), false);
+    assert.equal(play.includes('PixelRatio.get()'), true);
+    assert.equal(play.includes('FilterMode.Linear'), true);
     assert.equal(functionBodies(draw).get('rasterSurface')?.body.includes('Surface.Make'), true);
     assert.equal(draw.includes('mixShaderUnits'), true);
     assert.equal(functionBodies(draw).get('presentSplash')?.worklet, false);

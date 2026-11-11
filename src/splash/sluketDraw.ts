@@ -157,51 +157,64 @@ export type SplashPlate =
 
 /**
  * Raster of one swallow frame, owned by the JS thread.
- * The 4 pt grid (8 pt in Low Power) is a CPU surface (`Surface.Make`).
- * The paint-mix shader runs there. `under` is the unmixed ink, drawn behind
- * the mix so a shader that comes back clear cannot hide the swallow.
- *
- * On iOS a GPU offscreen surface belongs to the calling thread's Metal
- * context (`MetalContext::getInstance` is thread_local). This function runs
- * on the JS thread, and the canvas draws on the UI thread, so that GPU image
- * never appears. The screen stays the wordmark. A CPU snapshot can be drawn
- * from either thread. A missing raster surface falls back to the picture.
+ * The plate is one CPU pixel per device pixel (`width * pixelRatio`). A 4 pt
+ * cell stretched to the screen was the grain: each pebble became a block.
+ * `Surface.Make` stays a CPU image. A GPU offscreen surface belongs to the
+ * calling thread's Metal context, and the canvas draws on the UI thread, so
+ * that image never appears.
+ * The two surfaces are kept and cleared. A fresh full-retina allocation every
+ * frame is the expensive part, not the draw.
  * Not a UI-runtime function: iOS drops pictures created off the JS thread.
  */
-function rasterSurface(width: number, height: number) {
-  return Skia.Surface.Make(width, height);
+type Raster = NonNullable<ReturnType<typeof Skia.Surface.Make>>;
+const rasterCache: { w: number; h: number; surface: Raster }[] = [];
+
+function rasterSurface(width: number, height: number, slot: number): Raster | null {
+  const cached = rasterCache[slot];
+  if (cached && cached.w === width && cached.h === height) return cached.surface;
+  const surface = Skia.Surface.Make(width, height);
+  if (!surface) return null;
+  rasterCache[slot] = { w: width, h: height, surface };
+  return surface;
 }
 
 export function presentSplash(input: {
   picture: SkPicture;
   width: number;
   height: number;
-  cell: number;
+  /** Device pixels per point. 1 keeps the old point-sized plate. */
+  pixelRatio: number;
   /** Null skips the paint mix. The picture's own ink is enough. */
   mix: { m: number; radius: number; sigma: number } | null;
   effect: SkRuntimeEffect | null;
 }): SplashPlate {
-  const cell = Math.max(1, input.cell);
-  const bufW = Math.max(1, Math.round(input.width / cell));
-  const bufH = Math.max(1, Math.round(input.height / cell));
-  const surface = rasterSurface(bufW, bufH);
+  const ratio = Math.max(1, input.pixelRatio);
+  const bufW = Math.max(1, Math.round(input.width * ratio));
+  const bufH = Math.max(1, Math.round(input.height * ratio));
+  const surface = rasterSurface(bufW, bufH, 0);
   if (!surface) return { kind: 'picture', picture: input.picture };
   const canvas = surface.getCanvas();
+  canvas.clear(Skia.Color('rgba(0,0,0,0)'));
+  canvas.save();
   canvas.scale(bufW / input.width, bufH / input.height);
   canvas.drawPicture(input.picture);
+  canvas.restore();
   const base = surface.makeImageSnapshot();
   if (!input.mix || !input.effect) return { kind: 'image', image: base, under: null };
   try {
+    const shaderCell = 1 / ratio;
     const child = base.makeShaderOptions(TileMode.Clamp, TileMode.Clamp, FilterMode.Linear, MipmapMode.None);
     const shader = input.effect.makeShaderWithChildren(
-      [input.mix.m, mixShaderUnits(input.mix.radius, cell), mixShaderUnits(input.mix.sigma, cell)],
+      [input.mix.m, mixShaderUnits(input.mix.radius, shaderCell), mixShaderUnits(input.mix.sigma, shaderCell)],
       [child],
     );
-    const mixed = rasterSurface(bufW, bufH);
+    const mixed = rasterSurface(bufW, bufH, 1);
     if (!mixed) return { kind: 'image', image: base, under: null };
     const paint = Skia.Paint();
     paint.setShader(shader);
-    mixed.getCanvas().drawPaint(paint);
+    const mixCanvas = mixed.getCanvas();
+    mixCanvas.clear(Skia.Color('rgba(0,0,0,0)'));
+    mixCanvas.drawPaint(paint);
     return { kind: 'image', image: mixed.makeImageSnapshot(), under: base };
   } catch {
     return { kind: 'image', image: base, under: null };

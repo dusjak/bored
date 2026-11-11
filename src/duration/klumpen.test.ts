@@ -19,6 +19,8 @@ import {
   HINT_GAP,
   HOME_APPLY_DELAY,
   HOME_STONE_CENTER_Y,
+  STONE_CENTER_RATIO,
+  stoneCenterY,
   KLUMP_ASPECT,
   OUTLINE_COLOR,
   OUTLINE_WIDTH,
@@ -224,7 +226,9 @@ describe('sheet geometry', () => {
     );
     assert.ok(rowPitch(320) <= 76);
     assert.equal(sheetBottomPadding(34), 42);
-    assert.equal(HOME_STONE_CENTER_Y, 470);
+    assert.equal(STONE_CENTER_RATIO, 0.52);
+    assert.equal(stoneCenterY(852), 852 * 0.52);
+    assert.equal(HOME_STONE_CENTER_Y, stoneCenterY(852));
     assert.equal(HINT_GAP, 28);
     assert.equal(NUMBER_UNIT_GAP, 4);
     assert.equal(SHEET_NUMBER_UNIT_GAP, 0);

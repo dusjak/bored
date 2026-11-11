@@ -148,8 +148,12 @@ const lightColor = {
     'text-tertiary': prim.neutral['400'],
     decorative: prim.neutral['700'],
     object: prim.neutral['850'],
-    /** Rest contour around the session Klumpen. */
-    'ring-track': prim.neutral['600'],
+    /**
+     * Rest contour while the Klumpen is held.
+     * neutral.450 against the light page is about 3.1:1, the same contrast as
+     * the dark track (#66635D) against #111110. The Avsluttet fill stays `glow`.
+     */
+    'ring-track': prim.neutral['450'],
   },
   /**
    * Warm light shared by the hold contour and the lock-button bulge.

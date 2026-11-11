@@ -8,7 +8,7 @@ import { confirmedMinutes, GUESS_HELP, GUESS_HINT, GUESS_TITLE } from '@/onboard
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
-/** Guess on the fixed Gummi pictures. Right grows the time. The row stays hidden. */
+/** Guess on the fixed Gummi pictures. Swipe or tap 5/10/15/20. The row does not advance the step. */
 export default function TidStep() {
   const { theme } = useTheme();
   const { user, updateUser, setDurationMinutes } = useAppState();
@@ -28,7 +28,6 @@ export default function TidStep() {
       </View>
       <DurationChooser
         minutes={current}
-        showChoices={false}
         hint={GUESS_HINT}
         confirmTitle="Velg tiden"
         onConfirm={save}

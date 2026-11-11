@@ -118,13 +118,13 @@ export default function Log() {
           const mood = moodLabel(session.journal?.mood ?? null);
           return (
             <View key={session.id} style={[styles.row, { borderBottomColor: theme.color.border.default }]}>
-              <Pressable
-                onPress={() => open(session)}
-                accessibilityRole="button"
-                accessibilityLabel={isAborted ? `${title}. ${when}` : `${title}. ${when}`}
-                style={styles.rowHit}
-              >
-                <View style={{ flex: 1 }}>
+              <View style={styles.rowHit}>
+                <Pressable
+                  onPress={() => open(session)}
+                  accessibilityRole="button"
+                  accessibilityLabel={isAborted ? `${title}. ${when}` : `${title}. ${when}`}
+                  style={{ flex: 1 }}
+                >
                   <Text
                     style={[
                       theme.text.monoData,
@@ -134,8 +134,39 @@ export default function Log() {
                     {title}
                   </Text>
                   <Text style={[theme.text.monoMeta, { color: theme.color.text.tertiary, marginTop: 2 }]}>{when}</Text>
-                </View>
-                {session.journal?.note ? (
+                </Pressable>
+                {expanded ? (
+                  <View style={styles.actionsRow}>
+                    <Button
+                      title="Lagre"
+                      size="compact"
+                      hug
+                      style={{ height: 32 }}
+                      onPress={() => {
+                        saveReflection(session.id, session.journal?.mood ?? null, draft.trim())
+                          .then(() => setError(null))
+                          .catch(() => setError('fikk ikke lagret. prøv igjen.'));
+                      }}
+                    />
+                    {session.journal ? (
+                      <Button
+                        title="Slett"
+                        variant="ghost"
+                        size="compact"
+                        hug
+                        textStyle={{ color: theme.color.text.destructive }}
+                        onPress={() => {
+                          removeReflection(session.id)
+                            .then(() => {
+                              setDraft('');
+                              setError(null);
+                            })
+                            .catch(() => setError('fikk ikke lagret. prøv igjen.'));
+                        }}
+                      />
+                    ) : null}
+                  </View>
+                ) : session.journal?.note ? (
                   <Text
                     numberOfLines={2}
                     style={[theme.text.note, styles.preview, { color: theme.color.text.secondary }]}
@@ -143,7 +174,7 @@ export default function Log() {
                     «{session.journal.note}»
                   </Text>
                 ) : null}
-              </Pressable>
+              </View>
               {expanded ? (
                 <View style={{ paddingBottom: theme.space['4'] }}>
                   {mood ? (
@@ -165,36 +196,6 @@ export default function Log() {
                       {error}
                     </Text>
                   ) : null}
-                  <View style={[styles.actions, styles.actionsRow]}>
-                    <Button
-                        title="Lagre"
-                        size="compact"
-                        hug
-                        style={{ height: 32 }}
-                        onPress={() => {
-                          saveReflection(session.id, session.journal?.mood ?? null, draft.trim())
-                            .then(() => setError(null))
-                            .catch(() => setError('fikk ikke lagret. prøv igjen.'));
-                        }}
-                      />
-                    {session.journal ? (
-                        <Button
-                          title="Slett"
-                          variant="ghost"
-                          size="compact"
-                          hug
-                          textStyle={{ color: theme.color.text.destructive }}
-                          onPress={() => {
-                            removeReflection(session.id)
-                              .then(() => {
-                                setDraft('');
-                                setError(null);
-                              })
-                              .catch(() => setError('fikk ikke lagret. prøv igjen.'));
-                          }}
-                        />
-                    ) : null}
-                  </View>
                 </View>
               ) : null}
             </View>

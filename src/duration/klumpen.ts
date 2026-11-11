@@ -163,9 +163,20 @@ export const STONE_COLOR = '#111110';
 export const STONE_NUMBER_COLOR = '#F8F6F2';
 export const STONE_UNIT_COLOR = '#ADA9A2';
 
+/**
+ * Lump centroid, as a fraction of the full window height.
+ * Measured on the practice-hold screens (about 52%). Every screen that shows
+ * the lump uses this, so a taller title cannot push the stone.
+ */
+export const STONE_CENTER_RATIO = 0.52;
+
+export function stoneCenterY(windowHeight: number): number {
+  return windowHeight * STONE_CENTER_RATIO;
+}
+
 /** Stone center on the reference 393×852 frame. */
 export const SHEET_STONE_CENTER_Y = 484;
-export const HOME_STONE_CENTER_Y = 470;
+export const HOME_STONE_CENTER_Y = stoneCenterY(852);
 export const HINT_GAP = 28;
 
 /** Body text scale where iOS reaches AX1 (28/17). */

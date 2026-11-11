@@ -102,7 +102,7 @@ describe('bli kjent flow', () => {
     assert.equal(existsSync(join(dir, 'alltid.tsx')), false);
     const tid = readFileSync(join(dir, 'tid.tsx'), 'utf8');
     const chooserSrc = readFileSync(join(root, 'src/components/DurationChooser.tsx'), 'utf8');
-    assert.match(tid, /showChoices=\{false\}/);
+    assert.doesNotMatch(tid, /showChoices=\{false\}/);
     assert.match(tid, /GUESS_HINT/);
     assert.doesNotMatch(tid, /GummiPicture|stone=/);
     assert.match(chooserSrc, /rasterOnly/);

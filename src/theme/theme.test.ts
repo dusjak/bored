@@ -78,8 +78,9 @@ describe('theme tokens', () => {
       assert.equal(theme.color.glow.highlight, 'rgba(255,255,255,0.35)');
       assert.equal(theme.color.glow.solid, '#F8F6F2');
       assert.equal(theme.color.glow.matte, '#D8CCB6');
-      assert.equal(theme.color.session['ring-track'], '#66635D');
     }
+    assert.equal(themes.dark.color.session['ring-track'], '#66635D');
+    assert.equal(themes.light.color.session['ring-track'], '#8A8781');
   });
 
   it('gives Deg a sand link that stays above 4.5:1 in the light', () => {
