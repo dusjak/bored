@@ -111,24 +111,35 @@ export default function Session() {
     return () => sub.remove();
   }, []);
 
+  const sessionIdRef = useRef<string | null>(null);
+  sessionIdRef.current = session?.id ?? null;
+  const handoff = useRef<string | null>(null);
+
   useEffect(() => {
-    if (session || leaving.current || abortId.current) return;
+    if (session || leaving.current || abortId.current || handoff.current) return;
     router.replace('/home');
   }, [session]);
 
   const away = useRef(false);
   const noted = useRef(false);
 
+  const holdNote = () => {
+    const id = sessionIdRef.current;
+    if (id) handoff.current = id;
+    leaving.current = true;
+  };
+
   const openReflection = useCallback((id: string) => {
     if (!id || noted.current) return;
     noted.current = true;
+    handoff.current = id;
     router.replace(noteEntryRoute(id));
   }, []);
 
   const finishExpired = useCallback(async () => {
     if (finished.current) return;
     finished.current = true;
-    leaving.current = true;
+    holdNote();
     setRemaining(0);
     try {
       const id = await completeActiveSession();
@@ -150,7 +161,7 @@ export default function Session() {
         return;
       }
       finished.current = true;
-      leaving.current = true;
+      holdNote();
       setRemaining(0);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
       setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft), 90);
@@ -187,7 +198,7 @@ export default function Session() {
     }
     if (finished.current) return;
     finished.current = true;
-    leaving.current = true;
+    holdNote();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     AccessibilityInfo.announceForAccessibility(HOLD_DONE_TEXT);
     try {
@@ -219,7 +230,7 @@ export default function Session() {
     }
     if (finished.current) return;
     finished.current = true;
-    leaving.current = true;
+    holdNote();
     AccessibilityInfo.announceForAccessibility(HOLD_DONE_TEXT);
     try {
       const id = await abortActiveSession();

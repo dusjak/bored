@@ -9,11 +9,14 @@ import { SluketSplash } from '@/components/SluketSplash';
 import { StillSplash } from '@/components/StillSplash';
 import { exitFadeMs, SPLASH_BG } from '@/splash/splashTiming';
 import { splashSuppressed } from '@/splash/splashDecision';
+import { preloadStoneImage } from '@/session/stoneImage';
 import { AppStateProvider, useAppState } from '@/state/AppState';
 import { BackupProvider } from '@/state/BackupState';
 import { fontAssets, ThemeProvider, useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
+preloadStoneImage(require('../../assets/okt/klumpen-okt-hvile.png'));
+preloadStoneImage(require('../../assets/okt/klumpen-okt-trykket.png'));
 
 export default function RootLayout() {
   const [loaded, error] = useFonts(fontAssets);
@@ -120,8 +123,8 @@ function ReadyGate() {
         <Stack.Screen
           name="session"
           options={{
-            presentation: 'fullScreenModal',
             gestureEnabled: false,
+            animation: 'none',
             contentStyle: { backgroundColor: theme.color.bg.session },
           }}
         />

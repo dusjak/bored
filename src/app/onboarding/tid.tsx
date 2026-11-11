@@ -2,7 +2,6 @@ import { Text } from 'react-native';
 import { router } from 'expo-router';
 
 import { DurationChooser } from '@/components/DurationChooser';
-import { GummiPicture } from '@/components/GummiPicture';
 import { Screen } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
 import { confirmedMinutes, GUESS_HELP, GUESS_HINT, GUESS_TITLE } from '@/onboarding/flow';
@@ -30,7 +29,6 @@ export default function TidStep() {
         showChoices={false}
         hint={GUESS_HINT}
         confirmTitle="Velg tiden"
-        stone={(value) => <GummiPicture minutes={value} outline />}
         onConfirm={save}
       />
     </Screen>

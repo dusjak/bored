@@ -5,7 +5,7 @@ import { Button } from '@/components/Button';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Screen } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
-import { confirmedMinutes, FORK_BODY, FORK_TITLE } from '@/onboarding/flow';
+import { confirmedMinutes, FORK_BODY, FORK_LEAD, FORK_TITLE } from '@/onboarding/flow';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
@@ -29,6 +29,7 @@ export default function Veiskille() {
     <Screen top="none" contentStyle={styles.content}>
       <OnboardingHeader step={0} title="" sub="" />
       <ScreenTitle style={{ marginBottom: 8 }}>{FORK_TITLE}</ScreenTitle>
+      <Text style={[theme.text.body, { color: theme.color.text.secondary, marginBottom: 8 }]}>{FORK_LEAD}</Text>
       <Text style={[theme.text.body, { color: theme.color.text.secondary }]}>{FORK_BODY}</Text>
       <View style={styles.spacer} />
       <Button title="Tilpass øktene" onPress={tailor} />

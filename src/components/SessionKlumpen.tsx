@@ -19,7 +19,6 @@ import {
   Skia,
   SweepGradient,
   select,
-  useImage,
   usePathValue,
   vec,
 } from '@shopify/react-native-skia';
@@ -64,6 +63,7 @@ import {
 } from '@/session/holdToEnd';
 import { HOLD_A11Y_LABEL, HOLD_DONE_TEXT, HOLD_PHASE_TEXT } from '@/data/copy';
 import { drawProgress, strokeOpacity } from '@/session/trackStroke';
+import { useCachedStoneImage } from '@/session/stoneImage';
 import { useTheme } from '@/theme';
 
 /**
@@ -434,8 +434,8 @@ export function SessionKlumpen({
   const scale = sessionStoneScale(minutes);
   const margins = sessionKlumpenMargins(minutes, CY, gapAbove);
   const texture = sessionTextureRect(CX, CY, scale);
-  const restImage = useImage(REST_SRC);
-  const pressedImage = useImage(PRESSED_SRC);
+  const restImage = useCachedStoneImage(REST_SRC);
+  const pressedImage = useCachedStoneImage(PRESSED_SRC);
   const fillPath = usePathValue((builder) => {
     'worklet';
     const p = pose.value;
@@ -476,6 +476,7 @@ export function SessionKlumpen({
     writeKlumpenPath(builder, CX, CY, deform.sq, deform.wob, deform.size, deform.phase, 0, scale, customRadii);
     return builder.build();
   }, [customRadii, deform.phase, deform.size, deform.sq, deform.wob, scale]);
+  const keepGummiRaster = material === 'gummi' && customRadii == null;
   const field = useLiveMaterial(
     material,
     shadePath,
@@ -484,6 +485,8 @@ export function SessionKlumpen({
     deform.sq !== 0 || deform.wob !== 0 || deform.size !== 0,
     { kind: 'points', width: stoneWidth, cx: CX, cy: CY },
     'session',
+    undefined,
+    !keepGummiRaster,
   );
 
   // The outline origin is the centroid. At 176 pt it sits about +0.7 / +2.4 pt
@@ -529,7 +532,20 @@ export function SessionKlumpen({
           the stone. A parent that returns no hit keeps the picture out of the hold. */}
       <View pointerEvents="none" collapsable={false} style={styles.canvasBox}>
         <Canvas style={styles.canvas} pointerEvents="none">
-          {field.ready && field.rimFilter ? (
+          {keepGummiRaster ? (
+            restImage ? (
+              <Path path={fillPath} style="fill" opacity={restOpacity}>
+                <ImageShader
+                  image={restImage}
+                  fit="fill"
+                  x={texture.x}
+                  y={texture.y}
+                  width={texture.width}
+                  height={texture.height}
+                />
+              </Path>
+            ) : null
+          ) : field.ready && field.rimFilter ? (
             <>
               <Path path={fillPath} style="fill" opacity={restOpacity}>
                 <MaterialShade

@@ -191,6 +191,8 @@ type BodyProps = {
   material?: MaterialId;
   /** Saved radial form in path units. Empty keeps the base silhouette. */
   formOffsets?: readonly number[] | null;
+  /** Onboarding keeps the four still Gummi pictures. Hjem leaves this off. */
+  rasterOnly?: boolean;
 };
 
 /** The matte stone, its number, and the size animation. Layout box is the 20-minute size, so the center stays put. */
@@ -206,6 +208,7 @@ export function KlumpenBody({
   unitColor,
   material = 'gummi',
   formOffsets = null,
+  rasterOnly = false,
 }: BodyProps) {
   const { theme } = useTheme();
   const { fontScale } = useWindowDimensions();
@@ -229,7 +232,7 @@ export function KlumpenBody({
   );
   const gummiImage = gummi[band] ?? null;
   const widthPt = KLUMP_WIDTH_MIN + KLUMP_WIDTH_STEP * band;
-  const field = useLiveMaterial(material, path, HJEM_WINDOW, widthPt * (1200 / 720), false, HJEM_FRAME, 'hjem');
+  const field = useLiveMaterial(material, rasterOnly ? null : path, HJEM_WINDOW, widthPt * (1200 / 720), false, HJEM_FRAME, 'hjem', undefined, !rasterOnly);
   const raster = material === 'gummi' && !deformed ? gummiImage : null;
   const blank = useMemo(() => Skia.Path.Make(), []);
   const svg = path ?? blank;

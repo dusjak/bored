@@ -13,6 +13,7 @@ import {
   ROW_WIDTHS,
   SHEET_NUMBER_UNIT_GAP,
   SIZE_SPRING,
+  STONE_NUMBER_COLOR,
   clampIndex,
   durationValueText,
   glyphFrame,
@@ -138,27 +139,28 @@ export function DurationChooser({
   return (
     <View style={styles.fill}>
       <View style={styles.stone} {...pan.panHandlers}>
-        {stone ? (
-          stone(shown)
-        ) : (
-          <KlumpenBody
-            index={indexSv}
-            minutes={shown}
-            reduce={reduceSv}
-            reduceMotion={reduceMotion}
-            fade={fade}
-            ghost
-            unitGap={SHEET_NUMBER_UNIT_GAP}
-            numberFamily={theme.fonts.sans}
-            unitColor={theme.color.bg.grouped}
-          />
-        )}
+        <View style={styles.lump}>
+          {stone ? (
+            stone(shown)
+          ) : (
+            <KlumpenBody
+              index={indexSv}
+              minutes={shown}
+              reduce={reduceSv}
+              reduceMotion={reduceMotion}
+              fade={fade}
+              ghost
+              rasterOnly
+              unitGap={SHEET_NUMBER_UNIT_GAP}
+              numberFamily={theme.fonts.sans}
+              unitColor={STONE_NUMBER_COLOR}
+            />
+          )}
+          {showChoices || !hint ? null : (
+            <Text style={[theme.text.caption, styles.hint, { color: theme.color.text.tertiary }]}>{hint}</Text>
+          )}
+        </View>
       </View>
-      {showChoices ? null : hint ? (
-        <Text style={[theme.text.caption, { textAlign: 'center', marginBottom: 16, color: theme.color.text.tertiary }]}>
-          {hint}
-        </Text>
-      ) : null}
       {showChoices ? (
         <View
           accessible
@@ -225,7 +227,9 @@ export function DurationChooser({
 
 const styles = StyleSheet.create({
   fill: { flex: 1 },
-  stone: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: ROW_HIT },
+  stone: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: ROW_HIT, overflow: 'visible' },
+  lump: { alignItems: 'center', overflow: 'visible' },
+  hint: { marginTop: 18, textAlign: 'center' },
   row: { flexDirection: 'row', alignSelf: 'center', marginBottom: 8 },
   choice: { alignItems: 'center', minHeight: ROW_HIT },
 });

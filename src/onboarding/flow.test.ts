@@ -11,6 +11,8 @@ import {
   DURATION_LIST,
   durationPreviewLead,
   FORK_TITLE,
+  PRACTICE_DIGIT_SIZE,
+  PRACTICE_DONE,
   GUESS_HELP,
   GUESS_HINT,
   GUESS_TITLE,
@@ -20,6 +22,7 @@ import {
   KJEDOMHET_BODY,
   PART1_ROUTES,
   practiceContinueReady,
+  reminderPreviewBody,
   summaryLead,
   summaryTitle,
 } from './flow.ts';
@@ -96,9 +99,14 @@ describe('bli kjent flow', () => {
     assert.equal(existsSync(join(dir, 'se.tsx')), false);
     assert.equal(existsSync(join(dir, 'alltid.tsx')), false);
     const tid = readFileSync(join(dir, 'tid.tsx'), 'utf8');
+    const chooserSrc = readFileSync(join(root, 'src/components/DurationChooser.tsx'), 'utf8');
     assert.match(tid, /showChoices=\{false\}/);
     assert.match(tid, /GUESS_HINT/);
-    assert.match(tid, /outline/);
+    assert.doesNotMatch(tid, /GummiPicture|stone=/);
+    assert.match(chooserSrc, /rasterOnly/);
+    assert.match(chooserSrc, /ghost/);
+    assert.match(chooserSrc, /withSpring/);
+    assert.match(chooserSrc, /styles\.hint/);
     assert.equal(GUESS_TITLE, 'Velg en tid du klarer');
     assert.equal(GUESS_HELP, 'Du kan endre den etter hver økt.');
     assert.equal(GUESS_HINT, 'Sveip for å endre tiden');
@@ -107,6 +115,8 @@ describe('bli kjent flow', () => {
     assert.doesNotMatch(tid, /onSkip/);
     const veiskille = readFileSync(join(dir, 'veiskille.tsx'), 'utf8');
     assert.equal(FORK_TITLE, 'Nå kan du det viktigste');
+    assert.match(veiskille, /FORK_LEAD/);
+    assert.match(readFileSync(join(root, 'src/onboarding/flow.ts'), 'utf8'), /Vil du at vi tilpasser øktene til deg\?/);
     assert.match(veiskille, /Tilpass øktene/);
     assert.match(veiskille, /title="Hopp over"/);
     assert.match(veiskille, /introPath: 'skip'/);
@@ -175,6 +185,10 @@ describe('bli kjent flow', () => {
     assert.equal(summaryTitle('  '), 'La oss starte');
     assert.equal(summaryLead(10, 'om morgenen', 'mental ro'), 'Du starter med 10 minutter om morgenen, med mål om mental ro.');
     assert.equal(summaryLead(10), 'Du starter med 10 minutter.');
+    assert.equal(reminderPreviewBody('Dusan', 10), 'Dusan, 10 minutter. Ingenting skjer her. Det er poenget.');
+    assert.equal(reminderPreviewBody('  ', 5), '5 minutter. Ingenting skjer her. Det er poenget.');
+    assert.equal(PRACTICE_DIGIT_SIZE, 48);
+    assert.equal(PRACTICE_DONE, 'Avsluttet der');
   });
 
   it('does not put the unease card on Hjem', () => {
@@ -211,13 +225,29 @@ describe('bli kjent flow', () => {
     assert.match(practice, /drawProgress/);
     assert.match(practice, /HOLD_PHASE_TEXT/);
     assert.match(practice, /HOLD_CONTINUE_AFTER_MS/);
+    assert.match(practice, /PRACTICE_DONE/);
+    assert.match(practice, /PracticeRing/);
+    assert.match(practice, /holdCountdown\(minutes, clockMs\)/);
     assert.match(practice, /text\.link/);
+    const ring = readFileSync(join(root, 'src/components/PracticeRing.tsx'), 'utf8');
+    assert.match(ring, /SWEEP_NORTH = -Math\.PI \/ 2/);
+    assert.match(ring, /SweepGradient/);
     assert.doesNotMatch(practice, /router\.push\('\/onboarding\/alltid'\)|borderRadius:\s*999|useLiveMaterial/);
     assert.match(ready, /summaryTitle\(user\.name\)/);
     assert.match(ready, /Start din første økt/);
     assert.doesNotMatch(ready, /Utforsk appen først|la oss starte\./);
     assert.match(note, /title="En stille påminnelse"/);
     assert.match(note, /opacity: enabled \? 1 : 0\.4/);
+    assert.match(note, /reminderPreviewBody/);
+    assert.match(note, /bored\./);
+    assert.match(note, /icon-1024\.png/);
+    const sessionStone = readFileSync(join(root, 'src/components/SessionKlumpen.tsx'), 'utf8');
+    assert.match(sessionStone, /keepGummiRaster = material === 'gummi' && customRadii == null/);
+    assert.match(sessionStone, /klumpen-okt-hvile\.png/);
+    assert.match(sessionStone, /!keepGummiRaster/);
+    const sessionScreen = readFileSync(join(root, 'src/app/session.tsx'), 'utf8');
+    assert.match(sessionScreen, /handoff\.current/);
+    assert.match(sessionScreen, /noteEntryRoute\(id\)/);
     assert.match(material, /kull\/glint\.png/);
     assert.doesNotMatch(material, /material !== 'kull'/);
     const chooser = readFileSync(join(root, 'src/components/DurationChooser.tsx'), 'utf8');

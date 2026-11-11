@@ -169,11 +169,13 @@ export function useLiveMaterial(
    * fit, and the rim-shader compile do not run on each pointer move.
    */
   lightingKey?: string,
+  /** Off skips the plates and the rim fit. The caller keeps a still picture. */
+  enabled = true,
 ): LiveShade {
   const [imageFailed, setImageFailed] = useState(false);
-  const albedo = useImage(BASE[material]);
-  const microX = useImage(MICRO_X[material], () => setImageFailed(true));
-  const microY = useImage(MICRO_Y[material], () => setImageFailed(true));
+  const albedo = useImage(enabled ? BASE[material] : null);
+  const microX = useImage(enabled ? MICRO_X[material] : null, () => setImageFailed(true));
+  const microY = useImage(enabled ? MICRO_Y[material] : null, () => setImageFailed(true));
   const kullGlint = useImage(material === 'kull' ? KULL_GLINT : null, () => {
     if (material === 'kull') setImageFailed(true);
   });
@@ -196,6 +198,7 @@ export function useLiveMaterial(
   const fieldKey = lightingKey ?? clip;
 
   useEffect(() => {
+    if (!enabled) return;
     const clipNow = clipRef.current;
     if (!clipNow || !albedo || !effect) return;
     let cancel = false;
@@ -236,7 +239,7 @@ export function useLiveMaterial(
       cancel = true;
       cancelAnimationFrame(handle);
     };
-  }, [albedo, artboardPt, fieldKey, frameKey, material, moving, window.size, window.x, window.y]);
+  }, [albedo, artboardPt, enabled, fieldKey, frameKey, material, moving, window.size, window.x, window.y]);
 
   useEffect(() => {
     const current = uploaded;
@@ -248,7 +251,7 @@ export function useLiveMaterial(
   const rimFilter = useMemo(() => makeFixedRimFilter(uploaded.rimK), [uploaded.rimK]);
   const microHalf = MICRO_PACK[material].half;
   const imagesReady = Boolean(effect && albedo && uploaded.macro && microX && microY && glintImage && rimDot.current);
-  const ready = !imageFailed && imagesReady && Boolean(rimFilter);
+  const ready = enabled && !imageFailed && imagesReady && Boolean(rimFilter);
   useEffect(() => {
     if (material === 'kull' && imageFailed) {
       reportMaterialStatus(surface, { phase: 'fallback', reason: 'kull-glint-unbundled' });

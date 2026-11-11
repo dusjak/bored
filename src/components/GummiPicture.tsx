@@ -12,7 +12,7 @@ import {
   SHEET_NUMBER_UNIT_GAP,
 } from '@/duration/klumpen';
 import { ENGRAVED_DIGIT_COLOR, ENGRAVED_FONT, ENGRAVED_SHADOW } from '@/materials/engraving';
-import { engravedNumberSize } from '@/onboarding/flow';
+import { PRACTICE_DIGIT_SIZE } from '@/onboarding/flow';
 import { useTheme } from '@/theme';
 
 /** The four shipped Gummi rasters. Metro resolves the @3x file from the unsuffixed name. */
@@ -65,7 +65,7 @@ export function GummiPicture({ minutes, outline = false, digits = true, label, r
   const leaving = fade.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
   const box = `${KLUMPEN_BOUNDS.x} ${KLUMPEN_BOUNDS.y} ${KLUMPEN_BOUNDS.width} ${KLUMPEN_BOUNDS.height}`;
   const showRing = ring != null && ring.opacity > 0.02;
-  const numberSize = label && label.length > 2 ? 36 : engravedNumberSize(minutes);
+  const numberSize = PRACTICE_DIGIT_SIZE;
 
   return (
     <View style={{ width: maxW, height: maxH, alignItems: 'center', justifyContent: 'center' }}>

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { hasNotificationPermission } from '@/data/notifications';
@@ -8,8 +8,7 @@ import { Button } from '@/components/Button';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Screen } from '@/components/Screen';
 import { Toggle } from '@/components/Toggle';
-import { NOTIF_TIME_LABELS } from '@/data/mock';
-import { confirmedMinutes, durationPreviewLead } from '@/onboarding/flow';
+import { confirmedMinutes, reminderPreviewBody } from '@/onboarding/flow';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
@@ -42,7 +41,7 @@ export default function NotificationsStep() {
     setEnabled(false);
     await setDailyReminder(false);
   };
-  const timeLabel = (user.time && NOTIF_TIME_LABELS[user.time]) || 'Daglig';
+  const minutes = confirmedMinutes(user.duration);
 
   return (
     <Screen top="none" contentStyle={{ paddingBottom: 40 }}>
@@ -59,11 +58,15 @@ export default function NotificationsStep() {
           { backgroundColor: theme.color.surface.default, opacity: enabled ? 1 : 0.4 },
         ]}
       >
-        <Text style={[theme.text.monoMeta, { color: theme.color.text.tertiary, marginBottom: 8 }]}>{timeLabel}</Text>
-        <Text style={[theme.text.bodySmall, { color: theme.color.text.primary }]}>
-          {user.name ? `${user.name}, ` : ''}
-          {durationPreviewLead(confirmedMinutes(user.duration))}. Ingenting skjer her. Det er poenget.
-        </Text>
+        <Image source={require('../../../assets/icon/icon-1024.png')} style={styles.icon} />
+        <View style={styles.copy}>
+          <Text style={[styles.appName, { color: theme.color.text.primary, fontFamily: theme.fonts.sansSemiBold }]}>
+            bored.
+          </Text>
+          <Text style={[theme.text.bodySmall, { color: theme.color.text.primary }]}>
+            {reminderPreviewBody(user.name, minutes)}
+          </Text>
+        </View>
       </View>
 
       <View style={[styles.toggleRow, { borderColor: theme.color.border.default }]}>
@@ -78,7 +81,7 @@ export default function NotificationsStep() {
 
       <View style={{ flex: 1 }} />
       <Button
-        title="Se din oppsummering"
+        title="Fortsett"
         onPress={() => {
           if (!enabled) void setDailyReminder(false);
           router.push('/onboarding/ready');
@@ -90,11 +93,17 @@ export default function NotificationsStep() {
 
 const styles = StyleSheet.create({
   preview: {
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     marginBottom: 32,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
   },
+  icon: { width: 44, height: 44, borderRadius: 10 },
+  copy: { flex: 1 },
+  appName: { fontSize: 15, lineHeight: 20, marginBottom: 2 },
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -6,6 +6,7 @@ import { useReducedMotion } from 'react-native-reanimated';
 
 import { Button } from '@/components/Button';
 import { GummiPicture } from '@/components/GummiPicture';
+import { PracticeRing, type PracticeRingLook } from '@/components/PracticeRing';
 import { Screen } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
 import { HOLD_PHASE_TEXT, HOLD_TO_END_MS } from '@/data/copy';
@@ -16,14 +17,26 @@ import {
   HOLD_HINT,
   HOLD_TITLE,
   holdCountdown,
+  PRACTICE_DONE,
   practiceContinueReady,
 } from '@/onboarding/flow';
 import { drawProgress, strokeOpacity } from '@/session/trackStroke';
-import { phaseIndex } from '@/session/holdToEnd';
+import { phaseIndex, sampleHold } from '@/session/holdToEnd';
+import { klumpHeight, klumpWidth } from '@/duration/klumpen';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
-/** Practice hold. It does not start a session. Fortsett waits for the hold, or 30 seconds. */
+const REST_RING: PracticeRingLook = {
+  progress: 0,
+  track: 0,
+  glow: 0,
+  glowR: 0,
+  strokeW: 2.5,
+  litMix: 0,
+  en: 0,
+};
+
+/** Practice hold. The clock runs from the moment the step opens. */
 export default function PracticeStep() {
   const { theme } = useTheme();
   const reduceMotion = useReducedMotion() === true;
@@ -31,23 +44,46 @@ export default function PracticeStep() {
   const minutes = confirmedMinutes(user.duration);
   const [done, setDone] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
-  const [ring, setRing] = useState({ progress: 0, opacity: 0 });
+  const [ring, setRing] = useState<PracticeRingLook>(REST_RING);
   const [hint, setHint] = useState(HOLD_HINT);
   const [clockMs, setClockMs] = useState(0);
-  const [counting, setCounting] = useState(false);
   const pressAt = useRef(-1);
   const releaseAt = useRef(-1);
   const doneAt = useRef(-1);
   const phaseSent = useRef(0);
   const frame = useRef(0);
-  const counted = useRef(0);
-  const countFrom = useRef(-1);
+  const opened = useRef(Date.now());
 
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
+  useEffect(() => {
+    const id = setInterval(() => setClockMs(Date.now() - opened.current), 250);
+    return () => clearInterval(id);
+  }, []);
   useEffect(() => {
     const id = setTimeout(() => setUnlocked(true), HOLD_CONTINUE_AFTER_MS);
     return () => clearTimeout(id);
   }, []);
+
+  const paint = (now: number) => {
+    const pressed = pressAt.current >= 0 && releaseAt.current < 0 && doneAt.current < 0;
+    const holdMs = pressAt.current < 0 ? 0 : pressed ? now - pressAt.current : releaseAt.current - pressAt.current;
+    const gesture = {
+      pressAt: pressAt.current < 0 ? null : pressAt.current,
+      releaseAt: releaseAt.current < 0 ? null : releaseAt.current,
+      doneAt: doneAt.current < 0 ? null : doneAt.current,
+    };
+    const sample = sampleHold(gesture, now, { reduceMotion, solid: false });
+    const finished = doneAt.current >= 0;
+    setRing({
+      progress: finished ? 1 : drawProgress(Math.min(holdMs, HOLD_TO_END_MS)),
+      track: finished ? 1 : strokeOpacity(pressAt.current >= 0, holdMs, now, releaseAt.current, doneAt.current, reduceMotion),
+      glow: sample.glowAlpha,
+      glowR: sample.glowR,
+      strokeW: sample.strokeW,
+      litMix: sample.litMix,
+      en: sample.en,
+    });
+  };
 
   const tick = () => {
     const now = Date.now();
@@ -55,14 +91,11 @@ export default function PracticeStep() {
     const holdMs = pressAt.current < 0 ? 0 : pressed ? now - pressAt.current : releaseAt.current - pressAt.current;
     if (pressed && holdMs >= HOLD_TO_END_MS && doneAt.current < 0) {
       doneAt.current = pressAt.current + HOLD_TO_END_MS;
-      counted.current = now - countFrom.current;
       setDone(true);
-      setCounting(false);
+      setHint(PRACTICE_DONE);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
-    if (pressed) {
-      counted.current = now - countFrom.current;
-      setClockMs(counted.current);
+    if (pressed && doneAt.current < 0) {
       const phase = phaseIndex(holdMs);
       setHint(HOLD_PHASE_TEXT[phase] ?? HOLD_HINT);
       while (phaseSent.current < phase) {
@@ -72,12 +105,11 @@ export default function PracticeStep() {
         }
       }
     }
-    setRing({
-      progress: drawProgress(Math.min(holdMs, HOLD_TO_END_MS)),
-      opacity: strokeOpacity(pressAt.current >= 0, holdMs, now, releaseAt.current, doneAt.current, reduceMotion),
-    });
-    const moving = pressed || (releaseAt.current >= 0 && doneAt.current < 0 && now - releaseAt.current < 300);
-    if (moving) frame.current = requestAnimationFrame(tick);
+    paint(now);
+    const finished = doneAt.current >= 0;
+    const settling = finished && now - doneAt.current < 800;
+    const fading = releaseAt.current >= 0 && !finished && now - releaseAt.current < 300;
+    if (pressed || settling || fading) frame.current = requestAnimationFrame(tick);
   };
 
   const begin = () => {
@@ -85,8 +117,6 @@ export default function PracticeStep() {
     pressAt.current = Date.now();
     releaseAt.current = -1;
     phaseSent.current = 0;
-    countFrom.current = Date.now() - counted.current;
-    setCounting(true);
     setHint(HOLD_PHASE_TEXT[0]);
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
     cancelAnimationFrame(frame.current);
@@ -96,9 +126,6 @@ export default function PracticeStep() {
   const end = () => {
     if (pressAt.current < 0 || doneAt.current >= 0 || releaseAt.current >= 0) return;
     releaseAt.current = Date.now();
-    counted.current = releaseAt.current - countFrom.current;
-    setClockMs(counted.current);
-    setCounting(false);
     setHint(HOLD_HINT);
     frame.current = requestAnimationFrame(tick);
   };
@@ -106,12 +133,13 @@ export default function PracticeStep() {
   const finishPractice = () => {
     doneAt.current = Date.now();
     setDone(true);
-    setCounting(false);
-    setRing({ progress: 1, opacity: 1 });
+    setHint(PRACTICE_DONE);
+    setRing({ progress: 1, track: 1, glow: 0.85, glowR: 13, strokeW: 4, litMix: 1, en: 1 });
   };
 
   const showContinue = practiceContinueReady(done, unlocked ? HOLD_CONTINUE_AFTER_MS : 0);
-  const clock = counting || clockMs > 0 ? holdCountdown(minutes, clockMs) : undefined;
+  const stoneW = klumpWidth(3);
+  const stoneH = klumpHeight(stoneW);
 
   return (
     <Screen top="app" contentStyle={styles.content}>
@@ -129,9 +157,20 @@ export default function PracticeStep() {
           onPressIn={begin}
           onPressOut={end}
         >
-          <GummiPicture minutes={minutes} label={clock} ring={ring} />
+          <View style={{ width: stoneW, height: stoneH }}>
+            <GummiPicture minutes={minutes} label={holdCountdown(minutes, clockMs)} />
+            <PracticeRing minutes={minutes} look={ring} />
+          </View>
         </Pressable>
-        <Text style={[theme.text.caption, styles.status, { color: theme.color.text.tertiary }]}>{hint}</Text>
+        <Text
+          style={[
+            theme.text.caption,
+            styles.status,
+            { color: done ? theme.color.text.link : theme.color.text.tertiary },
+          ]}
+        >
+          {hint}
+        </Text>
       </View>
       {showContinue ? (
         <Button title="Fortsett" onPress={() => router.push('/onboarding/veiskille')} />
@@ -148,6 +187,6 @@ export default function PracticeStep() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 24 },
-  stone: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  stone: { flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
   status: { marginTop: 16, textAlign: 'center' },
 });
