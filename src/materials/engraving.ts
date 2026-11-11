@@ -10,6 +10,12 @@ export const ENGRAVED_FONT = 'Figtree_400Regular';
 export const NUMBER_CENTER_FROM_CY = -9;
 export const UNIT_CENTER_FROM_CY = 23;
 
+/**
+ * Extra advance on the number, in em. Negative pulls the digits a hair closer
+ * than Figtree’s own spacing. «min» stays at 0 so the letters are not tracked.
+ */
+export const ENGRAVED_NUMBER_TRACKING_EM = -0.02;
+
 export const ENGRAVE = {
   /** Mask soften. 0.6 px @3×. */
   soften: 0.6 / 3,

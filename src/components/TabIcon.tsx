@@ -8,6 +8,8 @@ import {
   KLUMPEN_ICON,
   LOG_BARS,
   TAB_BAR,
+  TAB_ICON_OPTICAL_H,
+  containedIconScale,
   degHeadRadius,
   outerRect,
 } from '@/theme/tabBar';
@@ -22,7 +24,7 @@ type Props = {
 };
 
 /** Visible ink height shared by the three marks, in the 24 pt slot. */
-const OPTICAL_H = 16;
+const OPTICAL_H = TAB_ICON_OPTICAL_H;
 const OPTICAL_CY = 11.5;
 
 /** Hjem is Klumpen. Logg is three bars. Deg is variant B (head + rounded rectangle). */
@@ -45,10 +47,13 @@ export function TabIcon({ name, active, color, size = TAB_BAR.icon }: Props) {
   }
   if (name === 'log') {
     const bars = active ? LOG_BARS.map((bar) => outerRect(bar)) : LOG_BARS;
+    const left = Math.min(...bars.map((bar) => bar.x));
+    const right = Math.max(...bars.map((bar) => bar.x + bar.width));
     const top = Math.min(...bars.map((bar) => bar.y));
     const bottom = Math.max(...bars.map((bar) => bar.y + bar.height));
-    const scale = OPTICAL_H / (bottom - top);
-    const mid = (top + bottom) / 2;
+    const scale = containedIconScale(right - left, bottom - top, size);
+    const midX = (left + right) / 2;
+    const midY = (top + bottom) / 2;
     return (
       <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
         {bars.map((bar) => (
@@ -62,7 +67,7 @@ export function TabIcon({ name, active, color, size = TAB_BAR.icon }: Props) {
             fill={active ? color : 'none'}
             stroke={active ? 'none' : color}
             strokeWidth={active ? 0 : TAB_BAR.stroke}
-            transform={`translate(12 ${OPTICAL_CY}) scale(${scale}) translate(-12 ${-mid})`}
+            transform={`translate(12 ${OPTICAL_CY}) scale(${scale}) translate(${-midX} ${-midY})`}
           />
         ))}
       </Svg>

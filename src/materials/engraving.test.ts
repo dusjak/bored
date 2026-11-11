@@ -8,6 +8,7 @@ import {
   ENGRAVE,
   ENGRAVED_DIGIT_COLOR,
   ENGRAVED_FONT,
+  ENGRAVED_NUMBER_TRACKING_EM,
   NUMBER_CENTER_FROM_CY,
   UNIT_CENTER_FROM_CY,
 } from './engraving.ts';
@@ -41,5 +42,11 @@ describe('engraved numerals', () => {
     assert.match(home, /PinnedEngraving/);
     assert.match(home, /NUMBER_CENTER_FROM_CY/);
     assert.match(home, /UNIT_CENTER_FROM_CY/);
+    assert.equal(ENGRAVED_NUMBER_TRACKING_EM, -0.02);
+    assert.match(home, /trackingEm=\{ENGRAVED_NUMBER_TRACKING_EM\}/);
+    assert.match(home, /trackingEm=\{0\}/);
+    const cut = readFileSync(join(root, 'src/materials/EngravedText.tsx'), 'utf8');
+    assert.match(cut, /getTextWidth\(text\.slice\(0, index\)\)/);
+    assert.doesNotMatch(cut, /fontSize \* 0\.56|getTextWidth\('0'\)/);
   });
 });

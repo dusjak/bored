@@ -101,6 +101,20 @@ export const LOG_BARS: readonly BarRect[] = [
   { x: 18.6, y: 10.7, width: 3.8, height: 8.6, rx: 0.5 },
 ];
 
+/** Shared ink height inside the 24 pt slot, and the inset that keeps a wide mark inside it. */
+export const TAB_ICON_OPTICAL_H = 16;
+export const TAB_ICON_PAD = 2;
+
+/**
+ * Scale that reaches the shared optical height, unless that would run past the
+ * padded slot. Logg’s bars are wider than they are tall, so height alone clips them.
+ */
+export function containedIconScale(inkWidth: number, inkHeight: number, slot: number = TAB_BAR.icon): number {
+  const limit = slot - TAB_ICON_PAD * 2;
+  if (inkWidth <= 0 || inkHeight <= 0 || limit <= 0) return 1;
+  return Math.min(TAB_ICON_OPTICAL_H / inkHeight, limit / inkWidth);
+}
+
 export function outerRect(rect: BarRect, stroke: number = TAB_BAR.stroke): BarRect {
   const pad = stroke / 2;
   const round = (value: number) => Math.round(value * 100) / 100;

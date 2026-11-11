@@ -15,6 +15,9 @@ import {
   tabBarDarkGlass,
   tabBarKind,
   klumpenIconStrokePt,
+  TAB_ICON_OPTICAL_H,
+  TAB_ICON_PAD,
+  containedIconScale,
   outerRect,
   tabSlotWidth,
 } from './tabBar.ts';
@@ -72,6 +75,21 @@ describe('tab bar v6', () => {
     assert.match(layout, /tabs\/deg\.png/);
     assert.match(layout, /tabs\/deg-fill\.png/);
     assert.doesNotMatch(layout, /sf:|SFSymbol/);
+  });
+
+  it('fits Logg inside the slot instead of scaling it past the edges', () => {
+    const filled = LOG_BARS.map((bar) => outerRect(bar));
+    const left = Math.min(...filled.map((bar) => bar.x));
+    const right = Math.max(...filled.map((bar) => bar.x + bar.width));
+    const top = Math.min(...filled.map((bar) => bar.y));
+    const bottom = Math.max(...filled.map((bar) => bar.y + bar.height));
+    const scale = containedIconScale(right - left, bottom - top);
+    const width = (right - left) * scale;
+    const height = (bottom - top) * scale;
+    assert.ok(scale < TAB_ICON_OPTICAL_H / (bottom - top));
+    assert.ok(width <= TAB_BAR.icon - TAB_ICON_PAD * 2 + 0.01);
+    assert.ok(height <= TAB_ICON_OPTICAL_H + 0.01);
+    assert.match(readFileSync(join(process.cwd(), 'src/components/TabIcon.tsx'), 'utf8'), /containedIconScale/);
   });
 
   it('grows the Deg head by half the stroke when it is filled', () => {

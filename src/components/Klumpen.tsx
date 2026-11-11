@@ -35,7 +35,12 @@ import { stonePath } from '@/onboarding/formShape';
 import type { MaterialId } from '@/materials/pathLight';
 import { FixedRim, MaterialShade, useLiveMaterial, type LiveFrame } from '@/materials/DynamicMaterial';
 import { PinnedEngraving } from '@/materials/EngravedText';
-import { ENGRAVED_SHADOW, NUMBER_CENTER_FROM_CY, UNIT_CENTER_FROM_CY } from '@/materials/engraving';
+import {
+  ENGRAVED_NUMBER_TRACKING_EM,
+  ENGRAVED_SHADOW,
+  NUMBER_CENTER_FROM_CY,
+  UNIT_CENTER_FROM_CY,
+} from '@/materials/engraving';
 import { useCachedStoneImage } from '@/session/stoneImage';
 import {
   CROSSFADE_MS,
@@ -301,9 +306,15 @@ export function KlumpenBody({
             text={label ?? String(minutes)}
             fontSize={label ? Math.min(fontSize, Math.round(klumpWidth(minutesToIndex(minutes)) * 0.28)) : fontSize}
             centerY={label ? 0 : NUMBER_CENTER_FROM_CY}
+            trackingEm={ENGRAVED_NUMBER_TRACKING_EM}
           />
           {type.hideUnit || label ? null : (
-            <PinnedEngraving text={DURATION_UNIT} fontSize={HOME_UNIT_FONT_SIZE} centerY={UNIT_CENTER_FROM_CY} />
+            <PinnedEngraving
+              text={DURATION_UNIT}
+              fontSize={HOME_UNIT_FONT_SIZE}
+              centerY={UNIT_CENTER_FROM_CY}
+              trackingEm={0}
+            />
           )}
         </View>
       ) : null}

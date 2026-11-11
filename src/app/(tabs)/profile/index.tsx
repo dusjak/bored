@@ -28,6 +28,7 @@ import { AppearanceSheet } from '@/components/AppearanceSheet';
 import { TimeWheel } from '@/components/TimeWheel';
 import { BottomFade } from '@/components/BottomFade';
 import { DurationSheet } from '@/components/DurationSheet';
+import { BackupInterestScreen } from '@/components/backup/BackupInterestScreen';
 import { PreviewStateSheet } from '@/components/backup/PreviewStateSheet';
 import { RowChevron, SettingsGroup } from '@/components/SettingsGroup';
 import { Screen } from '@/components/Screen';
@@ -65,8 +66,10 @@ export default function Profile() {
   const durationRef = useRef<HostInstance>(null);
   const appearanceRef = useRef<HostInstance>(null);
   const previewRef = useRef<HostInstance>(null);
+  const backupRef = useRef<HostInstance>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
   const [previewMenu, setPreviewMenu] = useState(false);
   const [timeOpen, setTimeOpen] = useState(false);
   const [allowed, setAllowed] = useState(false);
@@ -327,11 +330,12 @@ export default function Profile() {
               }
             >
               <Pressable
+                ref={backupRef}
                 accessibilityRole="button"
                 accessibilityLabel={`Sikkerhetskopi, ${backupLabel}`}
                 onPress={() => {
                   closeTime();
-                  router.push('/profile/backup');
+                  setBackupOpen(true);
                 }}
                 style={styles.row}
               >
@@ -400,6 +404,11 @@ export default function Profile() {
         onError={() => setError('noe gikk galt. prøv igjen.')}
         returnFocusRef={appearanceRef}
       />
+      <BackupInterestScreen
+        visible={backupOpen}
+        onClose={() => setBackupOpen(false)}
+        returnFocusRef={backupRef}
+      />
       <PreviewStateSheet
         visible={previewMenu}
         onClose={() => setPreviewMenu(false)}
@@ -407,7 +416,7 @@ export default function Profile() {
         onPick={(screen: PreviewForce | null) => {
           void backup.forcePreview(screen).then(() => {
             setPreviewMenu(false);
-            if (screen) router.push('/profile/backup');
+            if (screen) setBackupOpen(true);
           });
         }}
       />
