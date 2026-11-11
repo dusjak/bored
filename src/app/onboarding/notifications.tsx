@@ -9,6 +9,7 @@ import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Screen } from '@/components/Screen';
 import { Toggle } from '@/components/Toggle';
 import { NOTIF_TIME_LABELS } from '@/data/mock';
+import { confirmedMinutes, durationPreviewLead } from '@/onboarding/flow';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
@@ -46,7 +47,7 @@ export default function NotificationsStep() {
   return (
     <Screen top="none" contentStyle={{ paddingBottom: 40 }}>
       <OnboardingHeader
-        step={5}
+        step={6}
         helpGap={4}
         title="En stille påminnelse."
         sub="Ingen lyder. Ingen merker. Bare en enkel melding. Du bestemmer selv om du svarer."
@@ -55,7 +56,8 @@ export default function NotificationsStep() {
       <View style={[styles.preview, { backgroundColor: theme.color.surface.default }]}>
         <Text style={[theme.text.monoMeta, { color: theme.color.text.tertiary, marginBottom: 8 }]}>{timeLabel}</Text>
         <Text style={[theme.text.bodySmall, { color: theme.color.text.primary }]}>
-          {user.name ? `${user.name}, ` : ''}Ti minutter. Ingenting skjer her. Det er poenget.
+          {user.name ? `${user.name}, ` : ''}
+          {durationPreviewLead(confirmedMinutes(user.duration))}. Ingenting skjer her. Det er poenget.
         </Text>
       </View>
 

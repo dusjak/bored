@@ -69,13 +69,8 @@ describe('texture swatches', () => {
     const tekstur = readFileSync(join(root, 'src/app/onboarding/tekstur.tsx'), 'utf8');
     const swatch = readFileSync(join(root, 'src/components/MaterialSwatch.tsx'), 'utf8');
     assert.deepEqual(VISIBLE_MATERIALS, ['gummi', 'skifer', 'floyel']);
-    assert.match(tekstur, /VISIBLE_MATERIALS\.map/);
-    assert.match(tekstur, /MaterialSwatch/);
-    assert.match(tekstur, /IntroStone/);
-    assert.doesNotMatch(tekstur, /LiveKlump/);
-    assert.doesNotMatch(tekstur, /useLiveMaterial|readPixels|Canvas/);
-    assert.match(tekstur, /updateUser\(\{ materialId: id \}\)/);
-    assert.doesNotMatch(tekstur, /forms:/);
+    assert.match(tekstur, /Redirect href="\/onboarding\/form"/);
+    assert.doesNotMatch(tekstur, /LiveKlump|MaterialSwatch|VISIBLE_MATERIALS/);
     assert.doesNotMatch(swatch, /kull\.png|emalje\.png|useLiveMaterial|readPixels|<Canvas/);
 
     const centers: string[] = [];

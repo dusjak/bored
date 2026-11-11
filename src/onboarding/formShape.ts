@@ -78,6 +78,7 @@ function samplePath(d: string): Point[] {
 }
 
 function binAngle(index: number): number {
+  'worklet';
   return -Math.PI + ((index + 0.5) / FORM_BINS) * Math.PI * 2;
 }
 
@@ -111,17 +112,21 @@ function buildBase(pts: Point[]): { cx: number; cy: number; radii: number[] } {
 
 const SAMPLES = samplePath(KLUMPEN_PATH);
 const BASE = buildBase(SAMPLES);
+/** Rest radius per bin, in the 1000-unit silhouette. The shaping worklet reads this table. */
+export const REST_RADII: readonly number[] = BASE.radii;
 
 export function emptyOffsets(): number[] {
   return Array.from({ length: FORM_BINS }, () => 0);
 }
 
 export function materialDrag(id: KlumpMaterialId): MaterialDrag {
+  'worklet';
   return MATERIAL_DRAG.find((item) => item.id === id) ?? MATERIAL_DRAG[0];
 }
 
 /** Angular width of one drag. Stein's facet and the broader materials are not Gummi's 40°. */
 export function sectorRadians(id: KlumpMaterialId, widthPt: number, radiusPt: number): number {
+  'worklet';
   if (id === 'skifer') {
     const facet = STEIN_FACET * widthPt;
     const radius = Math.max(radiusPt, 1);
@@ -135,12 +140,14 @@ export function sectorRadians(id: KlumpMaterialId, widthPt: number, radiusPt: nu
 
 /** Fløyel's 80 ms lowpass. A zero step holds the previous travel. */
 export function velvetTravel(previous: number, raw: number, dtMs: number): number {
+  'worklet';
   if (dtMs <= 0) return previous;
   const k = 1 - Math.exp(-dtMs / VELVET_LOWPASS_MS);
   return previous + (raw - previous) * k;
 }
 
 function textField(minutes: number): { w: number; h: number } {
+  'worklet';
   if (minutes <= 5) return TEXT_FIELD[5];
   if (minutes <= 10) return TEXT_FIELD[10];
   if (minutes <= 15) return TEXT_FIELD[15];
@@ -148,6 +155,7 @@ function textField(minutes: number): { w: number; h: number } {
 }
 
 function rBound(angle: number, along: number, across: number): number {
+  'worklet';
   const c = Math.abs(Math.cos(angle));
   const s = Math.abs(Math.sin(angle));
   const x = c < 1e-4 ? Number.POSITIVE_INFINITY : along / c;
@@ -157,6 +165,7 @@ function rBound(angle: number, along: number, across: number): number {
 
 /** Radius limits in points at one bin. The text field is the inner stop. */
 export function radiusLimitsPt(minutes: number, widthPt: number, angle: number): { min: number; max: number } {
+  'worklet';
   const field = textField(minutes);
   const min = rBound(angle, field.w / 2 + 3, field.h / 2 + 3);
   const max = rBound(angle, 0.575 * widthPt, 0.51 * widthPt);
@@ -183,6 +192,7 @@ export function deform(input: {
   /** Stein does not move until 350 ms of calm drag. */
   elapsedMs?: number;
 }): { offsets: number[]; changed: boolean } {
+  'worklet';
   const spec = materialDrag(input.material);
   const start = input.start.length === FORM_BINS ? [...input.start] : emptyOffsets();
   if (input.material === 'skifer' && (input.elapsedMs ?? 0) < STEIN_WAIT_MS) return { offsets: start, changed: false };

@@ -35,7 +35,7 @@ export default function NameStep() {
   return (
     <Screen top="none" edges={['top']}>
       <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <OnboardingHeader step={4} title="Hva skal vi kalle deg?" sub="Bare fornavn holder." />
+      <OnboardingHeader step={5} title="Hva skal vi kalle deg?" sub="Bare fornavn holder." />
       <TextInput
         autoFocus
         autoCapitalize="words"

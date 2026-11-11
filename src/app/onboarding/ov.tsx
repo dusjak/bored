@@ -6,10 +6,10 @@ import { useReducedMotion } from 'react-native-reanimated';
 
 import { Button } from '@/components/Button';
 import { IntroStone } from '@/components/IntroStone';
-import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { Screen } from '@/components/Screen';
+import { ScreenTitle } from '@/components/ScreenTitle';
 import { HOLD_TO_END_MS } from '@/data/copy';
-import { BLI_STEP, confirmedMinutes, defaultMaterial, practiceWelcomeReady } from '@/onboarding/flow';
+import { confirmedMinutes, defaultMaterial, HOLD_BODY, HOLD_HINT, HOLD_TITLE } from '@/onboarding/flow';
 import { emptyOffsets } from '@/onboarding/formShape';
 import { drawProgress, strokeOpacity } from '@/session/trackStroke';
 import { phaseIndex } from '@/session/holdToEnd';
@@ -82,19 +82,14 @@ export default function PracticeStep() {
     setRing({ progress: 1, opacity: 1 });
   };
 
+  useEffect(() => {
+    if (done) router.push('/onboarding/alltid');
+  }, [done]);
+
   return (
-    <Screen session top="none" contentStyle={styles.content}>
-      <OnboardingHeader
-        dots={false}
-        step={BLI_STEP.ov}
-        total={5}
-        title="Du bestemmer."
-        sub={done ? 'Du avsluttet øvingen. Det er alltid lov å bryte.' : 'Hold for å avslutte.'}
-        ink={theme.color.session['text-primary']}
-        subInk={theme.color.session['text-secondary']}
-        dot={theme.color.session['text-primary']}
-        dotIdle="#3A3936"
-      />
+    <Screen top="app" contentStyle={styles.content}>
+      <ScreenTitle style={{ marginBottom: 8 }}>{HOLD_TITLE}</ScreenTitle>
+      <Text style={[theme.text.body, { color: theme.color.text.secondary }]}>{HOLD_BODY}</Text>
       <View style={styles.stone}>
         <Pressable
           accessibilityRole="button"
@@ -109,16 +104,9 @@ export default function PracticeStep() {
         >
           <IntroStone minutes={minutes} material={material} offsets={offsets} ring={ring} />
         </Pressable>
-        <Text style={[theme.text.caption, styles.status, { color: theme.color.session['text-secondary'] }]}>
-          {done ? 'Øving avsluttet' : ring.opacity > 0.04 ? 'Hold for å avslutte' : ''}
-        </Text>
+        <Text style={[theme.text.caption, styles.status, { color: theme.color.text.tertiary }]}>{HOLD_HINT}</Text>
       </View>
-      <Button
-        title="Til velkommen"
-        variant="inverse"
-        disabled={!practiceWelcomeReady(done)}
-        onPress={() => router.push('/onboarding/velkommen')}
-      />
+      <Button title="Hopp over" variant="ghost" onPress={() => router.push('/onboarding/veiskille')} />
     </Screen>
   );
 }

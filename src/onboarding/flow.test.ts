@@ -8,8 +8,12 @@ import { SHEET_NUMBER_UNIT_GAP, NUMBER_UNIT_GAP } from '../duration/klumpen.ts';
 import {
   BLI_KJENT_STEPS,
   confirmDuration,
+  DURATION_LIST,
+  durationPreviewLead,
+  FORM_HELP,
+  GUESS_HINT,
   homeUneaseState,
-  PART1_DURATION_INGRESS,
+  KJEDOMHET_BODY,
   PART1_ROUTES,
   practiceWelcomeReady,
 } from './flow.ts';
@@ -29,30 +33,54 @@ import {
 
 describe('bli kjent flow', () => {
   it('asks for duration once, then continues, and does not ask again in Del 2', () => {
-    assert.equal(BLI_KJENT_STEPS, 5);
-    assert.deepEqual(confirmDuration(20), { minutes: 20, to: 'rom' });
-    assert.equal(QUESTIONS.goal.next, '/onboarding/time');
-    assert.equal(ONBOARDING_STEPS, 6);
-    assert.equal(QUESTIONS.time.step, 3);
+    assert.equal(BLI_KJENT_STEPS, 7);
+    assert.deepEqual(confirmDuration(20), { minutes: 20, to: 'ov' });
+    assert.equal(QUESTIONS.goal.next, '/onboarding/duration');
+    assert.equal(QUESTIONS.distraction.title, 'Hva griper du etter?');
+    assert.equal(ONBOARDING_STEPS, 7);
+    assert.equal(QUESTIONS.time.step, 4);
+    assert.equal(DURATION_LIST[0]?.sub, 'En kort, daglig dose ingenting');
+    assert.equal(DURATION_LIST[3]?.sub, 'Du mener alvor');
+    assert.equal(durationPreviewLead(10), 'Ti minutter');
+    assert.equal(durationPreviewLead(20), 'Tjue minutter');
   });
 
   it('keeps every Part 1 step mandatory and leaves Veiskille able to skip Del 2', () => {
     const root = process.cwd();
     const dir = join(root, 'src/app/onboarding');
+    const skip = new Set(['ov', 'alltid']);
     for (const route of PART1_ROUTES) {
       const source = readFileSync(join(dir, `${route}.tsx`), 'utf8');
-      assert.equal(source.includes('Hopp over'), false, route);
+      assert.equal(source.includes('Hopp over'), skip.has(route), route);
+      assert.equal(source.includes('Tilbake'), false, route);
       assert.equal(source.includes('skipBliKjent'), false, route);
-      assert.equal(source.includes('velkommen'), route === 'ov', route);
     }
+    const index = readFileSync(join(dir, 'index.tsx'), 'utf8');
+    assert.equal(index.includes('Jeg har allerede en konto'), false);
+    assert.match(index, /SPLASH_REPLAY_HOLD_MS = 2000/);
+    assert.match(index, /isSplashReplayEnabled/);
+    assert.match(index, /replayIntroSplash\(\)/);
+    const kjedomhet = readFileSync(join(dir, 'kjedomhet.tsx'), 'utf8');
+    assert.match(kjedomhet, /KJEDOMHET_BODY/);
+    assert.equal(KJEDOMHET_BODY.includes('—'), false);
+    assert.match(kjedomhet, /Form klumpen/);
+    assert.match(kjedomhet, /digits=\{false\}/);
+    const form = readFileSync(join(dir, 'form.tsx'), 'utf8');
+    assert.match(form, /FORM_HELP/);
+    assert.equal(FORM_HELP, 'Dra i kantene. Det finnes ingen riktig fasong.');
+    assert.match(form, /Velg klumpen/);
+    assert.match(form, /user\.materialId \?\? 'gummi'/);
+    assert.match(form, /\.\.\.user\.forms/);
     const tid = readFileSync(join(dir, 'tid.tsx'), 'utf8');
-    assert.match(tid, /PART1_DURATION_INGRESS/);
-    assert.equal(PART1_DURATION_INGRESS, 'Hvor lenge tror du at du klarer å kjede deg om gangen?');
-    assert.match(tid, /onConfirm=\{save\}/);
+    assert.match(tid, /showChoices=\{false\}/);
+    assert.match(tid, /GUESS_HINT/);
+    assert.equal(GUESS_HINT, 'Sveip for å endre tiden');
+    assert.match(tid, /router\.push\('\/onboarding\/ov'\)/);
     assert.doesNotMatch(tid, /onSkip/);
-    assert.match(tid, /router\.push\('\/onboarding\/rom'\)/);
     const veiskille = readFileSync(join(dir, 'veiskille.tsx'), 'utf8');
     assert.match(veiskille, /Hopp over og start første økt/);
+    assert.match(veiskille, /Lag planen min/);
+    assert.doesNotMatch(veiskille, /IntroStone|Del 2 er valgfri/);
     assert.match(veiskille, /replace\('\/session'\)/);
     const name = readFileSync(join(dir, 'name.tsx'), 'utf8');
     assert.match(name, /title="Hopp over"/);
@@ -71,15 +99,17 @@ describe('bli kjent flow', () => {
     assert.match(header, /router\.back\(\)/);
     assert.match(header, /dots \? <ProgressDots/);
     assert.doesNotMatch(header, /updateUser/);
-    for (const route of PART1_ROUTES) {
-      if (route === 'index') continue;
-      const source = readFileSync(join(dir, `${route}.tsx`), 'utf8');
-      assert.match(source, /dots=\{false\}/, route);
-    }
-    assert.match(layout, /gestureEnabled: true/);
-    assert.match(layout, /PART1_ROUTES\.map/);
+    assert.doesNotMatch(layout, /gestureEnabled: true/);
     assert.match(layout, /gestureEnabled: false/);
     assert.match(layout, /fullScreenGestureEnabled: false/);
+    const rootLayout = readFileSync(join(root, 'src/app/_layout.tsx'), 'utf8');
+    assert.match(rootLayout, /name="onboarding" options=\{\{ gestureEnabled: false, fullScreenGestureEnabled: false \}\}/);
+    for (const file of readdirSync(dir)) {
+      if (!file.endsWith('.tsx') || file === '_layout.tsx') continue;
+      const source = readFileSync(join(dir, file), 'utf8');
+      assert.equal(source.includes('gestureEnabled: true'), false, file);
+      assert.equal(source.includes('pagingEnabled'), false, file);
+    }
     assert.match(chooser, /PanResponder/);
     assert.match(chooser, /stoneReleaseAction/);
     assert.match(chooser, /accessibilityHint=\{DURATION_ADJUST_HINT\}/);

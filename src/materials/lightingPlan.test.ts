@@ -77,15 +77,17 @@ describe('form lighting plan', () => {
   it('wires the hold into the form stone and leaves the session path alone', () => {
     const root = process.cwd();
     const form = readFileSync(join(root, 'src/app/onboarding/form.tsx'), 'utf8');
-    const stone = readFileSync(join(root, 'src/components/LiveKlump.tsx'), 'utf8');
+    const stone = readFileSync(join(root, 'src/components/FormStone.tsx'), 'utf8');
     const hook = readFileSync(join(root, 'src/materials/DynamicMaterial.tsx'), 'utf8');
     const session = readFileSync(join(root, 'src/components/SessionKlumpen.tsx'), 'utf8');
-    assert.match(form, /holdLighting=\{holdingRef\.current \|\| holding\}/);
-    assert.match(form, /holdingRef\.current = true/);
-    assert.match(form, /holdingRef\.current = false/);
-    assert.match(stone, /planFormLighting/);
-    assert.match(stone, /plan\.generation/);
-    assert.match(stone, /if \(plan\.rebuildMacro\) lightClip\.current = fill/);
+    assert.match(form, /<FormStone/);
+    assert.equal((form.match(/<Canvas/g) ?? []).length, 0);
+    assert.match(stone, /Gesture\.Pan\(\)/);
+    assert.match(stone, /useFrameCallback/);
+    assert.match(stone, /useDerivedValue/);
+    assert.equal((stone.match(/<Canvas/g) ?? []).length, 1);
+    assert.doesNotMatch(stone, /setOffsets|setState/);
+    assert.match(stone, /runOnJS\(publish\)/);
     assert.match(hook, /const fieldKey = lightingKey \?\? clip/);
     assert.match(hook, /makeFixedRimFilter\(uploaded\.rimK\)/);
     assert.doesNotMatch(session, /planFormLighting/);

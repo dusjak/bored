@@ -1,30 +1,65 @@
 import type { IntroPath, KlumpMaterialId } from '../data/types.ts';
 
 /**
- * Bli kjent, part 1.
- * Five learning steps after the meeting. A1, Velkommen and Veiskille sit outside that count.
- * Duration is asked here once. Del 2 does not ask it again.
- * The unease box is never part of these screens. Hjem owns the one stored window.
+ * Onboarding, 16 screens.
+ * Del 1 has no back arrow. Del 2 keeps the arrow. Neither stack accepts a swipe.
+ * Gummi is the material for a profile that has not chosen one. Stored materials stay.
+ * The unease box on Hjem is separate from the practice screen.
  */
 
-export const BLI_KJENT_STEPS = 5;
+export const BLI_KJENT_STEPS = 7;
 
-export const BLI_STEP = {
-  tid: 0,
-  rom: 1,
-  tekstur: 2,
-  form: 3,
-  ov: 4,
-} as const;
+/** Stone width while the person shapes and guesses. It does not grow with the minutes. */
+export const FORM_STONE_PT = 200;
 
 /**
- * Part 1 routes. Each one is mandatory. The stack pop gesture is off on these
- * screens. Velkommen and Veiskille are after this list.
+ * Del 1 routes. No back arrow and no skip, except the hold and the screen after it.
+ * The stack gesture is off for every onboarding route, not only these.
  */
-export const PART1_ROUTES = ['index', 'tid', 'rom', 'tekstur', 'form', 'ov'] as const;
+export const PART1_ROUTES = ['index', 'kjedomhet', 'form', 'se', 'tid', 'ov', 'alltid'] as const;
 
-/** Part 1 duration help, under «Velg varighet». The Hjem sheet keeps its own line. */
-export const PART1_DURATION_INGRESS = 'Hvor lenge tror du at du klarer å kjede deg om gangen?';
+export const KJEDOMHET_BODY =
+  'Ingen er helt enige. Her blir din kjedsomhet en klump. Form den slik du kjenner den, så har du den med deg i hver økt.';
+
+export const FORM_TITLE = 'Gi den din form';
+export const FORM_HELP = 'Dra i kantene. Det finnes ingen riktig fasong.';
+
+export const SE_TITLE = 'Sånn ser kjedsomheten din ut';
+export const SE_BODY =
+  'Dette er klumpen din. Den holder tiden mens du kjeder deg, så du slipper å se på mobilen.';
+
+export const GUESS_TITLE = 'Hvor lenge klarer du å kjede deg, tror du?';
+export const GUESS_HELP = 'Bare gjett. Du kan endre det etter hver økt.';
+export const GUESS_HINT = 'Sveip for å endre tiden';
+
+export const HOLD_TITLE = 'Du kan alltid bryte økten hvis du blir urolig';
+export const HOLD_BODY = 'Uro og tunge tanker kan dukke opp. Vil du ut, holder du inne klumpen.';
+export const HOLD_HINT = 'Hold klumpen inne';
+
+export const DONE_TITLE = 'Du bestemmer. Alltid.';
+export const DONE_BODY = 'Du avsluttet øvingen. Like enkelt er det i en ekte økt.';
+
+export const FORK_TITLE = 'Vil du ha litt hjelp før første økt?';
+export const FORK_BODY =
+  'Svar på noen korte spørsmål, så lager vi en plan som passer deg. Det tar et par minutter.';
+
+export const DURATION_LIST_TITLE = 'Hvor lang tid har du?';
+export const DURATION_LIST_HELP = 'Vi starter her. Du kan alltid endre det.';
+
+export const DURATION_LIST = [
+  { minutes: 5, label: '5 minutter', sub: 'En kort, daglig dose ingenting' },
+  { minutes: 10, label: '10 minutter', sub: 'Standardenheten for stillhet' },
+  { minutes: 15, label: '15 minutter', sub: 'Nok tid til å virkelig lande' },
+  { minutes: 20, label: '20 minutter', sub: 'Du mener alvor' },
+] as const;
+
+/** Words in the reminder preview. Ten stays «Ti minutter». */
+export function durationPreviewLead(minutes: number): string {
+  if (minutes === 5) return 'Fem minutter';
+  if (minutes === 15) return 'Femten minutter';
+  if (minutes === 20) return 'Tjue minutter';
+  return 'Ti minutter';
+}
 
 export function confirmedMinutes(stored: string | undefined): 5 | 10 | 15 | 20 {
   const n = parseInt(stored ?? '', 10);
@@ -32,8 +67,8 @@ export function confirmedMinutes(stored: string | undefined): 5 | 10 | 15 | 20 {
   return 10;
 }
 
-export function confirmDuration(minutes: number): { minutes: number; to: 'rom' } {
-  return { minutes, to: 'rom' };
+export function confirmDuration(minutes: number): { minutes: number; to: 'ov' } {
+  return { minutes, to: 'ov' };
 }
 
 /** «Til velkommen» exists only after the practice hold completes. */

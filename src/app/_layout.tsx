@@ -115,7 +115,7 @@ function ReadyGate() {
         }}
       >
         <Stack.Screen name="index" />
-        <Stack.Screen name="onboarding" />
+        <Stack.Screen name="onboarding" options={{ gestureEnabled: false, fullScreenGestureEnabled: false }} />
         <Stack.Screen name="(tabs)" options={{ gestureEnabled: false }} />
         <Stack.Screen
           name="session"

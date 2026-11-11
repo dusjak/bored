@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { PanResponder, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { useReducedMotion, useSharedValue, withSpring } from 'react-native-reanimated';
@@ -33,6 +33,10 @@ type Props = {
   minutes: number;
   onConfirm: (minutes: number) => void;
   confirmTitle?: string;
+  /** The 5/10/15/20 row. The guess screen hides it and swipes the lump only. */
+  showChoices?: boolean;
+  hint?: string;
+  stone?: (minutes: number) => ReactNode;
 };
 
 /**
@@ -40,7 +44,14 @@ type Props = {
  * Fortsett confirms the minutes the pan or the row selected. A choice does not advance.
  * The number-to-«min» gap stays the sheet gap. Hjem keeps its own 4pt gap.
  */
-export function DurationChooser({ minutes, onConfirm, confirmTitle = 'Fortsett' }: Props) {
+export function DurationChooser({
+  minutes,
+  onConfirm,
+  confirmTitle = 'Fortsett',
+  showChoices = true,
+  hint,
+  stone,
+}: Props) {
   const { theme } = useTheme();
   const { width: screenWidth } = useWindowDimensions();
   const reduceMotion = useReducedMotion() === true;
@@ -127,72 +138,83 @@ export function DurationChooser({ minutes, onConfirm, confirmTitle = 'Fortsett' 
   return (
     <View style={styles.fill}>
       <View style={styles.stone} {...pan.panHandlers}>
-        <KlumpenBody
-          index={indexSv}
-          minutes={shown}
-          reduce={reduceSv}
-          reduceMotion={reduceMotion}
-          fade={fade}
-          ghost
-          unitGap={SHEET_NUMBER_UNIT_GAP}
-          numberFamily={theme.fonts.sans}
-          unitColor={theme.color.bg.grouped}
-        />
+        {stone ? (
+          stone(shown)
+        ) : (
+          <KlumpenBody
+            index={indexSv}
+            minutes={shown}
+            reduce={reduceSv}
+            reduceMotion={reduceMotion}
+            fade={fade}
+            ghost
+            unitGap={SHEET_NUMBER_UNIT_GAP}
+            numberFamily={theme.fonts.sans}
+            unitColor={theme.color.bg.grouped}
+          />
+        )}
       </View>
-      <View
-        accessible
-        accessibilityRole="adjustable"
-        accessibilityLabel={DURATION_ADJUST_LABEL}
-        accessibilityHint={DURATION_ADJUST_HINT}
-        accessibilityValue={{ text: durationValueText(shown) }}
-        accessibilityActions={[
-          { name: 'increment', label: 'Øk' },
-          { name: 'decrement', label: 'Senk' },
-        ]}
-        onAccessibilityAction={(event) => {
-          if (event.nativeEvent.actionName === 'increment') step(1);
-          if (event.nativeEvent.actionName === 'decrement') step(-1);
-        }}
-        style={styles.row}
-      >
-        {PRESET_MINUTES.map((value, index) => {
-          const on = selected === index;
-          const width = ROW_WIDTHS[index] ?? 22;
-          const frame = glyphFrame(width, ROW_STROKE);
-          return (
-            <Pressable
-              key={value}
-              accessible={false}
-              onPress={() => {
-                if (index !== selectedRef.current) apply(index, 0);
-              }}
-              style={[styles.choice, { width: rowPitch(screenWidth) }]}
-            >
-              <View style={{ width: frame.width, height: frame.height }}>
-                <KlumpenGlyph
-                  width={width}
-                  fill={on ? theme.color.ink.default : 'none'}
-                  stroke={on ? 'none' : theme.color.text.tertiary}
-                  strokeWidth={on ? 0 : ROW_STROKE}
-                  bleed={ROW_STROKE}
-                />
-              </View>
-              <Text
-                style={{
-                  marginTop: 6,
-                  fontFamily: on ? theme.fonts.sansSemiBold : theme.fonts.sansMedium,
-                  fontSize: 17,
-                  lineHeight: 22,
-                  color: on ? theme.color.ink.default : theme.color.text.tertiary,
-                  fontVariant: ['tabular-nums'],
+      {showChoices ? null : hint ? (
+        <Text style={[theme.text.caption, { textAlign: 'center', marginBottom: 16, color: theme.color.text.tertiary }]}>
+          {hint}
+        </Text>
+      ) : null}
+      {showChoices ? (
+        <View
+          accessible
+          accessibilityRole="adjustable"
+          accessibilityLabel={DURATION_ADJUST_LABEL}
+          accessibilityHint={DURATION_ADJUST_HINT}
+          accessibilityValue={{ text: durationValueText(shown) }}
+          accessibilityActions={[
+            { name: 'increment', label: 'Øk' },
+            { name: 'decrement', label: 'Senk' },
+          ]}
+          onAccessibilityAction={(event) => {
+            if (event.nativeEvent.actionName === 'increment') step(1);
+            if (event.nativeEvent.actionName === 'decrement') step(-1);
+          }}
+          style={styles.row}
+        >
+          {PRESET_MINUTES.map((value, index) => {
+            const on = selected === index;
+            const width = ROW_WIDTHS[index] ?? 22;
+            const frame = glyphFrame(width, ROW_STROKE);
+            return (
+              <Pressable
+                key={value}
+                accessible={false}
+                onPress={() => {
+                  if (index !== selectedRef.current) apply(index, 0);
                 }}
+                style={[styles.choice, { width: rowPitch(screenWidth) }]}
               >
-                {value}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+                <View style={{ width: frame.width, height: frame.height }}>
+                  <KlumpenGlyph
+                    width={width}
+                    fill={on ? theme.color.ink.default : 'none'}
+                    stroke={on ? 'none' : theme.color.text.tertiary}
+                    strokeWidth={on ? 0 : ROW_STROKE}
+                    bleed={ROW_STROKE}
+                  />
+                </View>
+                <Text
+                  style={{
+                    marginTop: 6,
+                    fontFamily: on ? theme.fonts.sansSemiBold : theme.fonts.sansMedium,
+                    fontSize: 17,
+                    lineHeight: 22,
+                    color: on ? theme.color.ink.default : theme.color.text.tertiary,
+                    fontVariant: ['tabular-nums'],
+                  }}
+                >
+                  {value}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
       <Button
         title={confirmTitle}
         onPress={() => onConfirm(PRESET_MINUTES[selectedRef.current] ?? PRESET_MINUTES[1])}
