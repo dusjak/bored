@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   stone: { flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: ROW_HIT, overflow: 'visible' },
   lump: { alignItems: 'center', overflow: 'visible' },
-  hint: { marginTop: 18, textAlign: 'center' },
+  hint: { position: 'absolute', top: '100%', marginTop: 18, textAlign: 'center', width: 280 },
   row: { flexDirection: 'row', alignSelf: 'center', marginBottom: 8 },
   choice: { alignItems: 'center', minHeight: ROW_HIT },
 });

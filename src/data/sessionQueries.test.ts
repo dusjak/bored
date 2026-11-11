@@ -159,10 +159,10 @@ describe('session notes and delete', () => {
   it('treats an empty database as a new install and a countdown key alone as not prior data', async () => {
     const db = openMemoryDatabase();
     assert.equal(await hasPriorUserData(db, 'bored.showCountdown'), false);
-    assert.deepEqual(planCountdownUpgrade(null, false), { show: false, writeDefaultOff: true });
+    assert.deepEqual(planCountdownUpgrade(null, false), { show: true, writeDefaultOff: false });
     await setSetting(db, 'bored.showCountdown', '0');
     assert.equal(await hasPriorUserData(db, 'bored.showCountdown'), false);
-    assert.deepEqual(planCountdownUpgrade('0', false), { show: false, writeDefaultOff: false });
+    assert.deepEqual(planCountdownUpgrade('0', true), { show: false, writeDefaultOff: false });
     const settings = await db.getAllAsync<{ key: string }>('SELECT key FROM settings');
     assert.deepEqual(settings.map((row) => row.key), ['bored.showCountdown']);
   });

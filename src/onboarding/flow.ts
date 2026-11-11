@@ -23,7 +23,7 @@ export const HOLD_TITLE = 'Du kan alltid bryte økten hvis du blir urolig';
 export const HOLD_BODY = 'Uro og tunge tanker kan dukke opp. Vil du ut, holder du inne klumpen.';
 export const HOLD_HINT = 'Hold klumpen inne';
 /** Shown once the practice hold has finished. Same sand as the ingress. */
-export const PRACTICE_DONE = 'Avsluttet der';
+export const PRACTICE_DONE = 'Avsluttet';
 /** One size for the practice digits, including the running clock. */
 export const PRACTICE_DIGIT_SIZE = 48;
 /** Fortsett appears by this time even if the hold was never finished. */

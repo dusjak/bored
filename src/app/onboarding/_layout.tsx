@@ -15,9 +15,8 @@ export default function OnboardingLayout() {
         fullScreenGestureEnabled: false,
         contentStyle: { backgroundColor: theme.color.bg.default },
         // System push. Reduce Motion keeps a short crossfade and no content offset.
-        ...(reduceMotion
-          ? { animation: 'fade' as const, animationDuration: 200 }
-          : { animation: 'default' as const }),
+        animation: 'fade' as const,
+        animationDuration: reduceMotion ? 200 : 320,
       }}
     >
       <Stack.Screen name="ready" options={{ contentStyle: { backgroundColor: theme.color.bg.session } }} />

@@ -13,8 +13,10 @@ export default function KjedomhetStep() {
   const { theme } = useTheme();
   return (
     <Screen top="app" contentStyle={styles.content}>
+      <View style={styles.copy}>
       <ScreenTitle style={{ marginBottom: 8 }}>Hva er kjedsomhet?</ScreenTitle>
       <Text style={[theme.text.body, { color: theme.color.text.secondary }]}>{KJEDOMHET_BODY}</Text>
+      </View>
       <View style={styles.stone}>
         <GummiPicture minutes={10} digits={false} />
       </View>
@@ -25,5 +27,6 @@ export default function KjedomhetStep() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 24 },
+  copy: { minHeight: 140 },
   stone: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 });

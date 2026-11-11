@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type RefObject } from 'react';
 import {
   AccessibilityInfo,
-  PanResponder,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -11,9 +10,11 @@ import {
   type HostInstance,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
   cancelAnimation,
+  runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
@@ -61,6 +62,7 @@ import {
   glyphFrame,
   selectionFromIndex,
   SHEET_NUMBER_UNIT_GAP,
+  STONE_NUMBER_COLOR,
   useButtonLabel,
 } from '@/duration/klumpen';
 import { useTheme } from '@/theme';
@@ -185,53 +187,47 @@ function DurationBody({
 
   const axis = useRef<'x' | 'y' | null>(null);
   const startIndex = useRef(initial);
-  const pan = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, gesture) =>
-        stonePanAxis(gesture.dx, gesture.dy, null) != null,
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderGrant: () => {
-        axis.current = null;
-        startIndex.current = selectedRef.current;
-        cancelAnimation(indexSv);
-        cancelAnimation(fade.u);
-      },
-      onPanResponderMove: (_, gesture) => {
-        axis.current = stonePanAxis(gesture.dx, gesture.dy, axis.current);
-        if (axis.current == null) return;
-        const next =
-          axis.current === 'y'
-            ? verticalStoneIndex(startIndex.current, gesture.dy)
-            : indexFromSwipe(startIndex.current, gesture.dx);
-        if (reduceRef.current) {
-          api.current.preview(selectionFromIndex(next));
-          return;
-        }
-        indexSv.value = next;
-        api.current.preview(selectionFromIndex(next));
-      },
-      onPanResponderRelease: (_, gesture) => {
-        const action = stoneReleaseAction({
-          axis: axis.current,
-          startIndex: startIndex.current,
-          dx: gesture.dx,
-          dy: gesture.dy,
-          vx: gesture.vx,
-        });
-        if (action.kind === 'select') api.current.release(action.index, axis.current === 'x' ? gesture.vx : 0);
-      },
-      onPanResponderTerminate: (_, gesture) => {
-        const action = stoneReleaseAction({
-          axis: axis.current,
-          startIndex: startIndex.current,
-          dx: gesture.dx,
-          dy: gesture.dy,
-          vx: 0,
-        });
-        if (action.kind === 'select') api.current.release(action.index, 0);
-      },
-    }),
-  ).current;
+  const grant = () => {
+    axis.current = null;
+    startIndex.current = selectedRef.current;
+    cancelAnimation(indexSv);
+    cancelAnimation(fade.u);
+  };
+  const move = (dx: number, dy: number) => {
+    axis.current = stonePanAxis(dx, dy, axis.current);
+    if (axis.current == null) return;
+    const next = axis.current === 'y' ? verticalStoneIndex(startIndex.current, dy) : indexFromSwipe(startIndex.current, dx);
+    if (reduceRef.current) {
+      api.current.preview(selectionFromIndex(next));
+      return;
+    }
+    indexSv.value = next;
+    api.current.preview(selectionFromIndex(next));
+  };
+  const release = (dx: number, dy: number, vx: number) => {
+    const action = stoneReleaseAction({
+      axis: axis.current,
+      startIndex: startIndex.current,
+      dx,
+      dy,
+      vx,
+    });
+    if (action.kind === 'select') api.current.release(action.index, axis.current === 'x' ? vx : 0);
+  };
+  const swipe = Gesture.Pan()
+    .minDistance(12)
+    .onBegin(() => {
+      'worklet';
+      runOnJS(grant)();
+    })
+    .onUpdate((event) => {
+      'worklet';
+      runOnJS(move)(event.translationX, event.translationY);
+    })
+    .onEnd((event) => {
+      'worklet';
+      runOnJS(release)(event.translationX, event.translationY, event.velocityX);
+    });
 
   const step = (direction: 1 | -1) => {
     apply(clampIndex(selectedRef.current + direction), 0);
@@ -251,7 +247,8 @@ function DurationBody({
         <Text style={[theme.text.body, styles.subtitle, { color: theme.color.text.secondary }]}>{DURATION_SUBTITLE}</Text>
       </View>
 
-      <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.stone} {...pan.panHandlers}>
+      <GestureDetector gesture={swipe}>
+      <View accessible={false} importantForAccessibility="no-hide-descendants" style={styles.stone}>
         <KlumpenBody
           index={indexSv}
           minutes={minutes}
@@ -259,9 +256,13 @@ function DurationBody({
           reduceMotion={reduceMotion}
           fade={fade}
           ghost
+          rasterOnly
           unitGap={SHEET_NUMBER_UNIT_GAP}
+          numberFamily={theme.fonts.sans}
+          unitColor={STONE_NUMBER_COLOR}
         />
       </View>
+      </GestureDetector>
 
       <Choices
         selected={selected}

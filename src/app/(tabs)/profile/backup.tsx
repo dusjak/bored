@@ -1,5 +1,6 @@
-import { BackupScreen } from '@/components/backup/BackupScreen';
+import { BackupInterestScreen } from '@/components/backup/BackupInterestScreen';
 
+/** Deg → Sikkerhetskopi. Variant A. The native tab bar stays under this stack. */
 export default function ProfileBackup() {
-  return <BackupScreen backLabel="Deg" />;
+  return <BackupInterestScreen />;
 }

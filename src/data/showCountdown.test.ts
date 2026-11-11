@@ -7,16 +7,18 @@ describe('show countdown preference', () => {
   it('keeps an explicit on or off choice', () => {
     assert.equal(showCountdownFromStored('1', false), true);
     assert.equal(showCountdownFromStored('1', true), true);
-    assert.equal(showCountdownFromStored('0', false), false);
+    assert.equal(showCountdownFromStored('0', false), true);
     assert.equal(showCountdownFromStored('0', true), false);
     assert.equal(shouldWriteDefaultCountdownOff('1', false), false);
     assert.equal(shouldWriteDefaultCountdownOff('0', true), false);
   });
 
-  it('defaults a new install to off and writes that once', () => {
-    assert.equal(showCountdownFromStored(null, false), false);
-    assert.equal(shouldWriteDefaultCountdownOff(null, false), true);
-    assert.equal(shouldWriteDefaultCountdownOff('', false), true);
+  it('defaults a missing choice to on, including a legacy automatic off', () => {
+    assert.equal(showCountdownFromStored(null, false), true);
+    assert.equal(showCountdownFromStored('0', false), true);
+    assert.equal(shouldWriteDefaultCountdownOff(null, false), false);
+    assert.deepEqual(planCountdownUpgrade(null, false), { show: true, writeDefaultOff: false });
+    assert.deepEqual(planCountdownUpgrade('0', false), { show: true, writeDefaultOff: false });
   });
 
   it('does not change an existing install that never stored a choice', () => {

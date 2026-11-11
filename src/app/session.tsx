@@ -20,7 +20,6 @@ import {
   chosenMinutes,
   completionSentence,
 } from '@/data/copy';
-import { defaultMaterial } from '@/onboarding/flow';
 import { HOLD } from '@/session/holdToEnd';
 import {
   HOLD_HINT_IDLE,
@@ -46,10 +45,7 @@ export default function Session() {
     noteBackground,
     noteForeground,
     showCountdown,
-    user,
   } = useAppState();
-  const stoneMaterial = defaultMaterial(user.materialId);
-  const stoneForm = user.forms?.[stoneMaterial] ?? null;
 
   const session = activeSession;
   const startedAtMs = session ? Date.parse(session.startedAt) : 0;
@@ -363,8 +359,7 @@ export default function Session() {
                 fade={holdFade}
                 morph={morph}
                 gapAbove={showCountdown || showDone ? SESSION_RING_GAP : 0}
-                material={stoneMaterial}
-                formOffsets={stoneForm}
+                material="gummi"
                 accessibilityLabel={showDone ? `Økt fullført. ${sentence}` : HOLD_A11Y_LABEL}
                 accessibilityHint={showDone ? undefined : HOLD_A11Y_HINT}
                 accessibilityAction={!showDone}

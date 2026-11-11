@@ -1,4 +1,4 @@
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 import { router } from 'expo-router';
 
 import { DurationChooser } from '@/components/DurationChooser';
@@ -22,8 +22,10 @@ export default function TidStep() {
 
   return (
     <Screen top="app" contentStyle={{ paddingBottom: 24 }}>
+      <View style={{ minHeight: 140 }}>
       <ScreenTitle style={{ marginBottom: 8 }}>{GUESS_TITLE}</ScreenTitle>
       <Text style={[theme.text.body, { color: theme.color.text.secondary }]}>{GUESS_HELP}</Text>
+      </View>
       <DurationChooser
         minutes={current}
         showChoices={false}

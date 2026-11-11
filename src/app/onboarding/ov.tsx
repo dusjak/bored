@@ -23,6 +23,7 @@ import {
 import { drawProgress, strokeOpacity } from '@/session/trackStroke';
 import { phaseIndex, sampleHold } from '@/session/holdToEnd';
 import { klumpHeight, klumpWidth } from '@/duration/klumpen';
+import { practiceHintGap } from '@/onboarding/practiceLayout';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
@@ -56,9 +57,10 @@ export default function PracticeStep() {
 
   useEffect(() => () => cancelAnimationFrame(frame.current), []);
   useEffect(() => {
+    if (done) return;
     const id = setInterval(() => setClockMs(Date.now() - opened.current), 250);
     return () => clearInterval(id);
-  }, []);
+  }, [done]);
   useEffect(() => {
     const id = setTimeout(() => setUnlocked(true), HOLD_CONTINUE_AFTER_MS);
     return () => clearTimeout(id);
@@ -143,8 +145,10 @@ export default function PracticeStep() {
 
   return (
     <Screen top="app" contentStyle={styles.content}>
+      <View style={styles.copy}>
       <ScreenTitle style={{ marginBottom: 8 }}>{HOLD_TITLE}</ScreenTitle>
       <Text style={[theme.text.body, { color: theme.color.text.link }]}>{HOLD_BODY}</Text>
+      </View>
       <View style={styles.stone}>
         <Pressable
           accessibilityRole="button"
@@ -166,7 +170,7 @@ export default function PracticeStep() {
           style={[
             theme.text.caption,
             styles.status,
-            { color: done ? theme.color.text.link : theme.color.text.tertiary },
+            { marginTop: practiceHintGap(minutes), color: done ? theme.color.text.link : theme.color.text.tertiary },
           ]}
         >
           {hint}
@@ -187,6 +191,7 @@ export default function PracticeStep() {
 
 const styles = StyleSheet.create({
   content: { paddingBottom: 24 },
+  copy: { minHeight: 140 },
   stone: { flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
-  status: { marginTop: 16, textAlign: 'center' },
+  status: { textAlign: 'center' },
 });

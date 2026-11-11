@@ -34,6 +34,7 @@ import {
   saveProfile,
   setNotificationId,
   setSetting,
+  SHOW_COUNTDOWN_CHOSEN_KEY,
   SHOW_COUNTDOWN_KEY,
   SPLASH_SEEN_KEY,
   upsertJournal,
@@ -129,7 +130,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [sessions, setSessions] = useState<SessionWithJournal[]>([]);
   const [activeSession, setActiveSession] = useState<SessionRecord | null>(null);
   const [lockHintSessionId, setLockHintSessionId] = useState<string | null>(null);
-  const [showCountdown, setShowCountdownState] = useState(false);
+  const [showCountdown, setShowCountdownState] = useState(true);
   const [firstUsedAt, setFirstUsedAt] = useState<string | null>(null);
   const [introPhase, setIntroPhaseState] = useState<IntroPhase>('off');
   const [splashOccasion, setSplashOccasion] = useState<SplashOccasion>('later-launch');
@@ -160,11 +161,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         await initDatabase();
-        const [profile, onboardedRaw, durationRaw, countdownRaw, splashSeen, finished, active] = await Promise.all([
+        const [profile, onboardedRaw, durationRaw, countdownRaw, countdownChosen, splashSeen, finished, active] =
+          await Promise.all([
           getProfile(),
           getSetting(ONBOARDED_KEY),
           getSetting(DURATION_KEY),
           getSetting(SHOW_COUNTDOWN_KEY),
+          getSetting(SHOW_COUNTDOWN_CHOSEN_KEY),
           getSetting(SPLASH_SEEN_KEY),
           listFinishedSessions(),
           getActiveSession(),
@@ -187,11 +190,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         } catch {
           priorData = true;
         }
-        const countdownPlan = planCountdownUpgrade(countdownRaw, priorData);
+        const countdownPlan = planCountdownUpgrade(countdownRaw, countdownChosen === '1');
         setShowCountdownState(countdownPlan.show);
-        if (countdownPlan.writeDefaultOff) {
-          await setSetting(SHOW_COUNTDOWN_KEY, '0');
-        }
         setSessions(finished);
         try {
           const wantsReminder = profile.notifications === true && (await hasNotificationPermission());
@@ -352,6 +352,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const setShowCountdown = useCallback(async (on: boolean) => {
     setShowCountdownState(on);
     await setSetting(SHOW_COUNTDOWN_KEY, on ? '1' : '0');
+    await setSetting(SHOW_COUNTDOWN_CHOSEN_KEY, '1');
   }, []);
 
   const refreshDailyReminder = useCallback(async () => {
@@ -460,8 +461,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setUser({});
     setOnboarded(false);
     setDurationState(DEFAULT_DURATION_MINUTES);
-    setShowCountdownState(false);
-    await setSetting(SHOW_COUNTDOWN_KEY, '0');
+    setShowCountdownState(true);
+    await setSetting(SHOW_COUNTDOWN_KEY, '1');
+    await setSetting(SHOW_COUNTDOWN_CHOSEN_KEY, '1');
     const trusted = new Date().toISOString();
     await setSetting(FIRST_USED_TRUSTED_KEY, trusted);
     setFirstUsedAt(trusted);

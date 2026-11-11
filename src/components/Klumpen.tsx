@@ -9,8 +9,8 @@ import {
   ImageShader,
   Path,
   Skia,
-  useImage,
   usePathValue,
+  type SkImage,
   type Transforms3d,
 } from '@shopify/react-native-skia';
 import Animated, {
@@ -35,6 +35,7 @@ import { stonePath } from '@/onboarding/formShape';
 import type { MaterialId } from '@/materials/pathLight';
 import { FixedRim, MaterialShade, useLiveMaterial, type LiveFrame } from '@/materials/DynamicMaterial';
 import { ENGRAVED_SHADOW } from '@/materials/engraving';
+import { useCachedStoneImage } from '@/session/stoneImage';
 import {
   CROSSFADE_MS,
   DURATION_UNIT,
@@ -70,6 +71,7 @@ import {
   presetIndex,
   rollTravel,
   selectionFromIndex,
+  SHEET_NUMBER_UNIT_GAP,
   snapIndex,
 } from '@/duration/klumpen';
 import { PRESET_MINUTES } from '@/data/copy';
@@ -215,13 +217,13 @@ export function KlumpenBody({
   const type = durationType(fontScale);
   const deformed = !!formOffsets?.some((value) => Math.abs(value) > 0.05);
   const path = useMemo(
-    () => Skia.Path.MakeFromSVGString(deformed && formOffsets ? stonePath(formOffsets) : KLUMPEN_PATH),
-    [deformed, formOffsets],
+    () => Skia.Path.MakeFromSVGString(!rasterOnly && deformed && formOffsets ? stonePath(formOffsets) : KLUMPEN_PATH),
+    [deformed, formOffsets, rasterOnly],
   );
-  const gummi120 = useImage(require('../../assets/hjem/klumpen-gummi-120pt.png'));
-  const gummi160 = useImage(require('../../assets/hjem/klumpen-gummi-160pt.png'));
-  const gummi200 = useImage(require('../../assets/hjem/klumpen-gummi-200pt.png'));
-  const gummi240 = useImage(require('../../assets/hjem/klumpen-gummi-240pt.png'));
+  const gummi120 = useCachedStoneImage(require('../../assets/hjem/klumpen-gummi-120pt.png'));
+  const gummi160 = useCachedStoneImage(require('../../assets/hjem/klumpen-gummi-160pt.png'));
+  const gummi200 = useCachedStoneImage(require('../../assets/hjem/klumpen-gummi-200pt.png'));
+  const gummi240 = useCachedStoneImage(require('../../assets/hjem/klumpen-gummi-240pt.png'));
   const gummi = [gummi120, gummi160, gummi200, gummi240];
   const [band, setBand] = useState(() => Math.max(0, Math.min(3, Math.ceil(index.value - 1e-3))));
   useAnimatedReaction(
@@ -232,8 +234,8 @@ export function KlumpenBody({
   );
   const gummiImage = gummi[band] ?? null;
   const widthPt = KLUMP_WIDTH_MIN + KLUMP_WIDTH_STEP * band;
-  const field = useLiveMaterial(material, rasterOnly ? null : path, HJEM_WINDOW, widthPt * (1200 / 720), false, HJEM_FRAME, 'hjem', undefined, !rasterOnly);
-  const raster = material === 'gummi' && !deformed ? gummiImage : null;
+  const field = useLiveMaterial(material, null, HJEM_WINDOW, widthPt * (1200 / 720), false, HJEM_FRAME, 'hjem', undefined, false);
+  const raster = gummiImage;
   const blank = useMemo(() => Skia.Path.Make(), []);
   const svg = path ?? blank;
   const backPoint = usePathValue((builder) => {
@@ -338,7 +340,7 @@ function StoneLayer({
   transform: SharedValue<Transforms3d>;
   opacity: SharedValue<number>;
   rim: boolean;
-  image: ReturnType<typeof useImage>;
+  image: SkImage | null;
   field: ReturnType<typeof useLiveMaterial>;
   material: MaterialId;
 }) {
@@ -502,6 +504,7 @@ export function HomeKlumpen({
   material?: MaterialId;
   formOffsets?: readonly number[] | null;
 }) {
+  const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const reduceMotion = useReducedMotion() === true;
   const shown = useDelayedValue(minutes, HOME_APPLY_DELAY);
@@ -633,8 +636,10 @@ export function HomeKlumpen({
             reduce={reduce}
             reduceMotion={reduceMotion}
             fade={fade}
-            material={material}
-            formOffsets={formOffsets}
+            rasterOnly
+            unitGap={SHEET_NUMBER_UNIT_GAP}
+            numberFamily={theme.fonts.sans}
+            unitColor={STONE_NUMBER_COLOR}
           />
         </Pressable>
       </View>

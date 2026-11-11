@@ -1,27 +1,25 @@
 /**
- * «Vis nedtelling».
- * A stored '1' or '0' is an explicit choice and is never rewritten.
- * A missing key is off only for an empty install. Any other stored row keeps the old on default.
+ * «Vis nedtelling» is on unless the person turned it off.
+ * A stored '0' counts only together with the chosen flag. The old automatic
+ * '0' written for an empty install is not a choice, so those phones stay on.
  */
-export function showCountdownFromStored(raw: string | null, hasExistingInstall: boolean): boolean {
-  if (raw === '1') return true;
-  if (raw === '0') return false;
-  return hasExistingInstall;
+export function showCountdownFromStored(raw: string | null, chosen: boolean): boolean {
+  if (raw === '0' && chosen) return false;
+  return true;
 }
 
-/** True only when a new install has no stored choice. Does not touch '0' or '1'. */
-export function shouldWriteDefaultCountdownOff(raw: string | null, hasExistingInstall: boolean): boolean {
-  if (hasExistingInstall) return false;
-  return raw !== '0' && raw !== '1';
+/** The launch path no longer writes an off default. */
+export function shouldWriteDefaultCountdownOff(_raw: string | null, _chosen: boolean): boolean {
+  return false;
 }
 
-/** What launch may do. An existing install is never asked to write a default. */
+/** What launch may do. A missing or legacy value shows the timer. */
 export function planCountdownUpgrade(
   raw: string | null,
-  hasExistingInstall: boolean,
+  chosen: boolean,
 ): { show: boolean; writeDefaultOff: boolean } {
   return {
-    show: showCountdownFromStored(raw, hasExistingInstall),
-    writeDefaultOff: shouldWriteDefaultCountdownOff(raw, hasExistingInstall),
+    show: showCountdownFromStored(raw, chosen),
+    writeDefaultOff: false,
   };
 }

@@ -37,7 +37,6 @@ import { materialPlacement } from '@/materials/restMaps';
 import {
   KLUMPEN_BOUNDS,
   sessionStoneScale,
-  savedSessionRadii,
   sessionStoneWidth,
   sessionTextureRect,
   writeKlumpenPath,
@@ -470,13 +469,14 @@ export function SessionKlumpen({
   const glowBlur = useDerivedValue(() => (pose.value.glowR < 0.5 ? 0.5 : pose.value.glowR));
   const stoneWidth = sessionStoneWidth(minutes);
   const place = useMemo(() => materialPlacement(stoneWidth, CX, CY), [stoneWidth]);
-  const customRadii = useMemo(() => savedSessionRadii(formOffsets), [formOffsets]);
+  const customRadii = null;
+  void formOffsets;
   const shadePath = useMemo(() => {
     const builder = Skia.PathBuilder.Make();
     writeKlumpenPath(builder, CX, CY, deform.sq, deform.wob, deform.size, deform.phase, 0, scale, customRadii);
     return builder.build();
   }, [customRadii, deform.phase, deform.size, deform.sq, deform.wob, scale]);
-  const keepGummiRaster = material === 'gummi' && customRadii == null;
+  const keepGummiRaster = true;
   const field = useLiveMaterial(
     material,
     shadePath,

@@ -17,6 +17,10 @@ import { fontAssets, ThemeProvider, useTheme } from '@/theme';
 SplashScreen.preventAutoHideAsync();
 preloadStoneImage(require('../../assets/okt/klumpen-okt-hvile.png'));
 preloadStoneImage(require('../../assets/okt/klumpen-okt-trykket.png'));
+preloadStoneImage(require('../../assets/hjem/klumpen-gummi-120pt.png'));
+preloadStoneImage(require('../../assets/hjem/klumpen-gummi-160pt.png'));
+preloadStoneImage(require('../../assets/hjem/klumpen-gummi-200pt.png'));
+preloadStoneImage(require('../../assets/hjem/klumpen-gummi-240pt.png'));
 
 export default function RootLayout() {
   const [loaded, error] = useFonts(fontAssets);

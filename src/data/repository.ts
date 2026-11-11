@@ -20,6 +20,8 @@ export const DURATION_KEY = 'bored.defaultDurationMinutes';
 export const ONBOARDED_KEY = 'bored.onboarded';
 export const PROFILE_KEY = 'bored.profile';
 export const SHOW_COUNTDOWN_KEY = 'bored.showCountdown';
+/** Set only when the person uses the Deg switch. A legacy '0' without this stays on. */
+export const SHOW_COUNTDOWN_CHOSEN_KEY = 'bored.showCountdownChosen';
 export const SPLASH_SEEN_KEY = 'bored.splashSeen';
 /** Older first-use key. It may have been backfilled. The since-line does not read it. */
 export const FIRST_USED_KEY = 'bored.firstUsedAt';

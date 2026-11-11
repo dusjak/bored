@@ -190,7 +190,7 @@ describe('bli kjent flow', () => {
     assert.equal(reminderPreviewBody('Dusan', 10), 'Dusan, 10 minutter. Ingenting skjer her. Det er poenget.');
     assert.equal(reminderPreviewBody('  ', 5), '5 minutter. Ingenting skjer her. Det er poenget.');
     assert.equal(PRACTICE_DIGIT_SIZE, 48);
-    assert.equal(PRACTICE_DONE, 'Avsluttet der');
+    assert.equal(PRACTICE_DONE, 'Avsluttet');
   });
 
   it('does not put the unease card on Hjem', () => {
@@ -244,7 +244,7 @@ describe('bli kjent flow', () => {
     assert.match(note, /bored\./);
     assert.match(note, /icon-1024\.png/);
     const sessionStone = readFileSync(join(root, 'src/components/SessionKlumpen.tsx'), 'utf8');
-    assert.match(sessionStone, /keepGummiRaster = material === 'gummi' && customRadii == null/);
+    assert.match(sessionStone, /keepGummiRaster = true/);
     assert.match(sessionStone, /klumpen-okt-hvile\.png/);
     assert.match(sessionStone, /!keepGummiRaster/);
     const sessionScreen = readFileSync(join(root, 'src/app/session.tsx'), 'utf8');
