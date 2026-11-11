@@ -14,6 +14,8 @@ type Props = {
   accessibilityLabel?: string;
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
+  /** Size to the label instead of stretching across the row. */
+  hug?: boolean;
 };
 
 const PAD: Record<Size, number> = { compact: 16, regular: 24, comfort: 32 };
@@ -32,6 +34,7 @@ export function Button({
   accessibilityLabel,
   style,
   textStyle,
+  hug = false,
 }: Props) {
   const { theme } = useTheme();
   const c = theme.color;
@@ -78,7 +81,7 @@ export function Button({
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
-        variant === 'tertiary' ? styles.hug : styles.full,
+        variant === 'tertiary' || hug ? styles.hug : styles.full,
         {
           height,
           paddingHorizontal: PAD[size],

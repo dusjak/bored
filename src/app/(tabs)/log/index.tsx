@@ -165,24 +165,25 @@ export default function Log() {
                       {error}
                     </Text>
                   ) : null}
-                  <View style={[styles.actions, session.journal ? styles.actionsRow : null]}>
-                    <View style={session.journal ? styles.saveSlot : undefined}>
-                      <Button
+                  <View style={[styles.actions, styles.actionsRow]}>
+                    <Button
                         title="Lagre"
                         size="compact"
+                        hug
+                        style={{ height: 32 }}
                         onPress={() => {
                           saveReflection(session.id, session.journal?.mood ?? null, draft.trim())
                             .then(() => setError(null))
                             .catch(() => setError('fikk ikke lagret. prøv igjen.'));
                         }}
                       />
-                    </View>
                     {session.journal ? (
-                      <View style={styles.deleteSlot}>
                         <Button
                           title="Slett"
                           variant="ghost"
                           size="compact"
+                          hug
+                          textStyle={{ color: theme.color.text.destructive }}
                           onPress={() => {
                             removeReflection(session.id)
                               .then(() => {
@@ -192,7 +193,6 @@ export default function Log() {
                               .catch(() => setError('fikk ikke lagret. prøv igjen.'));
                           }}
                         />
-                      </View>
                     ) : null}
                   </View>
                 </View>

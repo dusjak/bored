@@ -117,8 +117,7 @@ describe('bli kjent flow', () => {
     assert.doesNotMatch(tid, /onSkip/);
     const veiskille = readFileSync(join(dir, 'veiskille.tsx'), 'utf8');
     assert.equal(FORK_TITLE, 'Nå kan du det viktigste');
-    assert.match(veiskille, /FORK_LEAD/);
-    assert.match(readFileSync(join(root, 'src/onboarding/flow.ts'), 'utf8'), /Vil du at vi tilpasser øktene til deg\?/);
+    assert.doesNotMatch(veiskille, /FORK_LEAD|Vil du at vi tilpasser/);
     assert.match(veiskille, /Tilpass øktene/);
     assert.match(veiskille, /title="Hopp over"/);
     assert.match(veiskille, /introPath: 'skip'/);

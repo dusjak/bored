@@ -42,8 +42,11 @@ export const deg = {
   resetMinHeight: 44,
   /** «1.0.0» on the 9:41 frame sits 18 pt under the Nullstill row, not 28. */
   versionGap: 18,
-  /** Figtree’s caps sit high in the 22 pt line. Nudge labels down onto the row centre. */
-  rowTextShift: 2,
+  /**
+   * Figtree’s line box has extra space under the caps. A downward nudge
+   * left more air above the glyphs than below. 0 keeps the ink on the row centre.
+   */
+  rowTextShift: 0,
   wheelHeight: 216,
   wheelRow: 34,
   wheelInset: 8,

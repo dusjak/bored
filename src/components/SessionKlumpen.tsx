@@ -62,7 +62,8 @@ import {
 } from '@/session/holdToEnd';
 import { HOLD_A11Y_LABEL, HOLD_DONE_TEXT, HOLD_PHASE_TEXT } from '@/data/copy';
 import { drawProgress, strokeOpacity } from '@/session/trackStroke';
-import { useCachedStoneImage } from '@/session/stoneImage';
+import { KlumpenBody } from '@/components/Klumpen';
+import { minutesToIndex } from '@/duration/klumpen';
 import { useTheme } from '@/theme';
 
 /**
@@ -137,6 +138,8 @@ type Props = {
   material?: MaterialId;
   /** Saved radial form. Empty stays the base silhouette. */
   formOffsets?: readonly number[] | null;
+  /** Countdown drawn inside the shared stone. Null hides the digits. */
+  clock?: string | null;
   /** Window Y of the hold caption. The lock hint uses it at large type. */
   hintAnchorRef?: RefObject<ViewInstance | null>;
   onHintLayout?: () => void;
@@ -180,6 +183,7 @@ export function SessionKlumpen({
   children,
   material = 'gummi',
   formOffsets = null,
+  clock = null,
 }: Props) {
   const { theme } = useTheme();
   const [screenReader, setScreenReader] = useState(false);
@@ -198,6 +202,10 @@ export function SessionKlumpen({
   const settleSent = useSharedValue(0);
   const lastNow = useSharedValue(0);
   const fillMix = useSharedValue(0);
+  const stoneIndex = useSharedValue(minutesToIndex(minutes));
+  const stoneFrom = useSharedValue(minutesToIndex(minutes));
+  const stoneTo = useSharedValue(minutesToIndex(minutes));
+  const stoneU = useSharedValue(1);
   const spring = useSharedValue<SpringState>({ ...REST_SPRING });
   const palette = useSharedValue<Palette>({
     core: theme.color.glow.core,
@@ -433,8 +441,7 @@ export function SessionKlumpen({
   const scale = sessionStoneScale(minutes);
   const margins = sessionKlumpenMargins(minutes, CY, gapAbove);
   const texture = sessionTextureRect(CX, CY, scale);
-  const restImage = useCachedStoneImage(REST_SRC);
-  const pressedImage = useCachedStoneImage(PRESSED_SRC);
+  void texture;
   const fillPath = usePathValue((builder) => {
     'worklet';
     const p = pose.value;
@@ -446,8 +453,6 @@ export function SessionKlumpen({
     writeKlumpenPath(builder, CX, CY, p.sq, p.wob, p.size, p.phase, RING_OFFSET, scale, customRadii);
   });
 
-  const restOpacity = useDerivedValue(() => 1 - fillMix.value);
-  const pressedOpacity = useDerivedValue(() => pose.value.pressed * (1 - fillMix.value));
   const litGrad = useDerivedValue(() => {
     const p = pose.value;
     const pal = palette.value;
@@ -532,58 +537,6 @@ export function SessionKlumpen({
           the stone. A parent that returns no hit keeps the picture out of the hold. */}
       <View pointerEvents="none" collapsable={false} style={styles.canvasBox}>
         <Canvas style={styles.canvas} pointerEvents="none">
-          {keepGummiRaster ? (
-            restImage ? (
-              <Path path={fillPath} style="fill" opacity={restOpacity}>
-                <ImageShader
-                  image={restImage}
-                  fit="fill"
-                  x={texture.x}
-                  y={texture.y}
-                  width={texture.width}
-                  height={texture.height}
-                />
-              </Path>
-            ) : null
-          ) : field.ready && field.rimFilter ? (
-            <>
-              <Path path={fillPath} style="fill" opacity={restOpacity}>
-                <MaterialShade
-                  material={material}
-                  field={field}
-                  rect={{ x: place.tx, y: place.ty, size: place.artboardPt }}
-                />
-              </Path>
-              <Group opacity={restOpacity}>
-                <FixedRim path={fillPath} filter={field.rimFilter} />
-              </Group>
-            </>
-          ) : material === 'gummi' && restImage ? (
-            <Path path={fillPath} style="fill" opacity={restOpacity}>
-              <ImageShader
-                image={restImage}
-                fit="fill"
-                x={texture.x}
-                y={texture.y}
-                width={texture.width}
-                height={texture.height}
-              />
-            </Path>
-          ) : (
-            <Path path={fillPath} style="fill" color={theme.color.session.object} opacity={restOpacity} />
-          )}
-          {!field.ready && material === 'gummi' && pressedImage ? (
-            <Path path={fillPath} style="fill" opacity={pressedOpacity}>
-              <ImageShader
-                image={pressedImage}
-                fit="fill"
-                x={texture.x}
-                y={texture.y}
-                width={texture.width}
-                height={texture.height}
-              />
-            </Path>
-          ) : null}
           <Path path={fillPath} style="fill" color={theme.color.object.fill} opacity={fillMix} />
           <Path
             path={ringPath}
@@ -629,6 +582,16 @@ export function SessionKlumpen({
           </Path>
         </Canvas>
         <View pointerEvents="none" style={styles.dotSlot}>
+          <KlumpenBody
+            index={stoneIndex}
+            minutes={minutes}
+            reduce={reduceSv}
+            reduceMotion={false}
+            fade={{ from: stoneFrom, to: stoneTo, u: stoneU }}
+            rasterOnly
+            label={clock ?? undefined}
+            digits={clock != null}
+          />
           {children}
         </View>
       </View>

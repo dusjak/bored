@@ -34,7 +34,8 @@ import { KLUMPEN_PATH } from '@/components/klumpenPath';
 import { stonePath } from '@/onboarding/formShape';
 import type { MaterialId } from '@/materials/pathLight';
 import { FixedRim, MaterialShade, useLiveMaterial, type LiveFrame } from '@/materials/DynamicMaterial';
-import { ENGRAVED_SHADOW } from '@/materials/engraving';
+import { PinnedEngraving } from '@/materials/EngravedText';
+import { ENGRAVED_SHADOW, NUMBER_CENTER_FROM_CY, UNIT_CENTER_FROM_CY } from '@/materials/engraving';
 import { useCachedStoneImage } from '@/session/stoneImage';
 import {
   CROSSFADE_MS,
@@ -195,6 +196,9 @@ type BodyProps = {
   formOffsets?: readonly number[] | null;
   /** Onboarding keeps the four still Gummi pictures. Hjem leaves this off. */
   rasterOnly?: boolean;
+  /** Replaces the minute numeral. The session clock uses this and hides «min». */
+  label?: string;
+  digits?: boolean;
 };
 
 /** The matte stone, its number, and the size animation. Layout box is the 20-minute size, so the center stays put. */
@@ -211,6 +215,8 @@ export function KlumpenBody({
   material = 'gummi',
   formOffsets = null,
   rasterOnly = false,
+  label,
+  digits = true,
 }: BodyProps) {
   const { theme } = useTheme();
   const { fontScale } = useWindowDimensions();
@@ -289,35 +295,18 @@ export function KlumpenBody({
       ) : (
         <View style={styles.fallback} />
       )}
-      <View pointerEvents="none" style={styles.face}>
-        <RollingNumber
-          value={minutes}
-          color={STONE_NUMBER_COLOR}
-          fontSize={fontSize}
-          fontFamily={numberFamily ?? hero.fontFamily}
-          fontVariant={hero.fontVariant}
-          reduceMotion={reduceMotion}
-        />
-        {type.hideUnit ? null : (
-          <Text
-            allowFontScaling={false}
-            style={[
-              styles.unit,
-              {
-                marginTop: unitGap === NUMBER_UNIT_GAP ? homeUnitMarginTop(fontSize, unitGap) : unitGap,
-                fontFamily: numberFamily ?? theme.fonts.sansMedium,
-                color: unitColor ?? STONE_UNIT_COLOR,
-                fontSize: HOME_UNIT_FONT_SIZE,
-                lineHeight: HOME_UNIT_LINE_HEIGHT,
-                includeFontPadding: false,
-                ...ENGRAVED_SHADOW,
-              },
-            ]}
-          >
-            {DURATION_UNIT}
-          </Text>
-        )}
-      </View>
+      {digits ? (
+        <View pointerEvents="none" style={styles.face}>
+          <PinnedEngraving
+            text={label ?? String(minutes)}
+            fontSize={label ? Math.min(fontSize, Math.round(klumpWidth(minutesToIndex(minutes)) * 0.28)) : fontSize}
+            centerY={label ? 0 : NUMBER_CENTER_FROM_CY}
+          />
+          {type.hideUnit || label ? null : (
+            <PinnedEngraving text={DURATION_UNIT} fontSize={HOME_UNIT_FONT_SIZE} centerY={UNIT_CENTER_FROM_CY} />
+          )}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -636,8 +625,9 @@ export function HomeKlumpen({
             reduce={reduce}
             reduceMotion={reduceMotion}
             fade={fade}
+            ghost
             rasterOnly
-            unitGap={SHEET_NUMBER_UNIT_GAP}
+            unitGap={NUMBER_UNIT_GAP}
             numberFamily={theme.fonts.sans}
             unitColor={STONE_NUMBER_COLOR}
           />

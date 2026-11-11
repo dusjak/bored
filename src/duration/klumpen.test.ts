@@ -224,7 +224,7 @@ describe('sheet geometry', () => {
     );
     assert.ok(rowPitch(320) <= 76);
     assert.equal(sheetBottomPadding(34), 42);
-    assert.equal(HOME_STONE_CENTER_Y, 348);
+    assert.equal(HOME_STONE_CENTER_Y, 470);
     assert.equal(HINT_GAP, 28);
     assert.equal(NUMBER_UNIT_GAP, 4);
     assert.equal(SHEET_NUMBER_UNIT_GAP, 0);

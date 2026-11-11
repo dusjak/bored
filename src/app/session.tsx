@@ -315,32 +315,6 @@ export default function Session() {
         <Animated.View style={[styles.root, { opacity: dissolve }]}>
             <View pointerEvents="box-none" style={styles.stage}>
             <View pointerEvents="box-none" style={styles.column}>
-              {showCountdown || showDone ? (
-                <View style={styles.timerSlot} pointerEvents="none">
-                  {showCountdown ? (
-                    <Animated.Text
-                      accessibilityRole="timer"
-                      accessibilityLabel={`${mm} minutter og ${ss} sekunder ${REMAINING_LABEL}`}
-                      adjustsFontSizeToFit
-                      numberOfLines={1}
-                      style={[
-                        theme.text.monoTimer,
-                        styles.timer,
-                        { color: theme.color.session['text-primary'], opacity: runningOpacity },
-                      ]}
-                    >
-                      {mm}:{ss}
-                    </Animated.Text>
-                  ) : null}
-                  {showCountdown ? (
-                    <Reanimated.Text
-                      style={[theme.text.caption, styles.remaining, { color: theme.color.session['text-secondary'] }, remainingStyle]}
-                    >
-                      {REMAINING_LABEL}
-                    </Reanimated.Text>
-                  ) : null}
-                </View>
-              ) : null}
               <Animated.View
                 style={[styles.doneCopy, { opacity: doneOpacity }]}
                 pointerEvents="none"
@@ -358,8 +332,9 @@ export default function Session() {
                 showHint={!showDone}
                 fade={holdFade}
                 morph={morph}
-                gapAbove={showCountdown || showDone ? SESSION_RING_GAP : 0}
+                gapAbove={0}
                 material="gummi"
+                clock={showCountdown ? `${mm}:${ss}` : null}
                 accessibilityLabel={showDone ? `Økt fullført. ${sentence}` : HOLD_A11Y_LABEL}
                 accessibilityHint={showDone ? undefined : HOLD_A11Y_HINT}
                 accessibilityAction={!showDone}

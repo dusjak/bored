@@ -165,7 +165,7 @@ export const STONE_UNIT_COLOR = '#ADA9A2';
 
 /** Stone center on the reference 393×852 frame. */
 export const SHEET_STONE_CENTER_Y = 484;
-export const HOME_STONE_CENTER_Y = 348;
+export const HOME_STONE_CENTER_Y = 470;
 export const HINT_GAP = 28;
 
 /** Body text scale where iOS reaches AX1 (28/17). */

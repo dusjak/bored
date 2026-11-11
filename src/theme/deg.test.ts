@@ -43,7 +43,7 @@ describe('Deg v2.2', () => {
     assert.equal(deg.titleLine, 60);
     assert.equal(deg.resetGap, 30);
     assert.equal(deg.versionGap, 18);
-    assert.equal(deg.rowTextShift, 2);
+    assert.equal(deg.rowTextShift, 0);
     assert.equal(deg.fadeHeight, 150);
     assert.equal(deg.rowSize, 17);
   });

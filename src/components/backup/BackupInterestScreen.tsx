@@ -69,7 +69,7 @@ export function BackupInterestScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 24 },
+  content: { paddingBottom: 120 },
   back: { flexDirection: 'row', alignItems: 'center', minHeight: 44, alignSelf: 'flex-start' },
   spacer: { flex: 1 },
   privacy: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' },

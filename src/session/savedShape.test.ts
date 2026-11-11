@@ -30,7 +30,8 @@ describe('saved form on Hjem and the session', () => {
     const stone = readFileSync(join(root, 'src/components/SessionKlumpen.tsx'), 'utf8');
     assert.doesNotMatch(home, /formOffsets=\{user\.forms/);
     assert.match(home, /<HomeKlumpen/);
-    assert.match(session, /\{REMAINING_LABEL\}/);
+    assert.match(session, /clock=\{showCountdown \? `\$\{mm\}:\$\{ss\}` : null\}/);
+    assert.doesNotMatch(session, /\{REMAINING_LABEL\}/);
     assert.doesNotMatch(session, /formOffsets=\{stoneForm\}/);
     assert.match(klumpen, /useLiveMaterial\(material/);
     assert.match(klumpen, /useCachedStoneImage/);

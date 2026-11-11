@@ -30,7 +30,6 @@ export const PRACTICE_DIGIT_SIZE = 48;
 export const HOLD_CONTINUE_AFTER_MS = 30_000;
 
 export const FORK_TITLE = 'Nå kan du det viktigste';
-export const FORK_LEAD = 'Vil du at vi tilpasser øktene til deg?';
 export const FORK_BODY =
   'Svar på noen korte spørsmål først, så tilpasser vi øktene til deg. Det tar under ett minutt.';
 
