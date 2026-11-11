@@ -17,7 +17,6 @@ import {
   HOLD_CONTINUE_AFTER_MS,
   HOLD_TITLE,
   holdCountdown,
-  homeUneaseState,
   KJEDOMHET_BODY,
   PART1_ROUTES,
   practiceContinueReady,
@@ -178,46 +177,10 @@ describe('bli kjent flow', () => {
     assert.equal(summaryLead(10), 'Du starter med 10 minutter.');
   });
 
-  it('keeps the Hjem unease window and latches it shut', () => {
-    const none: { id: string; status: 'completed' | 'aborted'; endedAt: string }[] = [];
-    assert.deepEqual(homeUneaseState('del2', none, false), { show: true, latch: false });
-    assert.deepEqual(homeUneaseState('del2', [{ id: 'a', status: 'aborted', endedAt: '1' }], false), {
-      show: true,
-      latch: false,
-    });
-    assert.deepEqual(homeUneaseState('del2', [{ id: 'c', status: 'completed', endedAt: '2' }], false), {
-      show: false,
-      latch: true,
-    });
-    assert.deepEqual(homeUneaseState('skip', none, false), { show: false, latch: false });
-    assert.deepEqual(homeUneaseState('skip', [{ id: 'a', status: 'aborted', endedAt: '1' }], false), {
-      show: true,
-      latch: false,
-    });
-    assert.deepEqual(
-      homeUneaseState(
-        'skip',
-        [
-          { id: 'a', status: 'completed', endedAt: '1' },
-          { id: 'b', status: 'aborted', endedAt: '2' },
-        ],
-        false,
-      ),
-      { show: true, latch: false },
-    );
-    assert.deepEqual(
-      homeUneaseState(
-        'skip',
-        [
-          { id: 'a', status: 'completed', endedAt: '1' },
-          { id: 'b', status: 'completed', endedAt: '2' },
-        ],
-        false,
-      ),
-      { show: false, latch: true },
-    );
-    assert.deepEqual(homeUneaseState('del2', none, true), { show: false, latch: true });
-    assert.deepEqual(homeUneaseState(undefined, none, false), { show: false, latch: false });
+  it('does not put the unease card on Hjem', () => {
+    const home = readFileSync(join(process.cwd(), 'src/app/(tabs)/home.tsx'), 'utf8');
+    assert.equal(existsSync(join(process.cwd(), 'src/components/HomeUnease.tsx')), false);
+    assert.doesNotMatch(home, /HomeUnease|Hvis du blir urolig|HOME_UNEASE/);
   });
 
   it('does not put the unease line or a greeting on an onboarding screen', () => {
@@ -264,6 +227,7 @@ describe('bli kjent flow', () => {
     const home = readFileSync(join(process.cwd(), 'src/app/(tabs)/home.tsx'), 'utf8');
     assert.doesNotMatch(home, /Hei,/);
     assert.doesNotMatch(home, /Hei\./);
+    assert.doesNotMatch(home, /HomeUnease|Hvis du blir urolig/);
   });
 });
 

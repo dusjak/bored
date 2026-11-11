@@ -44,7 +44,7 @@ export type SessionWithJournal = SessionRecord & {
 
 export type KlumpMaterialId = 'gummi' | 'skifer' | 'kull' | 'emalje' | 'floyel';
 
-/** Which way the user left Veiskille. The Hjem unease window reads this. */
+/** Which way the user left the bridge. Skip skips the questions and the reminder. */
 export type IntroPath = 'del2' | 'skip';
 
 export type OnboardingProfile = {
