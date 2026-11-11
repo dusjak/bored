@@ -20,7 +20,7 @@ export default function MeetKlumpen() {
   const replay = isSplashReplayEnabled(isDevBuild(), easBuildProfile());
 
   return (
-    <Screen top="welcome" contentStyle={styles.content}>
+    <Screen top="app" contentStyle={styles.content}>
       <View>
         <WelcomeReveal index={0}>
           <Pressable

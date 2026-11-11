@@ -88,6 +88,8 @@ describe('bli kjent flow', () => {
     assert.match(index, /isSplashReplayEnabled/);
     assert.match(index, /replayIntroSplash\(\)/);
     assert.match(index, /Ingenting\\ner målet\./);
+    assert.match(index, /top="app"/);
+    assert.doesNotMatch(index, /top="welcome"/);
     const kjedomhet = readFileSync(join(dir, 'kjedomhet.tsx'), 'utf8');
     assert.match(kjedomhet, /KJEDOMHET_BODY/);
     assert.match(kjedomhet, /Hva er kjedsomhet\?/);
