@@ -10,6 +10,23 @@ function contourIsDrawable(points: readonly { x: number; y: number }[]): boolean
   return points.length >= 3 && points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
 }
 
+/** Default parameters are not copied into a UI worklet. A named default throws there. */
+export function workletNamedDefaults(source: string): string[] {
+  const hits: string[] = [];
+  const mark = /['"]worklet['"]/g;
+  let found: RegExpExecArray | null;
+  while ((found = mark.exec(source))) {
+    const before = source.slice(0, found.index);
+    const close = before.lastIndexOf(')');
+    const open = before.lastIndexOf('(', close);
+    if (open < 0 || close < 0) continue;
+    const params = before.slice(open + 1, close);
+    const named = params.match(/=\s*[A-Za-z_$][\w$]*/g);
+    if (named) hits.push(...named);
+  }
+  return hits;
+}
+
 describe('shaping motion', () => {
   it('eases toward the finger instead of jumping', () => {
     const current = emptyOffsets();
@@ -48,6 +65,10 @@ describe('shaping motion', () => {
     assert.equal(idle.remaining, 0);
     assert.equal(idle.next.length, FORM_BINS);
     const stone = readFileSync(join(process.cwd(), 'src/components/FormStone.tsx'), 'utf8');
+    assert.deepEqual(workletNamedDefaults(readFileSync(join(process.cwd(), 'src/onboarding/formMotion.ts'), 'utf8')), []);
+    assert.deepEqual(workletNamedDefaults(readFileSync(join(process.cwd(), 'src/onboarding/formShape.ts'), 'utf8')), []);
+    assert.deepEqual(workletNamedDefaults(stone), []);
+    assert.match(stone, /smoothClosed\(radialCage\(shown\.value, widthPt, REST_RADII\), 4\)/);
     assert.match(stone, /usePathValue/);
     assert.doesNotMatch(stone, /useDerivedValue|poke\(|_value/);
     assert.match(stone, /points\.length < 3/);

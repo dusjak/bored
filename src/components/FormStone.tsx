@@ -90,7 +90,7 @@ export function FormStone({ material, minutes, widthPt, offsets, ringColor, onCo
   // A worklet must not construct a path or hold the builder itself.
   const drawn = usePathValue((builder) => {
     'worklet';
-    const points = smoothClosed(radialCage(shown.value, widthPt, REST_RADII));
+    const points = smoothClosed(radialCage(shown.value, widthPt, REST_RADII), 4);
     const first = points[0];
     if (!first || !Number.isFinite(first.x) || !Number.isFinite(first.y) || points.length < 3) {
       builder.addCircle(cx, cy, Math.max(1, widthPt * 0.2));

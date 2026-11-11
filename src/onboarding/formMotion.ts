@@ -30,16 +30,17 @@ function catmull(p0: MotionPoint, p1: MotionPoint, p2: MotionPoint, p3: MotionPo
   };
 }
 
-/** Closed Catmull-Rom samples. `samplesPerEdge` includes the start of each segment. */
-export function smoothClosed(
-  points: readonly MotionPoint[],
-  samplesPerEdge = SMOOTH_SAMPLES,
-): MotionPoint[] {
+/**
+ * Closed Catmull-Rom samples. `samplesPerEdge` includes the start of each segment.
+ * The fallback is a literal. A default that names SMOOTH_SAMPLES is not copied
+ * into the UI worklet, so the first frame throws ReferenceError and aborts.
+ */
+export function smoothClosed(points: readonly MotionPoint[], samplesPerEdge?: number): MotionPoint[] {
   'worklet';
   const n = points.length;
   const out: MotionPoint[] = [];
   if (n < 3) return points.map((point) => ({ x: point.x, y: point.y }));
-  const steps = Math.max(1, samplesPerEdge);
+  const steps = samplesPerEdge == null || samplesPerEdge < 1 ? 4 : Math.floor(samplesPerEdge);
   for (let i = 0; i < n; i += 1) {
     const p0 = points[(i - 1 + n) % n] ?? points[0];
     const p1 = points[i] ?? points[0];
@@ -73,16 +74,17 @@ export function radialCage(
 export function followOffsets(
   current: readonly number[],
   target: readonly number[],
-  gain = SHAPE_FOLLOW,
+  gain?: number,
 ): { next: number[]; remaining: number } {
   'worklet';
+  const step = gain == null ? 0.45 : gain;
   const next: number[] = [];
   let remaining = 0;
   const count = Math.max(current.length, target.length);
   for (let i = 0; i < count; i += 1) {
     const from = current[i] ?? 0;
     const to = target[i] ?? from;
-    const value = from + (to - from) * gain;
+    const value = from + (to - from) * step;
     next.push(value);
     const gap = Math.abs(to - value);
     if (gap > remaining) remaining = gap;
