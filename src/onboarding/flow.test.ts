@@ -1,21 +1,28 @@
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
 import { QUESTIONS, ONBOARDING_STEPS } from '../data/mock.ts';
-import { SHEET_NUMBER_UNIT_GAP, NUMBER_UNIT_GAP } from '../duration/klumpen.ts';
+import { indexFromSwipe, SHEET_NUMBER_UNIT_GAP, NUMBER_UNIT_GAP, SWIPE_STEP } from '../duration/klumpen.ts';
 import {
   BLI_KJENT_STEPS,
   confirmDuration,
   DURATION_LIST,
   durationPreviewLead,
-  FORM_HELP,
+  FORK_TITLE,
+  GUESS_HELP,
   GUESS_HINT,
+  GUESS_TITLE,
+  HOLD_CONTINUE_AFTER_MS,
+  HOLD_TITLE,
+  holdCountdown,
   homeUneaseState,
   KJEDOMHET_BODY,
   PART1_ROUTES,
-  practiceWelcomeReady,
+  practiceContinueReady,
+  summaryLead,
+  summaryTitle,
 } from './flow.ts';
 import { RING_OFFSET } from '../session/holdToEnd.ts';
 import {
@@ -31,6 +38,23 @@ import {
   velvetTravel,
 } from './formShape.ts';
 
+/** A named default is not copied into a UI worklet, and Hermes throws when it runs. */
+function workletNamedDefaults(source: string): string[] {
+  const hits: string[] = [];
+  const mark = /['"]worklet['"]/g;
+  let found: RegExpExecArray | null;
+  while ((found = mark.exec(source))) {
+    const before = source.slice(0, found.index);
+    const close = before.lastIndexOf(')');
+    const open = before.lastIndexOf('(', close);
+    if (open < 0 || close < 0) continue;
+    const params = before.slice(open + 1, close);
+    const named = params.match(/=\s*[A-Za-z_$][\w$]*/g);
+    if (named) hits.push(...named);
+  }
+  return hits;
+}
+
 describe('bli kjent flow', () => {
   it('asks for duration once, then continues, and does not ask again in Del 2', () => {
     assert.equal(BLI_KJENT_STEPS, 7);
@@ -45,48 +69,68 @@ describe('bli kjent flow', () => {
     assert.equal(durationPreviewLead(20), 'Tjue minutter');
   });
 
-  it('keeps every Part 1 step mandatory and leaves Veiskille able to skip Del 2', () => {
+  it('keeps every Part 1 step mandatory and lets the bridge skip the questions', () => {
     const root = process.cwd();
     const dir = join(root, 'src/app/onboarding');
-    const skip = new Set(['ov', 'alltid']);
+    const skip = new Set(['ov']);
     for (const route of PART1_ROUTES) {
       const source = readFileSync(join(dir, `${route}.tsx`), 'utf8');
       assert.equal(source.includes('Hopp over'), skip.has(route), route);
       assert.equal(source.includes('Tilbake'), false, route);
       assert.equal(source.includes('skipBliKjent'), false, route);
+      assert.doesNotMatch(source, /LiveKlump|FormStone|formMotion|usePathValue/);
     }
     const index = readFileSync(join(dir, 'index.tsx'), 'utf8');
     assert.equal(index.includes('Jeg har allerede en konto'), false);
     assert.match(index, /SPLASH_REPLAY_HOLD_MS = 2000/);
     assert.match(index, /isSplashReplayEnabled/);
     assert.match(index, /replayIntroSplash\(\)/);
+    assert.match(index, /Ingenting\\ner målet\./);
     const kjedomhet = readFileSync(join(dir, 'kjedomhet.tsx'), 'utf8');
     assert.match(kjedomhet, /KJEDOMHET_BODY/);
+    assert.match(kjedomhet, /Hva er kjedsomhet\?/);
     assert.equal(KJEDOMHET_BODY.includes('—'), false);
-    assert.match(kjedomhet, /Form klumpen/);
+    assert.match(kjedomhet, /Fortsett/);
     assert.match(kjedomhet, /digits=\{false\}/);
-    const form = readFileSync(join(dir, 'form.tsx'), 'utf8');
-    assert.match(form, /FORM_HELP/);
-    assert.equal(FORM_HELP, 'Dra i kantene. Det finnes ingen riktig fasong.');
-    assert.match(form, /Velg klumpen/);
-    assert.match(form, /user\.materialId \?\? 'gummi'/);
-    assert.match(form, /\.\.\.user\.forms/);
+    assert.match(kjedomhet, /minutes=\{10\}/);
+    assert.equal(existsSync(join(dir, 'form.tsx')), false);
+    assert.equal(existsSync(join(dir, 'se.tsx')), false);
+    assert.equal(existsSync(join(dir, 'alltid.tsx')), false);
     const tid = readFileSync(join(dir, 'tid.tsx'), 'utf8');
     assert.match(tid, /showChoices=\{false\}/);
     assert.match(tid, /GUESS_HINT/);
+    assert.match(tid, /outline/);
+    assert.equal(GUESS_TITLE, 'Velg en tid du klarer');
+    assert.equal(GUESS_HELP, 'Du kan endre den etter hver økt.');
     assert.equal(GUESS_HINT, 'Sveip for å endre tiden');
+    assert.ok(indexFromSwipe(1, SWIPE_STEP) > indexFromSwipe(1, -SWIPE_STEP));
     assert.match(tid, /router\.push\('\/onboarding\/ov'\)/);
     assert.doesNotMatch(tid, /onSkip/);
     const veiskille = readFileSync(join(dir, 'veiskille.tsx'), 'utf8');
-    assert.match(veiskille, /Hopp over og start første økt/);
-    assert.match(veiskille, /Lag planen min/);
-    assert.doesNotMatch(veiskille, /IntroStone|Del 2 er valgfri/);
-    assert.match(veiskille, /replace\('\/session'\)/);
+    assert.equal(FORK_TITLE, 'Nå kan du det viktigste');
+    assert.match(veiskille, /Tilpass øktene/);
+    assert.match(veiskille, /title="Hopp over"/);
+    assert.match(veiskille, /introPath: 'skip'/);
+    assert.match(veiskille, /pathname: '\/onboarding\/name'/);
+    assert.doesNotMatch(veiskille, /replace\('\/session'\)|beginSession|completeOnboarding/);
     const name = readFileSync(join(dir, 'name.tsx'), 'utf8');
     assert.match(name, /title="Hopp over"/);
+    assert.match(name, /KeyboardAvoidingView/);
+    assert.match(name, /after === 'ready'/);
     const questions = readFileSync(join(root, 'src/components/QuestionStep.tsx'), 'utf8');
     assert.match(questions, /<OnboardingHeader/);
     assert.doesNotMatch(questions, /dots=\{false\}/);
+    const picture = readFileSync(join(root, 'src/components/GummiPicture.tsx'), 'utf8');
+    for (const size of [120, 160, 200, 240]) {
+      assert.match(picture, new RegExp(`klumpen-gummi-${size}pt\\.png`));
+      assert.equal(existsSync(join(root, `assets/hjem/klumpen-gummi-${size}pt@3x.png`)), true, String(size));
+    }
+    assert.doesNotMatch(picture, /useLiveMaterial|usePathValue|worklet/);
+    assert.deepEqual(workletNamedDefaults(picture), []);
+    assert.deepEqual(workletNamedDefaults(readFileSync(join(root, 'src/onboarding/formShape.ts'), 'utf8')), []);
+    assert.deepEqual(workletNamedDefaults(readFileSync(join(root, 'src/components/LiveKlump.tsx'), 'utf8')), []);
+    assert.equal(existsSync(join(root, 'src/components/FormStone.tsx')), false);
+    assert.equal(existsSync(join(root, 'src/onboarding/formMotion.ts')), false);
   });
 
   it('drops the Part 1 dots and the stack pop, and keeps the duration pan on the stone', () => {
@@ -119,9 +163,19 @@ describe('bli kjent flow', () => {
     assert.match(sheet, /Hvor lang tid har du i dag\?/);
   });
 
-  it('opens Til velkommen only after the practice hold', () => {
-    assert.equal(practiceWelcomeReady(false), false);
-    assert.equal(practiceWelcomeReady(true), true);
+  it('shows Fortsett after the hold, or after 30 seconds, and counts down from the guess', () => {
+    assert.equal(practiceContinueReady(false, 0), false);
+    assert.equal(practiceContinueReady(false, HOLD_CONTINUE_AFTER_MS - 1), false);
+    assert.equal(practiceContinueReady(false, HOLD_CONTINUE_AFTER_MS), true);
+    assert.equal(practiceContinueReady(true, 0), true);
+    assert.equal(HOLD_TITLE.endsWith('.'), false);
+    assert.equal(holdCountdown(20, 0), '20:00');
+    assert.equal(holdCountdown(20, 1500), '19:59');
+    assert.equal(holdCountdown(5, 5 * 60 * 1000), '0:00');
+    assert.equal(summaryTitle('Dusan'), 'Dusan, la oss starte');
+    assert.equal(summaryTitle('  '), 'La oss starte');
+    assert.equal(summaryLead(10, 'om morgenen', 'mental ro'), 'Du starter med 10 minutter om morgenen, med mål om mental ro.');
+    assert.equal(summaryLead(10), 'Du starter med 10 minutter.');
   });
 
   it('keeps the Hjem unease window and latches it shut', () => {
@@ -177,25 +231,33 @@ describe('bli kjent flow', () => {
     }
   });
 
-  it('starts the skip session directly and keeps the sheet gap off the Hjem correction', () => {
-    const veiskille = readFileSync(join(process.cwd(), 'src/app/onboarding/veiskille.tsx'), 'utf8');
-    assert.match(veiskille, /replace\('\/session'\)/);
-    assert.doesNotMatch(veiskille, /\/home/);
-    const stone = readFileSync(join(process.cwd(), 'src/components/LiveKlump.tsx'), 'utf8');
-    const practice = readFileSync(join(process.cwd(), 'src/app/onboarding/ov.tsx'), 'utf8');
-    const intro = readFileSync(join(process.cwd(), 'src/components/IntroStone.tsx'), 'utf8');
-    const material = readFileSync(join(process.cwd(), 'src/materials/DynamicMaterial.tsx'), 'utf8');
+  it('keeps the session stone live and the practice stone a still picture', () => {
+    const root = process.cwd();
+    const veiskille = readFileSync(join(root, 'src/app/onboarding/veiskille.tsx'), 'utf8');
+    assert.doesNotMatch(veiskille, /\/home|\/session/);
+    const stone = readFileSync(join(root, 'src/components/LiveKlump.tsx'), 'utf8');
+    const practice = readFileSync(join(root, 'src/app/onboarding/ov.tsx'), 'utf8');
+    const ready = readFileSync(join(root, 'src/app/onboarding/ready.tsx'), 'utf8');
+    const note = readFileSync(join(root, 'src/app/onboarding/notifications.tsx'), 'utf8');
+    const material = readFileSync(join(root, 'src/materials/DynamicMaterial.tsx'), 'utf8');
     assert.match(stone, /useLiveMaterial/);
     assert.match(stone, /FixedRim/);
     assert.match(stone, /RING_OFFSET/);
     assert.match(stone, /outsetContour/);
-    assert.match(intro, /LiveKlump/);
-    assert.doesNotMatch(intro, /STONE_COLOR/);
+    assert.match(practice, /GummiPicture/);
     assert.match(practice, /drawProgress/);
-    assert.doesNotMatch(practice, /borderRadius:\s*999/);
+    assert.match(practice, /HOLD_PHASE_TEXT/);
+    assert.match(practice, /HOLD_CONTINUE_AFTER_MS/);
+    assert.match(practice, /text\.link/);
+    assert.doesNotMatch(practice, /router\.push\('\/onboarding\/alltid'\)|borderRadius:\s*999|useLiveMaterial/);
+    assert.match(ready, /summaryTitle\(user\.name\)/);
+    assert.match(ready, /Start din første økt/);
+    assert.doesNotMatch(ready, /Utforsk appen først|la oss starte\./);
+    assert.match(note, /title="En stille påminnelse"/);
+    assert.match(note, /opacity: enabled \? 1 : 0\.4/);
     assert.match(material, /kull\/glint\.png/);
     assert.doesNotMatch(material, /material !== 'kull'/);
-    const chooser = readFileSync(join(process.cwd(), 'src/components/DurationChooser.tsx'), 'utf8');
+    const chooser = readFileSync(join(root, 'src/components/DurationChooser.tsx'), 'utf8');
     assert.match(chooser, /SHEET_NUMBER_UNIT_GAP/);
     assert.equal(SHEET_NUMBER_UNIT_GAP, 0);
     assert.equal(NUMBER_UNIT_GAP, 4);

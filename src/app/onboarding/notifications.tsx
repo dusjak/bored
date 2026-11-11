@@ -49,11 +49,16 @@ export default function NotificationsStep() {
       <OnboardingHeader
         step={6}
         helpGap={4}
-        title="En stille påminnelse."
+        title="En stille påminnelse"
         sub="Ingen lyder. Ingen merker. Bare en enkel melding. Du bestemmer selv om du svarer."
       />
 
-      <View style={[styles.preview, { backgroundColor: theme.color.surface.default }]}>
+      <View
+        style={[
+          styles.preview,
+          { backgroundColor: theme.color.surface.default, opacity: enabled ? 1 : 0.4 },
+        ]}
+      >
         <Text style={[theme.text.monoMeta, { color: theme.color.text.tertiary, marginBottom: 8 }]}>{timeLabel}</Text>
         <Text style={[theme.text.bodySmall, { color: theme.color.text.primary }]}>
           {user.name ? `${user.name}, ` : ''}

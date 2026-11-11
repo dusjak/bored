@@ -74,23 +74,15 @@ describe('form lighting plan', () => {
     assert.equal(legacy.cache.material, 'kull');
   });
 
-  it('wires the hold into the form stone and leaves the session path alone', () => {
+  it('leaves the session path on the live material and keeps shaping out of onboarding', () => {
     const root = process.cwd();
-    const form = readFileSync(join(root, 'src/app/onboarding/form.tsx'), 'utf8');
-    const stone = readFileSync(join(root, 'src/components/FormStone.tsx'), 'utf8');
     const hook = readFileSync(join(root, 'src/materials/DynamicMaterial.tsx'), 'utf8');
     const session = readFileSync(join(root, 'src/components/SessionKlumpen.tsx'), 'utf8');
-    assert.match(form, /<FormStone/);
-    assert.equal((form.match(/<Canvas/g) ?? []).length, 0);
-    assert.match(stone, /Gesture\.Pan\(\)/);
-    assert.match(stone, /useFrameCallback/);
-    assert.match(stone, /usePathValue/);
-    assert.equal((stone.match(/<Canvas/g) ?? []).length, 1);
-    assert.doesNotMatch(stone, /setOffsets|setState/);
-    assert.match(stone, /runOnJS\(publish\)/);
+    const picture = readFileSync(join(root, 'src/components/GummiPicture.tsx'), 'utf8');
     assert.match(hook, /const fieldKey = lightingKey \?\? clip/);
     assert.match(hook, /makeFixedRimFilter\(uploaded\.rimK\)/);
     assert.doesNotMatch(session, /planFormLighting/);
     assert.match(session, /useLiveMaterial/);
+    assert.doesNotMatch(picture, /useLiveMaterial|planFormLighting|<Canvas/);
   });
 });

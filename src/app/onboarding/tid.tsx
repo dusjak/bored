@@ -2,28 +2,18 @@ import { Text } from 'react-native';
 import { router } from 'expo-router';
 
 import { DurationChooser } from '@/components/DurationChooser';
-import { LiveKlump } from '@/components/LiveKlump';
+import { GummiPicture } from '@/components/GummiPicture';
 import { Screen } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
-import {
-  confirmedMinutes,
-  defaultMaterial,
-  FORM_STONE_PT,
-  GUESS_HELP,
-  GUESS_HINT,
-  GUESS_TITLE,
-} from '@/onboarding/flow';
-import { emptyOffsets } from '@/onboarding/formShape';
+import { confirmedMinutes, GUESS_HELP, GUESS_HINT, GUESS_TITLE } from '@/onboarding/flow';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
-/** Guess on the shaped lump. The 5/10/15/20 row is not on this screen. */
+/** Guess on the fixed Gummi pictures. Right grows the time. The row stays hidden. */
 export default function TidStep() {
   const { theme } = useTheme();
   const { user, updateUser, setDurationMinutes } = useAppState();
   const current = confirmedMinutes(user.duration);
-  const material = defaultMaterial(user.materialId);
-  const offsets = user.forms?.[material] ?? emptyOffsets();
 
   const save = (minutes: number) => {
     updateUser({ duration: String(minutes), materialId: user.materialId ?? 'gummi' });
@@ -40,9 +30,7 @@ export default function TidStep() {
         showChoices={false}
         hint={GUESS_HINT}
         confirmTitle="Velg tiden"
-        stone={(value) => (
-          <LiveKlump material={material} minutes={value} offsets={offsets} widthPt={FORM_STONE_PT} />
-        )}
+        stone={(value) => <GummiPicture minutes={value} outline />}
         onConfirm={save}
       />
     </Screen>

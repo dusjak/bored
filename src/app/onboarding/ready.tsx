@@ -5,6 +5,7 @@ import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
 import { capitalize, GOAL_LABELS, TIME_PHRASES } from '@/data/mock';
+import { confirmedMinutes, summaryLead, summaryTitle } from '@/onboarding/flow';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
 
@@ -12,19 +13,20 @@ import { useTheme } from '@/theme';
 export default function Ready() {
   const { theme } = useTheme();
   const { user, completeOnboarding, beginSession } = useAppState();
-  const goal = (user.goal && GOAL_LABELS[user.goal]) || 'mental ro';
-  const time = (user.time && TIME_PHRASES[user.time]) || 'om morgenen';
-  const dur = user.duration ?? '10';
+  const minutes = confirmedMinutes(user.duration);
+  const goal = user.goal ? GOAL_LABELS[user.goal] : undefined;
+  const time = user.time ? TIME_PHRASES[user.time] : undefined;
+  const reminderOn = user.notifications === true && Boolean(time);
 
   const rows = [
-    { label: 'Daglig varighet', val: `${dur} min`, numeric: true },
-    { label: 'Påminnelse', val: user.notifications === false ? 'Av' : capitalize(time), numeric: false },
-    { label: 'Mål', val: capitalize(goal), numeric: false },
+    { label: 'Daglig varighet', val: `${minutes} min`, numeric: true },
+    { label: 'Påminnelse', val: reminderOn && time ? capitalize(time) : 'Av', numeric: false },
+    ...(goal ? [{ label: 'Mål', val: capitalize(goal), numeric: false }] : []),
   ];
 
   const start = async () => {
     await completeOnboarding();
-    await beginSession(parseInt(dur, 10) || 10);
+    await beginSession(minutes);
     router.replace('/home');
     router.push('/session');
   };
@@ -38,10 +40,10 @@ export default function Ready() {
             color={theme.color.session['text-primary']}
             style={{ marginBottom: 8 }}
           >
-            {user.name ? `${user.name}, la oss starte.` : 'La oss starte.'}
+            {summaryTitle(user.name)}
           </ScreenTitle>
           <Text style={[theme.text.body, { color: theme.color.session['text-secondary'] }]}>
-            Du starter med {dur} minutter {time}, med mål om {goal}.
+            {summaryLead(minutes, time, goal)}
           </Text>
         </View>
         {rows.map((row) => (
@@ -59,17 +61,7 @@ export default function Ready() {
         ))}
       </View>
 
-      <View style={{ gap: 4 }}>
-        <Button title="Start din første økt" variant="inverse" onPress={start} />
-        <Button
-          title="Utforsk appen først"
-          variant="darkGhost"
-          onPress={async () => {
-            await completeOnboarding();
-            router.replace('/home');
-          }}
-        />
-      </View>
+      <Button title="Start din første økt" variant="inverse" onPress={start} />
     </Screen>
   );
 }

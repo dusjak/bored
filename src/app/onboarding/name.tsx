@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/Button';
@@ -12,6 +12,7 @@ import { useTheme } from '@/theme';
 export default function NameStep() {
   const { theme } = useTheme();
   const { user, updateUser } = useAppState();
+  const { after } = useLocalSearchParams<{ after?: string }>();
   const insets = useSafeAreaInsets();
   const [name, setName] = useState(user.name ?? '');
   const [keyboardOpen, setKeyboardOpen] = useState(false);
@@ -29,7 +30,8 @@ export default function NameStep() {
 
   const next = (value: string) => {
     updateUser({ name: value });
-    router.push('/onboarding/notifications');
+    const skipped = after === 'ready' || user.introPath === 'skip';
+    router.push(skipped ? '/onboarding/ready' : '/onboarding/notifications');
   };
 
   return (

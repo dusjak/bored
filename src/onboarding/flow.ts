@@ -1,47 +1,33 @@
 import type { IntroPath, KlumpMaterialId } from '../data/types.ts';
 
 /**
- * Onboarding, 16 screens.
- * Del 1 has no back arrow. Del 2 keeps the arrow. Neither stack accepts a swipe.
- * Gummi is the material for a profile that has not chosen one. Stored materials stay.
- * The unease box on Hjem is separate from the practice screen.
+ * Onboarding, 13 screens. No shaping.
+ * Del 1 has no back arrow. The bridge and Del 2 keep the arrow.
+ * A swipe never changes step. The guess swipe only changes 5/10/15/20.
+ * Stored materials stay in the profile. This flow does not read or write them.
  */
 
 export const BLI_KJENT_STEPS = 7;
 
-/** Stone width while the person shapes and guesses. It does not grow with the minutes. */
-export const FORM_STONE_PT = 200;
-
-/**
- * Del 1 routes. No back arrow and no skip, except the hold and the screen after it.
- * The stack gesture is off for every onboarding route, not only these.
- */
-export const PART1_ROUTES = ['index', 'kjedomhet', 'form', 'se', 'tid', 'ov', 'alltid'] as const;
+/** Del 1. No back arrow. Hopp over exists only on the hold screen. */
+export const PART1_ROUTES = ['index', 'kjedomhet', 'tid', 'ov'] as const;
 
 export const KJEDOMHET_BODY =
-  'Ingen er helt enige. Her blir din kjedsomhet en klump. Form den slik du kjenner den, så har du den med deg i hver økt.';
+  'Det er vanskelig å sette ord på, og den kjennes ulik for alle. Her har vi gitt den en form: en klump du tar med deg inn i hver økt.';
 
-export const FORM_TITLE = 'Gi den din form';
-export const FORM_HELP = 'Dra i kantene. Det finnes ingen riktig fasong.';
-
-export const SE_TITLE = 'Sånn ser kjedsomheten din ut';
-export const SE_BODY =
-  'Dette er klumpen din. Den holder tiden mens du kjeder deg, så du slipper å se på mobilen.';
-
-export const GUESS_TITLE = 'Hvor lenge klarer du å kjede deg, tror du?';
-export const GUESS_HELP = 'Bare gjett. Du kan endre det etter hver økt.';
+export const GUESS_TITLE = 'Velg en tid du klarer';
+export const GUESS_HELP = 'Du kan endre den etter hver økt.';
 export const GUESS_HINT = 'Sveip for å endre tiden';
 
 export const HOLD_TITLE = 'Du kan alltid bryte økten hvis du blir urolig';
 export const HOLD_BODY = 'Uro og tunge tanker kan dukke opp. Vil du ut, holder du inne klumpen.';
 export const HOLD_HINT = 'Hold klumpen inne';
+/** Fortsett appears by this time even if the hold was never finished. */
+export const HOLD_CONTINUE_AFTER_MS = 30_000;
 
-export const DONE_TITLE = 'Du bestemmer. Alltid.';
-export const DONE_BODY = 'Du avsluttet øvingen. Like enkelt er det i en ekte økt.';
-
-export const FORK_TITLE = 'Vil du ha litt hjelp før første økt?';
+export const FORK_TITLE = 'Nå kan du det viktigste';
 export const FORK_BODY =
-  'Svar på noen korte spørsmål, så lager vi en plan som passer deg. Det tar et par minutter.';
+  'Svar på noen korte spørsmål, så tilpasser vi øktene til deg. Det tar under ett minutt.';
 
 export const DURATION_LIST_TITLE = 'Hvor lang tid har du?';
 export const DURATION_LIST_HELP = 'Vi starter her. Du kan alltid endre det.';
@@ -71,9 +57,33 @@ export function confirmDuration(minutes: number): { minutes: number; to: 'ov' } 
   return { minutes, to: 'ov' };
 }
 
-/** «Til velkommen» exists only after the practice hold completes. */
-export function practiceWelcomeReady(completed: boolean): boolean {
-  return completed;
+/** Fortsett after a finished hold, or once the screen has been open for 30 s. */
+export function practiceContinueReady(completed: boolean, elapsedMs: number): boolean {
+  return completed || elapsedMs >= HOLD_CONTINUE_AFTER_MS;
+}
+
+/** Countdown from the chosen minutes. It does not run ahead of the finger. */
+export function holdCountdown(totalMinutes: number, elapsedMs: number): string {
+  const total = Math.max(0, totalMinutes) * 60;
+  const left = Math.max(0, total - Math.floor(Math.max(0, elapsedMs) / 1000));
+  const minutes = Math.floor(left / 60);
+  const seconds = left % 60;
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+/** The summary names the person only when they gave a name. No period in the title. */
+export function summaryTitle(name: string | undefined): string {
+  const trimmed = name?.trim() ?? '';
+  return trimmed ? `${trimmed}, la oss starte` : 'La oss starte';
+}
+
+/** Skip path has no time and no goal, so the sentence does not invent either. */
+export function summaryLead(minutes: number, timePhrase?: string, goalPhrase?: string): string {
+  const base = `Du starter med ${minutes} minutter`;
+  if (timePhrase && goalPhrase) return `${base} ${timePhrase}, med mål om ${goalPhrase}.`;
+  if (timePhrase) return `${base} ${timePhrase}.`;
+  if (goalPhrase) return `${base}, med mål om ${goalPhrase}.`;
+  return `${base}.`;
 }
 
 export type EndedSession = {

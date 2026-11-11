@@ -69,7 +69,7 @@ describe('texture swatches', () => {
     const tekstur = readFileSync(join(root, 'src/app/onboarding/tekstur.tsx'), 'utf8');
     const swatch = readFileSync(join(root, 'src/components/MaterialSwatch.tsx'), 'utf8');
     assert.deepEqual(VISIBLE_MATERIALS, ['gummi', 'skifer', 'floyel']);
-    assert.match(tekstur, /Redirect href="\/onboarding\/form"/);
+    assert.match(tekstur, /Redirect href="\/onboarding\/kjedomhet"/);
     assert.doesNotMatch(tekstur, /LiveKlump|MaterialSwatch|VISIBLE_MATERIALS/);
     assert.doesNotMatch(swatch, /kull\.png|emalje\.png|useLiveMaterial|readPixels|<Canvas/);
 
