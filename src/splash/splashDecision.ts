@@ -35,7 +35,14 @@ export type SplashDecision = {
   fadeMs: number;
   /** Crash fallback writes bored.splashSeen immediately, so a throw cannot loop. */
   markSeenNow: boolean;
+  /** Why this mode was chosen. Logged on device in dev builds. */
+  reason: string;
 };
+
+/** One line for the dev console: occasion, mode, reason. */
+export function splashDecisionLog(occasion: SplashOccasion, decision: SplashDecision): string {
+  return `[splash] ${occasion} ${decision.mode} ${decision.reason}`;
+}
 
 const FIRST_PLAY = new Set<SplashOccasion>(['first-launch', 'after-reset']);
 
@@ -60,7 +67,7 @@ export function decideSplash(input: {
 }): SplashDecision {
   const fadeMs = exitFadeMs(input.darkTheme);
   if (input.occasion === 'session') {
-    return { mode: 'none', holdMs: 0, fadeMs: 0, markSeenNow: false };
+    return { mode: 'none', holdMs: 0, fadeMs: 0, markSeenNow: false, reason: 'session' };
   }
   if (input.animationFailed) {
     return {
@@ -68,22 +75,23 @@ export function decideSplash(input: {
       holdMs: crashHoldMs(input.elapsedMs ?? 0),
       fadeMs,
       markSeenNow: true,
+      reason: 'animation-failed',
     };
   }
   // A short return leaves at once, even under Reduce Motion. The plate is already up.
   if (input.occasion === 'background-return' && input.calmSplash === false) {
-    return { mode: 'drape', holdMs: 0, fadeMs, markSeenNow: false };
+    return { mode: 'drape', holdMs: 0, fadeMs, markSeenNow: false, reason: 'short-return' };
   }
   if (input.reduceMotion) {
-    return { mode: 'drape', holdMs: REDUCE_HOLD_MS, fadeMs, markSeenNow: false };
+    return { mode: 'drape', holdMs: REDUCE_HOLD_MS, fadeMs, markSeenNow: false, reason: 'reduce-motion' };
   }
   if (!input.sluketEnabled) {
-    return { mode: 'drape', holdMs: STILL_HOLD_MS, fadeMs, markSeenNow: false };
+    return { mode: 'drape', holdMs: STILL_HOLD_MS, fadeMs, markSeenNow: false, reason: 'kill-switch' };
   }
   if (isFirstPlay(input.occasion)) {
-    return { mode: 'mega', holdMs: 0, fadeMs: 0, markSeenNow: false };
+    return { mode: 'mega', holdMs: 0, fadeMs: 0, markSeenNow: false, reason: 'first-play' };
   }
-  return { mode: 'pust', holdMs: PUST_MOTION_MS, fadeMs, markSeenNow: false };
+  return { mode: 'pust', holdMs: PUST_MOTION_MS, fadeMs, markSeenNow: false, reason: 'later-play' };
 }
 
 /** Cold start, after storage has been read. */
@@ -139,6 +147,20 @@ export function reduceSplashAppState(input: {
   calm: boolean;
 }): SplashAppReduction {
   if (input.event === 'inactive' || input.event === 'unknown' || input.event === 'extension') {
+    return {
+      sawBackground: input.sawBackground,
+      phase: input.phase,
+      occasion: input.occasion,
+      armHold: input.armHold,
+      backgroundAtMs: input.backgroundAtMs,
+      calm: input.calm,
+    };
+  }
+  // React Native reports `background` for UIApplicationWillEnterForegroundNotification,
+  // including a cold start. That event used to replace a first play with a short
+  // return, so MegaSplash never mounted and the wordmark (Dråpe) showed instead.
+  // A first play stays a first play until it hands off.
+  if (isFirstPlay(input.occasion) && input.phase !== 'off') {
     return {
       sawBackground: input.sawBackground,
       phase: input.phase,

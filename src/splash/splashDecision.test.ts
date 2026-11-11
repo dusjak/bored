@@ -18,6 +18,7 @@ import {
   reduceSplashAppState,
   shouldPersistSplashSeen,
   splashAfterReset,
+  splashDecisionLog,
   splashReplay,
   splashSuppressed,
 } from './splashDecision.ts';
@@ -68,8 +69,46 @@ describe('splash decision', () => {
     assert.deepEqual(boot, { occasion: 'first-launch', phase: 'play' });
     const decision = decideSplash({ ...base, occasion: boot.occasion });
     assert.equal(decision.mode, 'mega');
+    assert.equal(decision.reason, 'first-play');
     assert.equal(decision.fadeMs, 0);
     assert.equal(decision.markSeenNow, false);
+    assert.equal(splashDecisionLog(boot.occasion, decision), '[splash] first-launch mega first-play');
+  });
+
+  it('keeps MegaSplash when iOS reports background during a first play', () => {
+    const away = background({
+      event: 'background',
+      phase: 'play',
+      occasion: 'first-launch',
+      armHold: true,
+      nowMs: 500,
+    });
+    assert.equal(away.occasion, 'first-launch');
+    assert.equal(away.phase, 'play');
+    assert.equal(away.armHold, true);
+    assert.equal(away.sawBackground, false);
+    const back = background({
+      event: 'active',
+      sawBackground: away.sawBackground,
+      phase: away.phase,
+      occasion: away.occasion,
+      armHold: away.armHold,
+      nowMs: 520,
+      backgroundAtMs: away.backgroundAtMs,
+      calm: away.calm,
+    });
+    assert.equal(back.occasion, 'first-launch');
+    assert.equal(back.phase, 'play');
+    assert.equal(decideSplash({ ...base, occasion: back.occasion }).mode, 'mega');
+    const reset = background({
+      event: 'background',
+      phase: 'play',
+      occasion: 'after-reset',
+      armHold: true,
+      nowMs: 800,
+    });
+    assert.equal(reset.occasion, 'after-reset');
+    assert.equal(reset.phase, 'play');
   });
 
   it('plays MegaSplash after Nullstill', () => {
@@ -271,6 +310,21 @@ describe('splash decision', () => {
     assert.equal(shouldPersistSplashSeen({ phase: 'fade', crashed: false, occasion: 'first-launch' }), false);
     assert.equal(shouldPersistSplashSeen({ phase: 'fade', crashed: false, occasion: 'background-return' }), false);
     assert.equal(shouldPersistSplashSeen({ phase: 'off', crashed: false, occasion: 'later-launch' }), false);
+  });
+});
+
+describe('splash root cause', () => {
+  it('logs the decision in dev and mounts MegaSplash from the root layout', () => {
+    const overlay = readFileSync(new URL('../components/SluketSplash.tsx', import.meta.url), 'utf8');
+    const root = readFileSync(new URL('../app/_layout.tsx', import.meta.url), 'utf8');
+    const state = readFileSync(new URL('../state/AppState.tsx', import.meta.url), 'utf8');
+    const mix = readFileSync(new URL('./sluketMix.ts', import.meta.url), 'utf8');
+    assert.match(overlay, /if \(typeof __DEV__ === 'undefined' \|\| __DEV__ !== true\) return;/);
+    assert.match(overlay, /console\.log\(decisionLine\)/);
+    assert.match(root, /<SluketSplash/);
+    assert.match(state, /occasionRef\.current = splash\.occasion;/);
+    assert.ok(state.indexOf('occasionRef.current = splash.occasion;') < state.indexOf('setSplashOccasion(splash.occasion);'));
+    assert.match(mix, /try \{[\s\S]*Skia\.RuntimeEffect\.Make/);
   });
 });
 

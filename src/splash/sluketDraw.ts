@@ -157,12 +157,21 @@ export type SplashPlate =
 
 /**
  * Raster of one swallow frame, owned by the JS thread.
- * The 4 pt grid (8 pt in Low Power) is an offscreen surface. The paint-mix
- * shader runs there. `under` is the unmixed ink, drawn behind the mix so a
- * shader that comes back clear cannot hide the swallow.
- * A missing GPU surface falls back to the picture itself.
+ * The 4 pt grid (8 pt in Low Power) is a CPU surface (`Surface.Make`).
+ * The paint-mix shader runs there. `under` is the unmixed ink, drawn behind
+ * the mix so a shader that comes back clear cannot hide the swallow.
+ *
+ * On iOS a GPU offscreen surface belongs to the calling thread's Metal
+ * context (`MetalContext::getInstance` is thread_local). This function runs
+ * on the JS thread, and the canvas draws on the UI thread, so that GPU image
+ * never appears. The screen stays the wordmark. A CPU snapshot can be drawn
+ * from either thread. A missing raster surface falls back to the picture.
  * Not a UI-runtime function: iOS drops pictures created off the JS thread.
  */
+function rasterSurface(width: number, height: number) {
+  return Skia.Surface.Make(width, height);
+}
+
 export function presentSplash(input: {
   picture: SkPicture;
   width: number;
@@ -175,7 +184,7 @@ export function presentSplash(input: {
   const cell = Math.max(1, input.cell);
   const bufW = Math.max(1, Math.round(input.width / cell));
   const bufH = Math.max(1, Math.round(input.height / cell));
-  const surface = Skia.Surface.MakeOffscreen(bufW, bufH) ?? Skia.Surface.Make(bufW, bufH);
+  const surface = rasterSurface(bufW, bufH);
   if (!surface) return { kind: 'picture', picture: input.picture };
   const canvas = surface.getCanvas();
   canvas.scale(bufW / input.width, bufH / input.height);
@@ -188,7 +197,7 @@ export function presentSplash(input: {
       [input.mix.m, mixShaderUnits(input.mix.radius, cell), mixShaderUnits(input.mix.sigma, cell)],
       [child],
     );
-    const mixed = Skia.Surface.MakeOffscreen(bufW, bufH) ?? Skia.Surface.Make(bufW, bufH);
+    const mixed = rasterSurface(bufW, bufH);
     if (!mixed) return { kind: 'image', image: base, under: null };
     const paint = Skia.Paint();
     paint.setShader(shader);

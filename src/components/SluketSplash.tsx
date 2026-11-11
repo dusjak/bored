@@ -1,9 +1,9 @@
-import { Component, type ReactNode } from 'react';
+import { Component, useEffect, type ReactNode } from 'react';
 import { useReducedMotion } from 'react-native-reanimated';
 
 import { StillSplash, type SplashProps } from '@/components/StillSplash';
 import { features } from '@/config/features';
-import { decideSplash, type SplashOccasion } from '@/splash/splashDecision';
+import { decideSplash, splashDecisionLog, type SplashOccasion } from '@/splash/splashDecision';
 import { CRASH_HOLD_MIN_MS, exitFadeMs, PUST_MOTION_MS } from '@/splash/splashTiming';
 
 export type { SplashProps };
@@ -106,6 +106,12 @@ export function SluketSplash({
     calmSplash,
   });
   const tuned: SplashProps = { ...plate, holdMs: decision.holdMs, fadeMs: decision.fadeMs };
+  const decisionLine = splashDecisionLog(occasion, decision);
+  useEffect(() => {
+    // Dev only. A TestFlight or production bundle has __DEV__ false, so this stays quiet there.
+    if (typeof __DEV__ === 'undefined' || __DEV__ !== true) return;
+    console.log(decisionLine);
+  }, [decisionLine]);
   // The background snapshot is the rest mark. Keep Pust mounted while that plate is up
   // so a long return starts the breathe without swapping components.
   const coverReturn =

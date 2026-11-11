@@ -154,4 +154,18 @@ half4 main(float2 xy) {
 }
 `;
 
-export const sluketMixEffect: SkRuntimeEffect | null = Skia.RuntimeEffect.Make(SOURCE);
+/**
+ * Native `RuntimeEffect.Make` throws on a bad shader (it does not return null).
+ * A throw while this module loads is a render error, so the splash boundary
+ * would replace MegaSplash with Dråpe and write bored.splashSeen. A failed
+ * compile just skips the mix. The pebbles still draw.
+ */
+function compileMix(source: string): SkRuntimeEffect | null {
+  try {
+    return Skia.RuntimeEffect.Make(source);
+  } catch {
+    return null;
+  }
+}
+
+export const sluketMixEffect: SkRuntimeEffect | null = compileMix(SOURCE);

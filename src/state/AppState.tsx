@@ -235,12 +235,20 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             setLaunch('session');
           }
           const splash = initialSplash({ splashSeen: splashSeen === '1', inSessionOrReflection: true });
+          // Write the refs before setState. An AppState event between the two
+          // would otherwise still see the previous occasion and replace MegaSplash.
+          occasionRef.current = splash.occasion;
+          phaseRef.current = splash.phase;
+          holdRef.current = splash.phase !== 'off';
           setSplashOccasion(splash.occasion);
           setIntroPhaseState(splash.phase);
           setSplashHoldArmed(splash.phase !== 'off');
         } else {
           setLaunch(isOnboarded ? 'home' : 'onboarding');
           const splash = initialSplash({ splashSeen: splashSeen === '1', inSessionOrReflection: false });
+          occasionRef.current = splash.occasion;
+          phaseRef.current = splash.phase;
+          holdRef.current = true;
           setSplashOccasion(splash.occasion);
           setIntroPhaseState(splash.phase);
           setSplashHoldArmed(true);
@@ -392,6 +400,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const beginIntroSplash = useCallback(() => {
     const splash = splashAfterReset();
+    occasionRef.current = splash.occasion;
+    phaseRef.current = splash.phase;
+    calmRef.current = true;
+    holdRef.current = true;
     setSplashOccasion(splash.occasion);
     setSplashCalm(true);
     setIntroPhaseState(splash.phase);
@@ -402,6 +414,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const replayIntroSplash = useCallback(() => {
     const splash = splashReplay();
+    occasionRef.current = splash.occasion;
+    phaseRef.current = splash.phase;
+    calmRef.current = true;
+    holdRef.current = true;
     setSplashOccasion(splash.occasion);
     setSplashCalm(true);
     setIntroPhaseState(splash.phase);
