@@ -1,8 +1,14 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
 import { FORM_BINS, REST_RADII, emptyOffsets } from './formShape.ts';
 import { followOffsets, radialCage, smoothClosed } from './formMotion.ts';
+
+function contourIsDrawable(points: readonly { x: number; y: number }[]): boolean {
+  return points.length >= 3 && points.every((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+}
 
 describe('shaping motion', () => {
   it('eases toward the finger instead of jumping', () => {
@@ -33,5 +39,18 @@ describe('shaping motion', () => {
     }
     assert.ok(far < 200);
     assert.ok(far > 40);
+  });
+
+  it('starts from a drawable rest contour and does not build a Skia path inside the worklet', () => {
+    const rest = smoothClosed(radialCage(emptyOffsets(), 200, REST_RADII));
+    assert.equal(contourIsDrawable(rest), true);
+    const idle = followOffsets(emptyOffsets(), emptyOffsets(), 0.45);
+    assert.equal(idle.remaining, 0);
+    assert.equal(idle.next.length, FORM_BINS);
+    const stone = readFileSync(join(process.cwd(), 'src/components/FormStone.tsx'), 'utf8');
+    assert.match(stone, /usePathValue/);
+    assert.doesNotMatch(stone, /useDerivedValue|poke\(|_value/);
+    assert.match(stone, /points\.length < 3/);
+    assert.match(stone, /addCircle/);
   });
 });

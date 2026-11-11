@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
-import { runOnJS, useDerivedValue, useFrameCallback, useSharedValue } from 'react-native-reanimated';
+import { runOnJS, useFrameCallback, useSharedValue } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
-import { Canvas, Circle, Group, Path, Skia } from '@shopify/react-native-skia';
+import { Canvas, Circle, Group, Path, Skia, usePathValue } from '@shopify/react-native-skia';
 
 import type { KlumpMaterialId } from '@/data/types';
 import { FixedRim, MaterialShade, useLiveMaterial } from '@/materials/DynamicMaterial';
@@ -78,29 +78,32 @@ export function FormStone({ material, minutes, widthPt, offsets, ringColor, onCo
   useFrameCallback(() => {
     'worklet';
     const step = followOffsets(shown.value, target.value, SHAPE_FOLLOW);
-    if (step.remaining < 0.04 && dragging.value === 0) return;
+    if (!Number.isFinite(step.remaining) || step.remaining < 0.04) return;
     shown.value = step.next;
-  });
-
-  const drawn = useDerivedValue(() => {
-    'worklet';
-    const points = smoothClosed(radialCage(shown.value, widthPt, REST_RADII));
-    const builder = Skia.PathBuilder.Make();
-    const first = points[0];
-    if (!first) return builder.build();
-    builder.moveTo(cx + first.x, cy + first.y);
-    for (let i = 1; i < points.length; i += 1) {
-      const point = points[i];
-      if (point) builder.lineTo(cx + point.x, cy + point.y);
-    }
-    builder.close();
-    return builder.build();
   });
 
   const settled = useMemo(
     () => pathFrom(smoothClosed(radialCage(offsets, widthPt, REST_RADII)), cx, cy),
     [cx, cy, offsets, widthPt],
   );
+  // Same hook Hjem uses. The builder stays inside Skia.
+  // A worklet must not construct a path or hold the builder itself.
+  const drawn = usePathValue((builder) => {
+    'worklet';
+    const points = smoothClosed(radialCage(shown.value, widthPt, REST_RADII));
+    const first = points[0];
+    if (!first || !Number.isFinite(first.x) || !Number.isFinite(first.y) || points.length < 3) {
+      builder.addCircle(cx, cy, Math.max(1, widthPt * 0.2));
+      return;
+    }
+    builder.moveTo(cx + first.x, cy + first.y);
+    for (let i = 1; i < points.length; i += 1) {
+      const point = points[i];
+      if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
+      builder.lineTo(cx + point.x, cy + point.y);
+    }
+    builder.close();
+  });
   const field = useLiveMaterial(
     material,
     settled,

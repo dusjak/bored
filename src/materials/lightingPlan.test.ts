@@ -84,7 +84,7 @@ describe('form lighting plan', () => {
     assert.equal((form.match(/<Canvas/g) ?? []).length, 0);
     assert.match(stone, /Gesture\.Pan\(\)/);
     assert.match(stone, /useFrameCallback/);
-    assert.match(stone, /useDerivedValue/);
+    assert.match(stone, /usePathValue/);
     assert.equal((stone.match(/<Canvas/g) ?? []).length, 1);
     assert.doesNotMatch(stone, /setOffsets|setState/);
     assert.match(stone, /runOnJS\(publish\)/);
