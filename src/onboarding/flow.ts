@@ -35,9 +35,16 @@ export const HOLD_CONTINUE_AFTER_MS = 30_000;
 
 export const FORK_TITLE = 'Nå kan du det viktigste';
 export const FORK_BODY =
-  'Neste del handler om deg: hva du griper etter, hvordan hodet ditt er og når det passer. Fem korte spørsmål, under ett minutt.';
-/** Eyebrow above the non-interactive first question. */
-export const FORK_PREVIEW_LABEL = 'Første spørsmål';
+  'Resten handler om deg. Noen korte spørsmål, så tilpasser vi øktene. Det tar under ett minutt.';
+export const FORK_NOW = 'Det kan du nå';
+export const FORK_LATER = 'Dette tilpasser vi';
+export const FORK_KNOWN = ['Klumpen er kjedsomheten din', 'Hold klumpen inne for å gå ut'] as const;
+export const FORK_OPEN = ['Hva du griper etter', 'Hvordan hodet ditt er', 'Når det passer best'] as const;
+
+/** The middle receipt line names the minutes chosen on the time step. */
+export function forkDurationLine(minutes: number): string {
+  return `Du starter med ${minutes} minutter`;
+}
 
 export const DURATION_LIST_TITLE = 'Hvor lang tid har du?';
 export const DURATION_LIST_HELP = 'Vi starter her. Du kan alltid endre det.';

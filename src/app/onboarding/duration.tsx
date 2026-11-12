@@ -44,5 +44,5 @@ export default function DurationStep() {
 const styles = StyleSheet.create({
   screen: { paddingBottom: space['8'] },
   scroll: { flex: 1 },
-  options: { paddingBottom: space['6'], gap: 10 },
+  options: { paddingBottom: space['6'] },
 });

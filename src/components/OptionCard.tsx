@@ -18,6 +18,9 @@ type Props = {
   question?: boolean;
 };
 
+/** Space between Del 2 option cards. The card margin is the gap. Do not add another. */
+export const OPTION_LIST_GAP = 10;
+
 /** Onboarding option. Selected uses the ink fill. */
 export function OptionCard({ label, sub, icon, selected, onPress, inert = false, question = false }: Props) {
   const { theme } = useTheme();
@@ -80,13 +83,13 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     paddingHorizontal: 18,
     borderWidth: 1,
-    marginBottom: 10,
+    marginBottom: OPTION_LIST_GAP,
     minHeight: 44,
   },
   question: {
     height: 68,
     minHeight: 68,
-    marginBottom: 10,
+    marginBottom: OPTION_LIST_GAP,
     paddingVertical: 0,
     borderWidth: 1,
   },

@@ -58,7 +58,7 @@ export default function NotificationsStep() {
           { backgroundColor: theme.color.surface.default, opacity: enabled ? 1 : 0.4 },
         ]}
       >
-        <Image source={require('../../../assets/icon/icon-1024.png')} style={styles.icon} />
+        <AppIcon dark={theme.name === 'dark'} ground={theme.color.bg.default} edge={theme.color.border.default} />
         <View style={styles.copy}>
           <Text style={[styles.appName, { color: theme.color.text.primary, fontFamily: theme.fonts.sansSemiBold }]}>
             bored.
@@ -69,7 +69,7 @@ export default function NotificationsStep() {
         </View>
       </View>
 
-      <View style={[styles.toggleRow, { borderColor: theme.color.border.default }]}>
+      <View style={styles.toggleRow}>
         <View style={{ flex: 1, paddingRight: 12 }}>
           <Text style={[theme.text.label, { color: theme.color.text.primary }]}>Skru på varsler</Text>
           <Text style={[theme.text.caption, { color: theme.color.text.tertiary, marginTop: 2 }]}>
@@ -91,6 +91,39 @@ export default function NotificationsStep() {
   );
 }
 
+const ICON = 44;
+/**
+ * The stone in the 1024 app icon sits in a field the same colour as the card.
+ * At 44 pt the whole canvas reads as empty space, so the frame shows the stone.
+ */
+const STONE_CX = 602.5;
+const STONE_CY = 615;
+const WINDOW = 420;
+
+function AppIcon({ dark, ground, edge }: { dark: boolean; ground: string; edge: string }) {
+  const scale = ICON / WINDOW;
+  const display = 1024 * scale;
+  return (
+    <View
+      style={[
+        styles.icon,
+        { borderColor: edge, backgroundColor: dark ? ground : 'transparent' },
+      ]}
+    >
+      <Image
+        source={dark ? require('../../../assets/icon/icon-1024-dark.png') : require('../../../assets/icon/icon-1024.png')}
+        style={{
+          position: 'absolute',
+          width: display,
+          height: display,
+          left: ICON / 2 - STONE_CX * scale,
+          top: ICON / 2 - STONE_CY * scale,
+        }}
+      />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   preview: {
     borderRadius: 16,
@@ -101,7 +134,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  icon: { width: 44, height: 44, borderRadius: 10 },
+  icon: { width: ICON, height: ICON, borderRadius: 10, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth },
   copy: { flex: 1 },
   appName: { fontSize: 15, lineHeight: 20, marginBottom: 2 },
   toggleRow: {
@@ -109,8 +142,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingVertical: 12,
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
     minHeight: 44,
   },
 });

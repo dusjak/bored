@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import Svg, { Path } from 'react-native-svg';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useReducedMotion } from 'react-native-reanimated';
@@ -28,8 +27,7 @@ import {
 } from '@/onboarding/flow';
 import { drawProgress, strokeOpacity } from '@/session/trackStroke';
 import { phaseIndex, sampleHold } from '@/session/holdToEnd';
-import { KLUMPEN_PATH } from '@/components/klumpenPath';
-import { KLUMPEN_BOUNDS, klumpHeight, klumpWidth } from '@/duration/klumpen';
+import { klumpHeight, klumpWidth } from '@/duration/klumpen';
 import { practiceHintGap } from '@/onboarding/practiceLayout';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
@@ -150,7 +148,6 @@ export default function PracticeStep() {
   const stoneW = klumpWidth(3);
   const stoneH = klumpHeight(stoneW);
   const reveal = reduceMotion ? 4000 : clockMs;
-  const silhouette = Math.min(1, reveal / 300);
   const gummiOpacity = reveal < 700 ? 0 : Math.min(1, (reveal - 700) / 600);
   const digitOpacity = reveal < 1300 ? 0 : Math.min(1, (reveal - 1300) / 400);
   const chromeOpacity = reveal < 1450 ? 0 : Math.min(1, (reveal - 1450) / 400);
@@ -176,14 +173,6 @@ export default function PracticeStep() {
           onPressOut={end}
         >
           <View style={{ width: stoneW, height: stoneH, alignItems: 'center', justifyContent: 'center' }}>
-            <Svg
-              width={stoneW}
-              height={stoneH}
-              viewBox={`${KLUMPEN_BOUNDS.x} ${KLUMPEN_BOUNDS.y} ${KLUMPEN_BOUNDS.width} ${KLUMPEN_BOUNDS.height}`}
-              style={[StyleSheet.absoluteFill, { opacity: silhouette }]}
-            >
-              <Path d={KLUMPEN_PATH} fill="#2B2A27" />
-            </Svg>
             <View style={{ opacity: gummiOpacity }}>
               <GummiPicture minutes={minutes} digits={false} />
             </View>

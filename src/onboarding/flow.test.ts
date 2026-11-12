@@ -11,8 +11,12 @@ import {
   DURATION_LIST,
   durationPreviewLead,
   FORK_BODY,
-  FORK_PREVIEW_LABEL,
+  FORK_KNOWN,
+  FORK_LATER,
+  FORK_NOW,
+  FORK_OPEN,
   FORK_TITLE,
+  forkDurationLine,
   PRACTICE_DIGIT_SIZE,
   PRACTICE_DONE,
   GUESS_HELP,
@@ -124,15 +128,20 @@ describe('bli kjent flow', () => {
     assert.equal(FORK_BODY.includes('—'), false);
     assert.equal(
       FORK_BODY,
-      'Neste del handler om deg: hva du griper etter, hvordan hodet ditt er og når det passer. Fem korte spørsmål, under ett minutt.',
+      'Resten handler om deg. Noen korte spørsmål, så tilpasser vi øktene. Det tar under ett minutt.',
     );
-    assert.equal(FORK_PREVIEW_LABEL, 'Første spørsmål');
-    assert.match(veiskille, /FORK_PREVIEW_LABEL/);
-    assert.match(veiskille, /QUESTIONS\.distraction/);
-    assert.match(veiskille, /inert/);
-    assert.match(veiskille, /accessibilityElementsHidden/);
-    assert.match(veiskille, /importantForAccessibility="no-hide-descendants"/);
-    assert.match(veiskille, /pointerEvents="none"/);
+    assert.equal(FORK_NOW, 'Det kan du nå');
+    assert.equal(FORK_LATER, 'Dette tilpasser vi');
+    assert.deepEqual([...FORK_KNOWN], ['Klumpen er kjedsomheten din', 'Hold klumpen inne for å gå ut']);
+    assert.deepEqual([...FORK_OPEN], ['Hva du griper etter', 'Hvordan hodet ditt er', 'Når det passer best']);
+    assert.equal(forkDurationLine(10), 'Du starter med 10 minutter');
+    assert.equal(forkDurationLine(15), 'Du starter med 15 minutter');
+    assert.match(veiskille, /FORK_NOW/);
+    assert.match(veiskille, /FORK_LATER/);
+    assert.match(veiskille, /forkDurationLine\(minutes\)/);
+    assert.match(veiskille, /OPTION_LIST_GAP/);
+    assert.match(veiskille, /OnboardingHeader/);
+    assert.doesNotMatch(veiskille, /FORK_PREVIEW_LABEL|QUESTIONS|QuestionPreview/);
     assert.doesNotMatch(veiskille, /FORK_LEAD|Vil du at vi tilpasser/);
     assert.match(veiskille, /Tilpass øktene/);
     assert.match(veiskille, /title="Hopp over"/);
@@ -259,6 +268,14 @@ describe('bli kjent flow', () => {
     assert.match(note, /reminderPreviewBody/);
     assert.match(note, /bored\./);
     assert.match(note, /icon-1024\.png/);
+    assert.match(note, /icon-1024-dark\.png/);
+    assert.doesNotMatch(note, /borderTopWidth|borderBottomWidth/);
+    assert.doesNotMatch(practice, /fill="#2B2A27"/);
+    const duration = readFileSync(join(root, 'src/app/onboarding/duration.tsx'), 'utf8');
+    const cards = readFileSync(join(root, 'src/components/OptionCard.tsx'), 'utf8');
+    assert.match(cards, /export const OPTION_LIST_GAP = 10/);
+    assert.match(cards, /marginBottom: OPTION_LIST_GAP/);
+    assert.doesNotMatch(duration, /gap:\s*10/);
     const sessionStone = readFileSync(join(root, 'src/components/SessionKlumpen.tsx'), 'utf8');
     assert.match(sessionStone, /keepGummiRaster = true/);
     assert.match(sessionStone, /klumpen-okt-hvile\.png/);
