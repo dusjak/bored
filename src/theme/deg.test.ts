@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
 import {
@@ -29,6 +31,10 @@ describe('Deg v2.2', () => {
     assert.equal(deg.rowMinHeight, 50);
     assert.equal(deg.rowInset, 16);
     assert.equal(deg.separator, 0.5);
+    const group = readFileSync(join(process.cwd(), 'src/components/SettingsGroup.tsx'), 'utf8');
+    assert.match(group, /left: deg\.rowInset/);
+    assert.match(group, /right: deg\.rowInset/);
+    assert.doesNotMatch(group, /right: 0/);
     assert.equal(deg.footerGap, 7);
     // Two caption lines, then the same 32 pt that separates cards with no footer.
     assert.equal(deg.footerGap + 18 + 18 + deg.groupGap, 75);
