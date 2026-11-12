@@ -90,6 +90,8 @@ type AppStateValue = {
   firstUsedAt: string | null;
   /** Wipes local data and scheduled alerts. Does not change the OS notification permission. */
   resetLocalData: () => Promise<void>;
+  /** Re-reads onboarding, duration, and sessions after the dev demo seed. */
+  reloadStoredState: () => Promise<void>;
   /**
    * play = MegaSplash. still = Pust or Dråpe (the plate is up).
    * fade = the plate is leaving. enter = MegaSplash handed off and welcome rises.
@@ -492,6 +494,26 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setLaunch('onboarding');
   }, []);
 
+  const reloadStoredState = useCallback(async () => {
+    const [profile, onboardedRaw, durationRaw, trusted, finished] = await Promise.all([
+      getProfile(),
+      getSetting(ONBOARDED_KEY),
+      getSetting(DURATION_KEY),
+      getSetting(FIRST_USED_TRUSTED_KEY),
+      listFinishedSessions(),
+    ]);
+    setUser(profile);
+    const isOnboarded = onboardedRaw === '1';
+    setOnboarded(isOnboarded);
+    const parsed = parseInt(durationRaw ?? '', 10);
+    setDurationState(clampDurationMinutes(Number.isFinite(parsed) ? parsed : DEFAULT_DURATION_MINUTES));
+    setFirstUsedAt(trusted);
+    setSessions(finished);
+    setActiveSession(null);
+    setReflectionSessionId(null);
+    setLaunch(isOnboarded ? 'home' : 'onboarding');
+  }, []);
+
   const deleteSession = useCallback(async (sessionId: string) => {
     const active = activeRef.current;
     if (active?.id === sessionId) {
@@ -533,6 +555,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       refreshDailyReminder,
       firstUsedAt,
       resetLocalData,
+      reloadStoredState,
       introPhase,
       splashOccasion,
       splashCalm,
@@ -572,6 +595,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       refreshDailyReminder,
       firstUsedAt,
       resetLocalData,
+      reloadStoredState,
       introPhase,
       splashOccasion,
       splashCalm,
