@@ -483,6 +483,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const trusted = new Date().toISOString();
     await setSetting(FIRST_USED_TRUSTED_KEY, trusted);
     setFirstUsedAt(trusted);
+    // Last write. A handoff that was already in flight cannot leave the flag set.
+    await setSetting(SPLASH_SEEN_KEY, '0');
     setSessions([]);
     setActiveSession(null);
     setReflectionSessionId(null);

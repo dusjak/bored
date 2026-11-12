@@ -29,7 +29,7 @@ export const QUESTIONS: Record<QuestionKey, Question> = {
     sub: 'Når det plutselig er 5 ledige minutter.',
     next: '/onboarding/state',
     options: [
-      { id: 'phone', label: 'Telefonen', sub: 'Instagram, nyheter, noe — hva som helst' },
+      { id: 'phone', label: 'Telefonen', sub: 'Instagram, nyheter, hva som helst' },
       { id: 'podcast', label: 'Musikk eller podkast', sub: 'Lyd fyller stillheten' },
       { id: 'mat', label: 'Mat eller drikke', sub: 'Noe i munnen, noe i hendene' },
       { id: 'work', label: 'Mer jobb', sub: 'Produktivitet som trøst' },

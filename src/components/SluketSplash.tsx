@@ -52,7 +52,6 @@ class SplashErrorBoundary extends Component<BoundaryProps, BoundaryState> {
         elapsedMs: elapsed,
       });
       this.setState({ holdMs: decision.holdMs, fadeMs: decision.fadeMs });
-      if (decision.markSeenNow) this.props.onCrash();
       return;
     }
     const left = Math.max(CRASH_HOLD_MIN_MS, PUST_MOTION_MS - elapsed);

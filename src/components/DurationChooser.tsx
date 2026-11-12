@@ -139,9 +139,11 @@ export function DurationChooser({
 
   const step = (direction: 1 | -1) => apply(selectedRef.current + direction, 0);
 
+  const stoneHeight = klumpHeight(klumpWidth(3));
   return (
-    <View style={styles.fill}>
-      <StoneAnchor height={klumpHeight(klumpWidth(3))} style={styles.stone}>
+    <>
+      <View style={styles.fill} />
+      <StoneAnchor height={stoneHeight}>
         <View style={styles.lump} {...pan.panHandlers}>
           {stone ? (
             stone(shown)
@@ -153,6 +155,8 @@ export function DurationChooser({
               reduceMotion={reduceMotion}
               fade={fade}
               ghost
+              ghostColor="#F8F6F2"
+              ghostOpacity={0.55}
               rasterOnly
               unitGap={SHEET_NUMBER_UNIT_GAP}
               numberFamily={theme.fonts.sans}
@@ -224,7 +228,7 @@ export function DurationChooser({
         title={confirmTitle}
         onPress={() => onConfirm(PRESET_MINUTES[selectedRef.current] ?? PRESET_MINUTES[1])}
       />
-    </View>
+    </>
   );
 }
 
@@ -232,7 +236,7 @@ const styles = StyleSheet.create({
   fill: { flex: 1 },
   stone: { minHeight: ROW_HIT },
   lump: { alignItems: 'center', overflow: 'visible' },
-  hint: { position: 'absolute', top: '100%', marginTop: 18, textAlign: 'center', width: 280 },
+  hint: { position: 'absolute', top: '100%', marginTop: 24, textAlign: 'center', width: 280 },
   row: { flexDirection: 'row', alignSelf: 'center', marginBottom: 8 },
   choice: { alignItems: 'center', minHeight: ROW_HIT },
 });

@@ -89,7 +89,9 @@ describe('bli kjent flow', () => {
     assert.match(index, /SPLASH_REPLAY_HOLD_MS = 2000/);
     assert.match(index, /isSplashReplayEnabled/);
     assert.match(index, /replayIntroSplash\(\)/);
-    assert.match(index, /Ingenting\\ner målet\./);
+    assert.match(index, /accessibilityLabel="Ingenting er målet\."/);
+    assert.match(index, /kjedsomhet, bevisst og regelmessig/);
+    assert.doesNotMatch(index, /kjedsomhet —/);
     assert.match(index, /top="app"/);
     assert.doesNotMatch(index, /top="welcome"/);
     const kjedomhet = readFileSync(join(dir, 'kjedomhet.tsx'), 'utf8');
@@ -97,14 +99,13 @@ describe('bli kjent flow', () => {
     assert.match(kjedomhet, /Hva er kjedsomhet\?/);
     assert.equal(KJEDOMHET_BODY.includes('—'), false);
     assert.match(kjedomhet, /Fortsett/);
-    assert.match(kjedomhet, /digits=\{false\}/);
-    assert.match(kjedomhet, /minutes=\{10\}/);
+    assert.match(kjedomhet, /PressOutLump/);
     assert.equal(existsSync(join(dir, 'form.tsx')), false);
     assert.equal(existsSync(join(dir, 'se.tsx')), false);
     assert.equal(existsSync(join(dir, 'alltid.tsx')), false);
     const tid = readFileSync(join(dir, 'tid.tsx'), 'utf8');
     const chooserSrc = readFileSync(join(root, 'src/components/DurationChooser.tsx'), 'utf8');
-    assert.doesNotMatch(tid, /showChoices=\{false\}/);
+    assert.match(tid, /showChoices=\{false\}/);
     assert.match(tid, /GUESS_HINT/);
     assert.doesNotMatch(tid, /GummiPicture|stone=/);
     assert.match(chooserSrc, /rasterOnly/);
@@ -243,7 +244,8 @@ describe('bli kjent flow', () => {
     assert.match(practice, /HOLD_CONTINUE_AFTER_MS/);
     assert.match(practice, /PRACTICE_DONE/);
     assert.match(practice, /PracticeRing/);
-    assert.match(practice, /holdCountdown\(minutes, clockMs\)/);
+    assert.match(practice, /PRACTICE_CLOCK_START_MS/);
+    assert.match(practice, /holdCountdown\(minutes, clockRun\)/);
     assert.match(practice, /text\.link/);
     const ring = readFileSync(join(root, 'src/components/PracticeRing.tsx'), 'utf8');
     assert.match(ring, /SWEEP_NORTH = -Math\.PI \/ 2/);

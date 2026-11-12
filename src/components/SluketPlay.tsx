@@ -16,6 +16,7 @@ import {
   MEGA_MS,
   MIX_OFF_AT,
   SPLASH_BG,
+  splashPlateRatio,
   stimulusLimit,
   WORDMARK_EXIT_MS,
   wordmarkExitPose,
@@ -35,7 +36,8 @@ export function SluketPlay({ onHandoff, onFirstPaint, armed }: SplashProps) {
   const stimuli = useMemo(() => createStimuli(), []);
   const [plate, setPlate] = useState<SplashPlate | null>(null);
   const pose = useSharedValue(wordmarkExitPose(0));
-  const handed = useRef(false);
+    const handed = useRef(false);
+    const showedPlate = useRef(false);
   const doneRef = useRef(false);
   const onHandoffRef = useRef(onHandoff);
   const onFirstPaintRef = useRef(onFirstPaint);
@@ -116,11 +118,14 @@ export function SluketPlay({ onHandoff, onFirstPaint, armed }: SplashProps) {
             picture,
             width: w,
             height: h,
-            pixelRatio: PixelRatio.get(),
+            pixelRatio: splashPlateRatio(PixelRatio.get()),
             mix: mixed ? { m: drawn.mixM, radius: drawn.mixR, sigma: drawn.sigma } : null,
             effect: mixed ? sluketMixEffect : null,
           });
-          if (alive) setPlate(next);
+          if (alive && next.kind === 'image') {
+            showedPlate.current = true;
+            setPlate(next);
+          }
           pose.value = drawn.logo;
         } catch {
           // The wordmark still has to leave and come back if a frame cannot be drawn.
@@ -128,7 +133,8 @@ export function SluketPlay({ onHandoff, onFirstPaint, armed }: SplashProps) {
         }
       }
       if (t >= MEGA_MS) {
-        finish('enter');
+        // No pebble frame: leave without storing splashSeen, so the next open retries Mega.
+        finish(showedPlate.current ? 'enter' : 'fade');
         return;
       }
       raf = requestAnimationFrame(step);

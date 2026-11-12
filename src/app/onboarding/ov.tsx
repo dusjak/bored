@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useReducedMotion } from 'react-native-reanimated';
 
 import { Button } from '@/components/Button';
 import { GummiPicture } from '@/components/GummiPicture';
+import { PinnedEngraving } from '@/materials/EngravedText';
+import { ENGRAVED_NUMBER_TRACKING_EM } from '@/materials/engraving';
 import { PracticeRing, type PracticeRingLook } from '@/components/PracticeRing';
 import { Screen } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
@@ -18,12 +21,15 @@ import {
   HOLD_HINT,
   HOLD_TITLE,
   holdCountdown,
+  PRACTICE_CLOCK_SIZE,
+  PRACTICE_CLOCK_START_MS,
   PRACTICE_DONE,
   practiceContinueReady,
 } from '@/onboarding/flow';
 import { drawProgress, strokeOpacity } from '@/session/trackStroke';
 import { phaseIndex, sampleHold } from '@/session/holdToEnd';
-import { klumpHeight, klumpWidth } from '@/duration/klumpen';
+import { KLUMPEN_PATH } from '@/components/klumpenPath';
+import { KLUMPEN_BOUNDS, klumpHeight, klumpWidth } from '@/duration/klumpen';
 import { practiceHintGap } from '@/onboarding/practiceLayout';
 import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
@@ -38,7 +44,7 @@ const REST_RING: PracticeRingLook = {
   en: 0,
 };
 
-/** Practice hold. The clock runs from the moment the step opens. */
+/** Practice hold. The engraved clock stays on 10:00 until 1.70 s, then runs. */
 export default function PracticeStep() {
   const { theme } = useTheme();
   const reduceMotion = useReducedMotion() === true;
@@ -143,6 +149,12 @@ export default function PracticeStep() {
   const showContinue = practiceContinueReady(done, unlocked ? HOLD_CONTINUE_AFTER_MS : 0);
   const stoneW = klumpWidth(3);
   const stoneH = klumpHeight(stoneW);
+  const reveal = reduceMotion ? 4000 : clockMs;
+  const silhouette = Math.min(1, reveal / 300);
+  const gummiOpacity = reveal < 700 ? 0 : Math.min(1, (reveal - 700) / 600);
+  const digitOpacity = reveal < 1300 ? 0 : Math.min(1, (reveal - 1300) / 400);
+  const chromeOpacity = reveal < 1450 ? 0 : Math.min(1, (reveal - 1450) / 400);
+  const clockRun = Math.max(0, clockMs - PRACTICE_CLOCK_START_MS);
 
   return (
     <Screen top="app" contentStyle={styles.content}>
@@ -150,7 +162,8 @@ export default function PracticeStep() {
       <ScreenTitle style={{ marginBottom: 8 }}>{HOLD_TITLE}</ScreenTitle>
       <Text style={[theme.text.body, { color: theme.color.text.link }]}>{HOLD_BODY}</Text>
       </View>
-      <StoneAnchor height={stoneH} style={styles.stone}>
+      <View style={styles.spacer} />
+      <StoneAnchor height={stoneH}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Øv hold"
@@ -162,8 +175,26 @@ export default function PracticeStep() {
           onPressIn={begin}
           onPressOut={end}
         >
-          <View style={{ width: stoneW, height: stoneH }}>
-            <GummiPicture minutes={minutes} label={holdCountdown(minutes, clockMs)} />
+          <View style={{ width: stoneW, height: stoneH, alignItems: 'center', justifyContent: 'center' }}>
+            <Svg
+              width={stoneW}
+              height={stoneH}
+              viewBox={`${KLUMPEN_BOUNDS.x} ${KLUMPEN_BOUNDS.y} ${KLUMPEN_BOUNDS.width} ${KLUMPEN_BOUNDS.height}`}
+              style={[StyleSheet.absoluteFill, { opacity: silhouette }]}
+            >
+              <Path d={KLUMPEN_PATH} fill="#2B2A27" />
+            </Svg>
+            <View style={{ opacity: gummiOpacity }}>
+              <GummiPicture minutes={minutes} digits={false} />
+            </View>
+            <View style={[StyleSheet.absoluteFill, { opacity: digitOpacity }]} pointerEvents="none">
+              <PinnedEngraving
+                text={holdCountdown(minutes, clockRun)}
+                fontSize={PRACTICE_CLOCK_SIZE}
+                centerY={0}
+                trackingEm={ENGRAVED_NUMBER_TRACKING_EM}
+              />
+            </View>
             <PracticeRing minutes={minutes} look={ring} />
           </View>
         </Pressable>
@@ -171,7 +202,11 @@ export default function PracticeStep() {
           style={[
             theme.text.caption,
             styles.status,
-            { marginTop: practiceHintGap(minutes), color: done ? theme.color.text.link : theme.color.text.tertiary },
+            {
+              marginTop: practiceHintGap(minutes),
+              opacity: chromeOpacity,
+              color: done ? theme.color.text.link : theme.color.text.tertiary,
+            },
           ]}
         >
           {hint}
@@ -180,12 +215,14 @@ export default function PracticeStep() {
       {showContinue ? (
         <Button title="Fortsett" onPress={() => router.push('/onboarding/veiskille')} />
       ) : null}
-      <Button
-        title="Hopp over"
-        variant="ghost"
-        style={showContinue ? { marginTop: 8 } : undefined}
-        onPress={() => router.push('/onboarding/veiskille')}
-      />
+      <View style={{ opacity: chromeOpacity }}>
+        <Button
+          title="Hopp over"
+          variant="ghost"
+          style={showContinue ? { marginTop: 8 } : undefined}
+          onPress={() => router.push('/onboarding/veiskille')}
+        />
+      </View>
     </Screen>
   );
 }
@@ -193,6 +230,6 @@ export default function PracticeStep() {
 const styles = StyleSheet.create({
   content: { paddingBottom: 24 },
   copy: { minHeight: 140 },
-  stone: { overflow: 'visible' },
+  spacer: { flex: 1 },
   status: { textAlign: 'center' },
 });

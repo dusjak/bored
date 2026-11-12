@@ -18,6 +18,7 @@ import {
   logoPose,
   LOW_POWER_COUNT,
   MEGA_MS,
+  splashPlateRatio,
   megaPhase,
   massIn,
   MERGE,
@@ -52,6 +53,13 @@ import {
 const PHONE = { width: 393, height: 852 };
 
 describe('sluket v5 preset C', () => {
+  it('caps the plate at 2× so a 3× phone stays sharp without a blank frame', () => {
+    assert.equal(splashPlateRatio(3), 2);
+    assert.equal(splashPlateRatio(2), 2);
+    assert.equal(splashPlateRatio(1), 1);
+    assert.equal(splashPlateRatio(0), 1);
+  });
+
   it('is always dark and does not read the theme', () => {
     assert.equal(SPLASH_BG, '#111110');
     assert.equal(SPLASH_INK, '#F8F6F2');
@@ -307,7 +315,7 @@ describe('sluket v5 preset C', () => {
     assert.equal(draw.includes('Surface.Make'), true);
     assert.equal(draw.includes('pixelRatio'), true);
     assert.equal(draw.includes('MakeOffscreen'), false);
-    assert.equal(play.includes('PixelRatio.get()'), true);
+    assert.equal(play.includes('splashPlateRatio(PixelRatio.get())'), true);
     assert.equal(play.includes('FilterMode.Linear'), true);
     assert.equal(functionBodies(draw).get('rasterSurface')?.body.includes('Surface.Make'), true);
     assert.equal(draw.includes('mixShaderUnits'), true);

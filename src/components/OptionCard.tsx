@@ -14,17 +14,20 @@ type Props = {
   onPress?: () => void;
   /** Painted preview. No press and no radio focus. */
   inert?: boolean;
+  /** Del 2 card: 68 pt, 10 pt gap, 12 pt radius, 1 pt #2B2A27 edge. */
+  question?: boolean;
 };
 
 /** Onboarding option. Selected uses the ink fill. */
-export function OptionCard({ label, sub, icon, selected, onPress, inert = false }: Props) {
+export function OptionCard({ label, sub, icon, selected, onPress, inert = false, question = false }: Props) {
   const { theme } = useTheme();
   const card = [
     styles.card,
+    question && styles.question,
     {
-      borderColor: selected ? theme.color.button['primary-bg'] : theme.color.border.strong,
+      borderColor: selected ? theme.color.button['primary-bg'] : question ? '#2B2A27' : theme.color.border.strong,
       backgroundColor: selected ? theme.color.button['primary-bg'] : 'transparent',
-      borderRadius: theme.radius.medium,
+      borderRadius: question ? 12 : theme.radius.medium,
     },
   ];
   const body = (
@@ -79,5 +82,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 10,
     minHeight: 44,
+  },
+  question: {
+    height: 68,
+    minHeight: 68,
+    marginBottom: 10,
+    paddingVertical: 0,
+    borderWidth: 1,
   },
 });

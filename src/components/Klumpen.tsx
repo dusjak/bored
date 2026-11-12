@@ -189,6 +189,8 @@ type BodyProps = {
   fade: Fade;
   /** Faint 20-minute contour behind the stone. The sheet uses it; Hjem does not. */
   ghost?: boolean;
+  ghostColor?: string;
+  ghostOpacity?: number;
   /** Space under the number before «min». Hjem keeps the shared gap. */
   unitGap?: number;
   /** Upright Figtree for onboarding numbers. Hjem keeps Figtree Light. */
@@ -214,6 +216,8 @@ export function KlumpenBody({
   reduceMotion,
   fade,
   ghost = false,
+  ghostColor = OUTLINE,
+  ghostOpacity = 1,
   unitGap = NUMBER_UNIT_GAP,
   numberFamily,
   unitColor,
@@ -291,7 +295,7 @@ export function KlumpenBody({
         <Canvas style={styles.canvas} pointerEvents="none">
           {ghost ? (
             <Group transform={ghostTransform}>
-              <Path path={path} style="stroke" strokeWidth={OUTLINE_STROKE} color={OUTLINE} />
+              <Path path={path} style="stroke" strokeWidth={OUTLINE_STROKE} color={ghostColor} opacity={ghostOpacity} />
             </Group>
           ) : null}
           <StoneLayer path={path} pointPath={backPoint} transform={backTransform} opacity={backOpacity} rim={rim} image={raster} field={field} material={material} />

@@ -61,6 +61,20 @@ export const MIX_FROM = 0;
 export const MIX_TO = 0.8;
 export const MIX_RADIUS_START = 20;
 export const MIX_RADIUS_END = 40;
+/**
+ * Device pixels per point for the splash plate.
+ * A full PixelRatio of 3 is about three million pixels, and the mix shader
+ * on that plate stalled the JS thread so the swallow never appeared and the
+ * handoff still stored `bored.splashSeen`. Cap at 2: eight times the old
+ * 4 pt grid, and the last step up to a 3× screen is a small linear scale.
+ */
+export const SPLASH_PLATE_RATIO_CAP = 2;
+
+export function splashPlateRatio(deviceRatio: number): number {
+  if (!Number.isFinite(deviceRatio) || deviceRatio < 1) return 1;
+  return Math.min(deviceRatio, SPLASH_PLATE_RATIO_CAP);
+}
+
 /** One mix cell is 4 pt. Low Power uses the same mix on an 8 pt grid. */
 export const MIX_CELL_PT = 4;
 export const MIX_CELL_LOW_PT = 8;

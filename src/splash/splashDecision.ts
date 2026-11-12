@@ -74,7 +74,7 @@ export function decideSplash(input: {
       mode: 'drape',
       holdMs: crashHoldMs(input.elapsedMs ?? 0),
       fadeMs,
-      markSeenNow: true,
+      markSeenNow: false,
       reason: 'animation-failed',
     };
   }
@@ -246,6 +246,7 @@ export function shouldPersistSplashSeen(input: {
   crashed: boolean;
   occasion: SplashOccasion;
 }): boolean {
-  if (input.crashed) return true;
+  // A throw or an empty plate must not burn the flag. Mega retries next launch.
+  if (input.crashed) return false;
   return input.phase === 'enter' && isFirstPlay(input.occasion);
 }

@@ -287,7 +287,7 @@ describe('splash decision', () => {
     assert.equal(decision.holdMs, 0);
   });
 
-  it('sets the seen flag when MegaSplash crashes, and holds the rest of the timeline', () => {
+  it('does not burn splashSeen when Mega crashes, and holds the rest of the timeline', () => {
     const decision = decideSplash({
       ...base,
       occasion: 'first-launch',
@@ -295,7 +295,7 @@ describe('splash decision', () => {
       elapsedMs: 400,
     });
     assert.equal(decision.mode, 'drape');
-    assert.equal(decision.markSeenNow, true);
+    assert.equal(decision.markSeenNow, false);
     assert.equal(decision.holdMs, crashHoldMs(400));
     assert.equal(decision.holdMs, 2750);
     assert.equal(decision.fadeMs, 200);
@@ -303,13 +303,29 @@ describe('splash decision', () => {
     assert.equal(crashHoldMs(150), 3000);
     assert.equal(crashHoldMs(2850), 300);
     assert.equal(crashHoldMs(3450), 300);
-    assert.equal(shouldPersistSplashSeen({ phase: 'play', crashed: true, occasion: 'first-launch' }), true);
+    assert.equal(shouldPersistSplashSeen({ phase: 'play', crashed: true, occasion: 'first-launch' }), false);
+    assert.equal(shouldPersistSplashSeen({ phase: 'enter', crashed: false, occasion: 'after-reset' }), true);
     assert.equal(shouldPersistSplashSeen({ phase: 'play', crashed: false, occasion: 'first-launch' }), false);
     assert.equal(shouldPersistSplashSeen({ phase: 'enter', crashed: false, occasion: 'first-launch' }), true);
     assert.equal(shouldPersistSplashSeen({ phase: 'enter', crashed: false, occasion: 'later-launch' }), false);
     assert.equal(shouldPersistSplashSeen({ phase: 'fade', crashed: false, occasion: 'first-launch' }), false);
     assert.equal(shouldPersistSplashSeen({ phase: 'fade', crashed: false, occasion: 'background-return' }), false);
     assert.equal(shouldPersistSplashSeen({ phase: 'off', crashed: false, occasion: 'later-launch' }), false);
+  });
+});
+
+describe('splash after Nullstill', () => {
+  it('clears the seen flag and the next start is Mega', () => {
+    const state = readFileSync(new URL('../state/AppState.tsx', import.meta.url), 'utf8');
+    const clearAt = state.indexOf('await clearAllLocalData()');
+    const flagAt = state.indexOf("setSetting(SPLASH_SEEN_KEY, '0')");
+    assert.ok(clearAt > 0);
+    assert.ok(flagAt > clearAt);
+    assert.match(state, /beginIntroSplash/);
+    const reset = splashAfterReset();
+    assert.equal(reset.occasion, 'after-reset');
+    assert.equal(decideSplash({ ...base, occasion: reset.occasion }).mode, 'mega');
+    assert.equal(initialSplash({ splashSeen: false, inSessionOrReflection: false }).occasion, 'first-launch');
   });
 });
 

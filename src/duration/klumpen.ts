@@ -164,14 +164,13 @@ export const STONE_NUMBER_COLOR = '#F8F6F2';
 export const STONE_UNIT_COLOR = '#ADA9A2';
 
 /**
- * Lump centroid, as a fraction of the full window height.
- * Measured on the practice-hold screens (about 52%). Every screen that shows
- * the lump uses this, so a taller title cannot push the stone.
+ * Lump centroid on the 393×852 reference. B2, B3 and B4 share this line.
+ * A taller title must not move it. Other window heights scale the same fraction.
  */
-export const STONE_CENTER_RATIO = 0.52;
+export const STONE_CENTER_ON_852 = 435;
 
 export function stoneCenterY(windowHeight: number): number {
-  return windowHeight * STONE_CENTER_RATIO;
+  return (windowHeight * STONE_CENTER_ON_852) / 852;
 }
 
 /** Stone center on the reference 393×852 frame. */

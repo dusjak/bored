@@ -28,6 +28,7 @@ export default function TidStep() {
       </View>
       <DurationChooser
         minutes={current}
+        showChoices={false}
         hint={GUESS_HINT}
         confirmTitle="Velg tiden"
         onConfirm={save}

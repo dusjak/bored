@@ -26,6 +26,10 @@ export const HOLD_HINT = 'Hold klumpen inne';
 export const PRACTICE_DONE = 'Avsluttet';
 /** One size for the practice digits, including the running clock. */
 export const PRACTICE_DIGIT_SIZE = 48;
+/** Hold countdown. The sketch uses 40 pt so «10:00» sits inside the 10-minute lump. */
+export const PRACTICE_CLOCK_SIZE = 40;
+/** The practice clock stays on the full duration until this moment. */
+export const PRACTICE_CLOCK_START_MS = 1700;
 /** Fortsett appears by this time even if the hold was never finished. */
 export const HOLD_CONTINUE_AFTER_MS = 30_000;
 
