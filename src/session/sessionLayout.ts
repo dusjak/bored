@@ -1,3 +1,6 @@
+import { stoneCenterY } from '../duration/klumpen.ts';
+import { screenTopInset } from '../theme/layout.ts';
+import { text } from '../theme/theme.ts';
 import { HOLD, RING_OFFSET } from './holdToEnd.ts';
 import {
   KLUMPEN_BOUNDS,
@@ -104,6 +107,34 @@ export function sessionKlumpenMargins(
     marginTop: gapAbove - (canvasCenterY - reach.top),
     hintMarginTop: SESSION_RING_GAP - (canvasCenterY - reach.bottom),
   };
+}
+
+/** Wrapped completion title. Display is 30/34; three lines covers the narrow phone. */
+export const COMPLETION_TITLE_MAX_LINES = 3;
+
+/**
+ * Window Y of the completion title. The safe area is already outside this,
+ * then the same 40pt inset as Refleksjon, Logg and Deg. The stone stays on
+ * `stoneCenterY`; only the title moves.
+ */
+export function completionTitleTop(safeTop: number): number {
+  return safeTop + screenTopInset;
+}
+
+export function completionTitleBottom(safeTop: number, lines = COMPLETION_TITLE_MAX_LINES): number {
+  const line = text.display.lineHeight;
+  const lineHeight = typeof line === 'number' ? line : 34;
+  return completionTitleTop(safeTop) + lineHeight * lines;
+}
+
+/** True when the title block ends at or above the track's outer top. */
+export function completionTitleClearsStone(
+  minutes: number,
+  screen: SessionScreen,
+  lines = COMPLETION_TITLE_MAX_LINES,
+): boolean {
+  const stoneTop = stoneCenterY(screen.height) - sessionRingReach(minutes).top;
+  return completionTitleBottom(screen.safeTop, lines) <= stoneTop;
 }
 
 /** Canvas for the largest stone. The centroid is the centre. */

@@ -55,6 +55,7 @@ import {
 } from '@/session/lockHintState';
 import {
   isFullscreenWindow,
+  lockHintCanvasBox,
   lockHintFrameVisible,
   lockHintOffer,
   type HoldHintMoment,
@@ -166,7 +167,9 @@ export function LockHint({ enabled, sessionId, labelOpacity, flowAnchorY, holdMo
   const reduceSv = useSharedValue(0);
   const contrastSv = useSharedValue(0);
   const holdSv = useSharedValue(0);
-  const widthSv = useSharedValue(window.width);
+  const placed = lockHintCanvasBox(window.width, window.height);
+  const widthSv = useSharedValue(placed.bezelX);
+  const gradientStartSv = useSharedValue(placed.gradientStartX);
   const heightSv = useSharedValue(window.height);
   const buttonYSv = useSharedValue(window.height * TEXT_ONLY_CENTER);
   const bulgeSv = useSharedValue(0);
@@ -238,7 +241,9 @@ export function LockHint({ enabled, sessionId, labelOpacity, flowAnchorY, holdMo
     reduceSv.value = reduceMotion ? 1 : 0;
     contrastSv.value = contrast ? 1 : 0;
     holdSv.value = screenReader ? 1 : 0;
-    widthSv.value = box.width;
+    const canvas = lockHintCanvasBox(box.width, box.height);
+    widthSv.value = canvas.bezelX;
+    gradientStartSv.value = canvas.gradientStartX;
     heightSv.value = box.height;
     const button = offer === 'bulge' ? centerY : null;
     buttonYSv.value = button ?? box.height * TEXT_ONLY_CENTER;
@@ -253,6 +258,7 @@ export function LockHint({ enabled, sessionId, labelOpacity, flowAnchorY, holdMo
     contrast,
     contrastSv,
     flowSv,
+    gradientStartSv,
     heightSv,
     holdSv,
     offer,
@@ -392,7 +398,7 @@ export function LockHint({ enabled, sessionId, labelOpacity, flowAnchorY, holdMo
     const right = contrastSv.value === 1 ? LOCK_HINT_OVERLAY_CONTRAST : LOCK_HINT_OVERLAY_RIGHT;
     return [hexAlpha(LOCK_HINT_OVERLAY, left), hexAlpha(LOCK_HINT_OVERLAY, right)];
   });
-  const gradientStart = useDerivedValue(() => vec(0, 0));
+  const gradientStart = useDerivedValue(() => vec(gradientStartSv.value, 0));
   const gradientEnd = useDerivedValue(() => vec(widthSv.value, 0));
   const edgeStart = useDerivedValue(() => vec(widthSv.value - 8, 0));
   const edgeEnd = useDerivedValue(() => vec(widthSv.value, 0));
@@ -437,6 +443,7 @@ export function LockHint({ enabled, sessionId, labelOpacity, flowAnchorY, holdMo
 
   if (!lockHintFrameVisible({ live, offer, moment: holdMoment })) return null;
 
+  const canvas = lockHintCanvasBox(box.width, box.height);
   const flow = window.fontScale > FLOW_FONT_SCALE;
   const anchor = offer === 'bulge' && centerY != null ? centerY : box.height * TEXT_ONLY_CENTER;
   const textTop = flow
@@ -459,12 +466,20 @@ export function LockHint({ enabled, sessionId, labelOpacity, flowAnchorY, holdMo
       }}
     >
       <View accessibilityElementsHidden importantForAccessibility="no-hide-descendants" pointerEvents="none" style={styles.fill}>
-        <Canvas style={{ width: box.width, height: box.height }}>
-          <Rect x={0} y={0} width={box.width} height={box.height} opacity={scrimOpacity}>
+        <Canvas
+          style={{
+            position: 'absolute',
+            left: canvas.left,
+            top: canvas.top,
+            width: canvas.width,
+            height: canvas.height,
+          }}
+        >
+          <Rect x={0} y={0} width={canvas.width} height={canvas.height} opacity={scrimOpacity}>
             <LinearGradient start={gradientStart} end={gradientEnd} colors={scrimColors} />
           </Rect>
           <Group opacity={rimOpacity} layer={<Paint><Blur blur={BULGE_RIM_SIGMA_PT * pixelRatio} /></Paint>}>
-            <Circle cx={box.width} cy={anchor} r={10} color={amber} />
+            <Circle cx={canvas.bezelX} cy={anchor} r={10} color={amber} />
           </Group>
           <Group opacity={glowOpacity} layer={<Paint><Blur blur={BULGE_GLOW_RADIUS_PT * pixelRatio} /></Paint>}>
             <Path path={bulgePath} color={amber} />
@@ -554,7 +569,7 @@ function HintText({
 }
 
 const styles = StyleSheet.create({
-  fill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0 },
+  fill: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, overflow: 'visible' },
   hint: {
     position: 'absolute',
     fontSize: 17,

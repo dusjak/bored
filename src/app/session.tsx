@@ -33,7 +33,7 @@ import { stoneCenterY } from '@/duration/klumpen';
 import { decideUnfinishedSession } from '@/data/sessionRules';
 import { useAppState } from '@/state/AppState';
 import { noteEntryRoute } from '@/state/resetRoute';
-import { screenPadding, useTheme } from '@/theme';
+import { screenPadding, screenTopInset, useTheme } from '@/theme';
 
 /** Active session. Always dark. Hold the Klumpen for four seconds to end early. */
 export default function Session() {
@@ -316,6 +316,15 @@ export default function Session() {
       <StatusBar style={statusBar} />
       <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
         <Animated.View style={[styles.root, { opacity: dissolve }]}>
+            <Animated.View
+              style={[styles.doneCopy, { top: screenTopInset, opacity: doneOpacity }]}
+              pointerEvents="none"
+              accessibilityElementsHidden={!showDone}
+            >
+              <ScreenTitle align="center" variant="display">
+                {sentence}
+              </ScreenTitle>
+            </Animated.View>
             <View pointerEvents="box-none" style={styles.stage}>
             <View
               pointerEvents="box-none"
@@ -324,17 +333,6 @@ export default function Session() {
                 { marginTop: stoneCenterY(windowHeight) - insets.top - sessionRingReach(minutesRef.current).top },
               ]}
             >
-              <Animated.View
-                style={[styles.doneCopy, { opacity: doneOpacity }]}
-                pointerEvents="none"
-                accessibilityElementsHidden={!showDone}
-              >
-                <Text style={[theme.text.eyebrow, { color: theme.color.text.primary }]}>Økt fullført</Text>
-                <ScreenTitle align="center" variant="display">
-                  {sentence}
-                </ScreenTitle>
-              </Animated.View>
-
               <SessionKlumpen
                 minutes={minutesRef.current}
                 enabled={!showDone}
@@ -344,7 +342,7 @@ export default function Session() {
                 gapAbove={0}
                 material="gummi"
                 clock={showCountdown ? `${mm}:${ss}` : null}
-                accessibilityLabel={showDone ? `Økt fullført. ${sentence}` : HOLD_A11Y_LABEL}
+                accessibilityLabel={showDone ? sentence : HOLD_A11Y_LABEL}
                 accessibilityHint={showDone ? undefined : HOLD_A11Y_HINT}
                 accessibilityAction={!showDone}
                 onComplete={finishHeld}
@@ -391,13 +389,19 @@ export default function Session() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
+  root: { flex: 1, overflow: 'visible' },
   stage: { flex: 1, alignItems: 'center', paddingHorizontal: screenPadding },
   column: { alignSelf: 'stretch', alignItems: 'center', overflow: 'visible' },
   timerSlot: { height: SESSION_TIMER_BOX, alignSelf: 'stretch' },
   timer: { height: SESSION_TIMER_BOX, textAlign: 'center', includeFontPadding: false },
   remaining: { position: 'absolute', top: -20, left: 0, right: 0, textAlign: 'center' },
-  doneCopy: { position: 'absolute', top: 0, left: 0, right: 0, alignItems: 'center', gap: 8, zIndex: 0 },
+  doneCopy: {
+    position: 'absolute',
+    left: screenPadding,
+    right: screenPadding,
+    alignItems: 'center',
+    zIndex: 2,
+  },
   dot: { width: 8, height: 8, borderRadius: 4 },
   error: { position: 'absolute', left: screenPadding, right: screenPadding, bottom: 48, textAlign: 'center', zIndex: 2 },
   circleLayer: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },

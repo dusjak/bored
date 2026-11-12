@@ -1,13 +1,21 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
 import { screenPadding } from '../theme/theme.ts';
 import { PRESET_MINUTES } from '../data/copy.ts';
+import { stoneCenterY, STONE_CENTER_ON_852 } from '../duration/klumpen.ts';
+import { screenTopInset } from '../theme/layout.ts';
 import {
+  COMPLETION_TITLE_MAX_LINES,
   SESSION_HINT_BOX,
   SESSION_LAYOUT_SCREENS,
   SESSION_RING_GAP,
   SESSION_TIMER_BOX,
+  completionTitleBottom,
+  completionTitleClearsStone,
+  completionTitleTop,
   sessionCanvasBox,
   sessionColumn,
   sessionKlumpenMargins,
@@ -55,6 +63,29 @@ describe('session column', () => {
       assert.ok(Math.abs(margins.hintMarginTop + (canvas.cy - reach.bottom) - SESSION_RING_GAP) < 1e-9);
       assert.ok(reach.top < canvas.cy && reach.bottom < canvas.cy);
     }
+  });
+
+  it('puts the completion title above the stone and leaves the stone on 435', () => {
+    assert.equal(STONE_CENTER_ON_852, 435);
+    assert.equal(stoneCenterY(852), 435);
+    assert.equal(completionTitleTop(59), 59 + screenTopInset);
+    assert.equal(completionTitleTop(20), 20 + screenTopInset);
+    assert.equal(COMPLETION_TITLE_MAX_LINES, 3);
+    for (const screen of SESSION_LAYOUT_SCREENS) {
+      for (const minutes of PRESET_MINUTES) {
+        assert.equal(
+          completionTitleClearsStone(minutes, screen),
+          true,
+          `${minutes} min title overlaps the stone on ${screen.height}`,
+        );
+        const stoneTop = stoneCenterY(screen.height) - sessionRingReach(minutes).top;
+        assert.ok(completionTitleBottom(screen.safeTop) <= stoneTop);
+      }
+    }
+    const source = readFileSync(join(process.cwd(), 'src/app/session.tsx'), 'utf8');
+    assert.equal(source.includes('Økt fullført'), false);
+    assert.match(source, /top: screenTopInset/);
+    assert.match(source, /stoneCenterY\(windowHeight\) - insets\.top - sessionRingReach/);
   });
 
   it('still clears the ring when the countdown is hidden', () => {

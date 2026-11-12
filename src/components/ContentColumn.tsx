@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
-import { View, type StyleProp, type ViewStyle } from 'react-native';
+import { View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
 
-import { contentColumn, contentFrame } from '@/theme';
+import { contentColumnForWidth, contentFrame } from '@/theme';
 
 type Props = {
   children: ReactNode;
@@ -9,13 +9,14 @@ type Props = {
 };
 
 /**
- * Sheet body. Same column as `Screen`: 24pt minimum side inset, 345pt max, centered.
+ * Sheet body. Same column as `Screen`: 24pt side inset on phones, 345pt cap from tablet width.
  * Primary buttons inside stretch to that width.
  */
 export function ContentColumn({ children, style }: Props) {
+  const { width } = useWindowDimensions();
   return (
     <View style={contentFrame}>
-      <View style={[contentColumn, style]}>{children}</View>
+      <View style={[contentColumnForWidth(width), style]}>{children}</View>
     </View>
   );
 }
