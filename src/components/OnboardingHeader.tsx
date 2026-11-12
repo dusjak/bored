@@ -1,6 +1,6 @@
-import { useEffect, type ReactNode } from 'react';
+import { useCallback, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -9,6 +9,8 @@ import Animated, {
   withDelay,
   withTiming,
 } from 'react-native-reanimated';
+
+import { backStep, stepDirection } from '@/onboarding/stepMotion';
 
 import { ONBOARDING_STEPS } from '@/data/mock';
 import { questionContentInset, questionNavHeight, useTheme } from '@/theme';
@@ -64,7 +66,7 @@ export function OnboardingHeader({
   return (
     <View>
       <View style={styles.bar}>
-        <Pressable hitSlop={12} onPress={() => router.back()} accessibilityLabel="Tilbake" style={styles.back}>
+        <Pressable hitSlop={12} onPress={backStep} accessibilityLabel="Tilbake" style={styles.back}>
           <Icon name="chevronLeft" size={18} color={subInk ?? theme.color.text.tertiary} />
         </Pressable>
         {dots ? <ProgressDots total={total} current={step} activeColor={dot} idleColor={dotIdle} /> : <View style={styles.spacer} />}
@@ -93,16 +95,34 @@ export function OnboardingHeader({
   );
 }
 
+const COPY_EASE = Easing.bezier(0.2, 0, 0, 1);
+const COPY_DELAY = 120;
+const COPY_MS = 320;
+
 function CopyRise({ children }: { children: ReactNode }) {
   const reduceMotion = useReducedMotion() === true;
-  const y = useSharedValue(reduceMotion ? 0 : 8);
+  const back = stepDirection() === 'back';
+  const y = useSharedValue(reduceMotion ? 0 : back ? -8 : 8);
   const opacity = useSharedValue(reduceMotion ? 1 : 0);
-  useEffect(() => {
-    if (reduceMotion) return;
-    const ease = Easing.bezier(0.2, 0, 0, 1);
-    y.value = withDelay(120, withTiming(0, { duration: 320, easing: ease }));
-    opacity.value = withDelay(120, withTiming(1, { duration: 320, easing: ease }));
-  }, [opacity, reduceMotion, y]);
+  useFocusEffect(
+    useCallback(() => {
+      if (reduceMotion) {
+        y.value = 0;
+        opacity.value = 1;
+        return;
+      }
+      const from = stepDirection() === 'back' ? -8 : 8;
+      y.value = from;
+      opacity.value = 0;
+      y.value = withDelay(COPY_DELAY, withTiming(0, { duration: COPY_MS, easing: COPY_EASE }));
+      opacity.value = withDelay(COPY_DELAY, withTiming(1, { duration: COPY_MS, easing: COPY_EASE }));
+      return () => {
+        if (stepDirection() !== 'back') return;
+        y.value = withTiming(8, { duration: COPY_MS, easing: COPY_EASE });
+        opacity.value = withTiming(0, { duration: COPY_MS, easing: COPY_EASE });
+      };
+    }, [opacity, reduceMotion, y]),
+  );
   const style = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ translateY: y.value }],

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
-import { router } from 'expo-router';
+import { pushStep } from '@/onboarding/stepMotion';
 import * as Haptics from 'expo-haptics';
 import Animated, { Easing, useAnimatedStyle, useDerivedValue, useSharedValue, withTiming } from 'react-native-reanimated';
 
@@ -21,7 +21,6 @@ import {
   HOLD_HINT,
   HOLD_TITLE,
   holdCountdown,
-  PRACTICE_CLOCK_SIZE,
   PRACTICE_CLOCK_START_MS,
   PRACTICE_DONE,
   practiceContinueReady,
@@ -175,6 +174,7 @@ export default function PracticeStep() {
   const stoneH = klumpHeight(stoneW);
   const clockRun = Math.max(0, clockMs - PRACTICE_CLOCK_START_MS);
   const numberSize = Math.round((Number(theme.text.monoHero.fontSize) || 56) * durationType(fontScale).numberScale);
+  const clockSize = Math.min(numberSize, Math.round(klumpWidth(stoneIndex) * 0.28));
   const fromMark = useAnimatedStyle(() => ({
     opacity: 1 - morph.value,
     transform: [{ translateY: morph.value * 8 }],
@@ -223,7 +223,7 @@ export default function PracticeStep() {
               digits={false}
             />
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
-              <Animated.View style={fromMark}>
+              <Animated.View style={[StyleSheet.absoluteFill, fromMark]}>
                 <PinnedEngraving
                   text={String(minutes)}
                   fontSize={numberSize}
@@ -231,13 +231,13 @@ export default function PracticeStep() {
                   trackingEm={ENGRAVED_NUMBER_TRACKING_EM}
                 />
               </Animated.View>
-              <Animated.View style={unitMark}>
+              <Animated.View style={[StyleSheet.absoluteFill, unitMark]}>
                 <PinnedEngraving text={DURATION_UNIT} fontSize={HOME_UNIT_FONT_SIZE} centerY={UNIT_CENTER_FROM_CY} />
               </Animated.View>
-              <Animated.View style={clockMark}>
+              <Animated.View style={[StyleSheet.absoluteFill, clockMark]}>
                 <PinnedEngraving
                   text={holdCountdown(minutes, clockRun)}
-                  fontSize={PRACTICE_CLOCK_SIZE}
+                  fontSize={clockSize}
                   centerY={0}
                   trackingEm={ENGRAVED_NUMBER_TRACKING_EM}
                 />
@@ -270,14 +270,14 @@ export default function PracticeStep() {
         </View>
       </StoneAnchor>
       {showContinue ? (
-        <Button title="Fortsett" onPress={() => router.push('/onboarding/veiskille')} />
+        <Button title="Fortsett" onPress={() => pushStep('/onboarding/veiskille')} />
       ) : null}
       <Animated.View style={hintTo}>
         <Button
           title="Hopp over"
           variant="ghost"
           style={showContinue ? { marginTop: 8 } : undefined}
-          onPress={() => router.push('/onboarding/veiskille')}
+          onPress={() => pushStep('/onboarding/veiskille')}
         />
       </Animated.View>
     </Screen>

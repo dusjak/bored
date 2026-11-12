@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { pushStep } from '@/onboarding/stepMotion';
 
 import { hasNotificationPermission } from '@/data/notifications';
 
@@ -58,7 +58,7 @@ export default function NotificationsStep() {
           { backgroundColor: theme.color.surface.default, opacity: enabled ? 1 : 0.4 },
         ]}
       >
-        <AppIcon dark={theme.name === 'dark'} ground={theme.color.bg.default} edge={theme.color.border.default} />
+        <Image source={require('../../../assets/icon/icon-1024.png')} style={styles.icon} />
         <View style={styles.copy}>
           <Text style={[styles.appName, { color: theme.color.text.primary, fontFamily: theme.fonts.sansSemiBold }]}>
             bored.
@@ -84,7 +84,7 @@ export default function NotificationsStep() {
         title="Fortsett"
         onPress={() => {
           if (!enabled) void setDailyReminder(false);
-          router.push('/onboarding/ready');
+          pushStep('/onboarding/ready');
         }}
       />
     </Screen>
@@ -92,37 +92,6 @@ export default function NotificationsStep() {
 }
 
 const ICON = 44;
-/**
- * The stone in the 1024 app icon sits in a field the same colour as the card.
- * At 44 pt the whole canvas reads as empty space, so the frame shows the stone.
- */
-const STONE_CX = 602.5;
-const STONE_CY = 615;
-const WINDOW = 420;
-
-function AppIcon({ dark, ground, edge }: { dark: boolean; ground: string; edge: string }) {
-  const scale = ICON / WINDOW;
-  const display = 1024 * scale;
-  return (
-    <View
-      style={[
-        styles.icon,
-        { borderColor: edge, backgroundColor: dark ? ground : 'transparent' },
-      ]}
-    >
-      <Image
-        source={dark ? require('../../../assets/icon/icon-1024-dark.png') : require('../../../assets/icon/icon-1024.png')}
-        style={{
-          position: 'absolute',
-          width: display,
-          height: display,
-          left: ICON / 2 - STONE_CX * scale,
-          top: ICON / 2 - STONE_CY * scale,
-        }}
-      />
-    </View>
-  );
-}
 
 const styles = StyleSheet.create({
   preview: {
@@ -134,7 +103,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  icon: { width: ICON, height: ICON, borderRadius: 10, overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth },
+  icon: { width: ICON, height: ICON, borderRadius: 10 },
   copy: { flex: 1 },
   appName: { fontSize: 15, lineHeight: 20, marginBottom: 2 },
   toggleRow: {

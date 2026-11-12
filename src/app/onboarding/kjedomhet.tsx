@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { pushStep } from '@/onboarding/stepMotion';
 
 import { Button } from '@/components/Button';
 import { PressOutLump } from '@/components/PressOutLump';
@@ -23,7 +23,7 @@ export default function KjedomhetStep() {
       <StoneAnchor height={klumpHeight(klumpWidth(1))}>
         <PressOutLump />
       </StoneAnchor>
-      <Button title="Fortsett" onPress={() => router.push('/onboarding/tid')} />
+      <Button title="Fortsett" onPress={() => pushStep('/onboarding/tid')} />
     </Screen>
   );
 }

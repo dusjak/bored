@@ -120,7 +120,7 @@ describe('bli kjent flow', () => {
     assert.equal(GUESS_HELP, 'Du kan endre den etter hver økt.');
     assert.equal(GUESS_HINT, 'Sveip for å endre tiden');
     assert.ok(indexFromSwipe(1, SWIPE_STEP) > indexFromSwipe(1, -SWIPE_STEP));
-    assert.match(tid, /router\.push\('\/onboarding\/ov'\)/);
+    assert.match(tid, /pushStep\('\/onboarding\/ov'\)/);
     assert.doesNotMatch(tid, /onSkip/);
     const veiskille = readFileSync(join(dir, 'veiskille.tsx'), 'utf8');
     assert.equal(FORK_TITLE, 'Nå kan du det viktigste');
@@ -155,6 +155,9 @@ describe('bli kjent flow', () => {
     const questions = readFileSync(join(root, 'src/components/QuestionStep.tsx'), 'utf8');
     assert.match(questions, /<OnboardingHeader/);
     assert.match(questions, /OptionRise/);
+    const rise = readFileSync(join(root, 'src/components/OptionRise.tsx'), 'utf8');
+    assert.match(rise, /stepDirection\(\) === 'back' \? -ENTER : ENTER/);
+    assert.match(rise, /withTiming\(ENTER/);
     const durationPage = readFileSync(join(dir, 'duration.tsx'), 'utf8');
     const timePage = readFileSync(join(dir, 'time.tsx'), 'utf8');
     assert.match(durationPage, /OptionRise/);
@@ -180,7 +183,8 @@ describe('bli kjent flow', () => {
     const layout = readFileSync(join(dir, '_layout.tsx'), 'utf8');
     const chooser = readFileSync(join(root, 'src/components/DurationChooser.tsx'), 'utf8');
     assert.match(header, /accessibilityLabel="Tilbake"/);
-    assert.match(header, /router\.back\(\)/);
+    assert.match(header, /backStep/);
+    assert.match(header, /stepDirection\(\) === 'back' \? -8 : 8/);
     assert.match(header, /dots \? <ProgressDots/);
     assert.doesNotMatch(header, /updateUser/);
     assert.doesNotMatch(layout, /gestureEnabled: true/);
@@ -276,7 +280,7 @@ describe('bli kjent flow', () => {
     assert.match(note, /reminderPreviewBody/);
     assert.match(note, /bored\./);
     assert.match(note, /icon-1024\.png/);
-    assert.match(note, /icon-1024-dark\.png/);
+    assert.doesNotMatch(note, /STONE_CX|WINDOW = 420/);
     assert.doesNotMatch(note, /borderTopWidth|borderBottomWidth/);
     assert.doesNotMatch(practice, /fill="#2B2A27"/);
     const duration = readFileSync(join(root, 'src/app/onboarding/duration.tsx'), 'utf8');

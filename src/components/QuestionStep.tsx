@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-import { router, type Href } from 'expo-router';
+import type { Href } from 'expo-router';
 import { QUESTIONS, type QuestionKey } from '@/data/mock';
 import { useAppState } from '@/state/AppState';
+import { pushStep } from '@/onboarding/stepMotion';
 import { Button } from './Button';
 import { OnboardingHeader } from './OnboardingHeader';
 import { OptionCard } from './OptionCard';
@@ -45,7 +46,7 @@ export function QuestionStep({ questionKey }: { questionKey: QuestionKey }) {
           disabled={!selected}
           onPress={() => {
             updateUser({ [questionKey]: selected });
-            router.push(q.next as Href);
+            pushStep(q.next as Href);
           }}
         />
       </OptionRise>

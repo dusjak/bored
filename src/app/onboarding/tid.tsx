@@ -1,5 +1,5 @@
 import { Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { pushStep } from '@/onboarding/stepMotion';
 
 import { DurationChooser } from '@/components/DurationChooser';
 import { Screen } from '@/components/Screen';
@@ -17,7 +17,7 @@ export default function TidStep() {
   const save = (minutes: number) => {
     updateUser({ duration: String(minutes), materialId: user.materialId ?? 'gummi' });
     void setDurationMinutes(minutes);
-    router.push('/onboarding/ov');
+    pushStep('/onboarding/ov');
   };
 
   return (

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { router } from 'expo-router';
+import { pushStep } from '@/onboarding/stepMotion';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 
 import { Button } from '@/components/Button';
@@ -28,12 +28,12 @@ export default function Veiskille() {
 
   const tailor = () => {
     updateUser({ introPath: 'del2', duration: String(minutes), materialId: user.materialId ?? 'gummi' });
-    router.push('/onboarding/distraction');
+    pushStep('/onboarding/distraction');
   };
 
   const skip = () => {
     updateUser({ introPath: 'skip', duration: String(minutes), materialId: user.materialId ?? 'gummi' });
-    router.push({ pathname: '/onboarding/name', params: { after: 'ready' } });
+    pushStep({ pathname: '/onboarding/name', params: { after: 'ready' } });
   };
 
   return (

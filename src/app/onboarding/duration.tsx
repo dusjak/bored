@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { pushStep } from '@/onboarding/stepMotion';
 
 import { Button } from '@/components/Button';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
@@ -37,7 +37,7 @@ export default function DurationStep() {
           onPress={() => {
             updateUser({ duration: String(selected) });
             void setDurationMinutes(selected);
-            router.push('/onboarding/time');
+            pushStep('/onboarding/time');
           }}
         />
       </OptionRise>

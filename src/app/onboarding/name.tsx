@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { pushStep } from '@/onboarding/stepMotion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/Button';
@@ -31,7 +32,7 @@ export default function NameStep() {
   const next = (value: string) => {
     updateUser({ name: value });
     const skipped = after === 'ready' || user.introPath === 'skip';
-    router.push(skipped ? '/onboarding/ready' : '/onboarding/notifications');
+    pushStep(skipped ? '/onboarding/ready' : '/onboarding/notifications');
   };
 
   return (
