@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { Alert, AppState, Linking, Pressable, StyleSheet, Text, View, type HostInstance } from 'react-native';
 import Constants from 'expo-constants';
 import * as Haptics from 'expo-haptics';
-import { router } from 'expo-router';
-
 import {
   ALERT_OFFLINE,
   ALERT_OFFLINE_RESET,
@@ -39,7 +37,6 @@ import { degHeaderLines } from '@/data/sinceLine';
 import { reminderIsOn } from '@/data/reminderPolicy';
 import { hasNotificationPermission } from '@/data/notifications';
 import { useAppState } from '@/state/AppState';
-import { APP_WIPE_ROUTE } from '@/state/resetRoute';
 import { useBackup } from '@/state/BackupState';
 import { deg } from '@/theme/deg';
 import { tabularNums, useTheme } from '@/theme';
@@ -129,9 +126,9 @@ export default function Profile() {
                 await resetLocalData();
                 backup.forget();
                 forgetPreference();
+                // The splash unmounts the stack. The remount is one fresh route,
+                // and index sends launch 'onboarding' to step 1. No navigator call here.
                 beginIntroSplash();
-                if (router.canDismiss()) router.dismissAll();
-                router.replace(APP_WIPE_ROUTE);
               } catch {
                 setError('noe gikk galt. prøv igjen.');
               }

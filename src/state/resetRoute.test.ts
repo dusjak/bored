@@ -31,7 +31,8 @@ describe('wipe versus the session note entry', () => {
     assert.match(profile, /deviceIsOnline/);
     assert.match(profile, /CONFIRM_RESET/);
     assert.match(profile, /prepareReset/);
-    assert.match(profile, /router\.replace\(APP_WIPE_ROUTE\)/);
+    assert.match(profile, /beginIntroSplash\(\)/);
+    assert.doesNotMatch(profile, /dismissAll|POP_TO_TOP/);
     assert.doesNotMatch(profile, /NOTES_AFTER_RESET|notesAfterReset/);
     assert.doesNotMatch(profile, /router\.replace\('\/log'\)|router\.replace\('\/home'\)/);
     assert.doesNotMatch(index, /notesAfterReset|NOTES_AFTER_RESET/);
@@ -45,5 +46,23 @@ describe('wipe versus the session note entry', () => {
     assert.match(reflection, /Hopp over/);
     assert.match(tabs, />Logg</);
     assert.doesNotMatch(tabs, /Notater/);
+  });
+
+  it('starts MegaSplash without touching the navigator, then lands on step 1', () => {
+    const profile = readFileSync(join(process.cwd(), 'src/app/(tabs)/profile/index.tsx'), 'utf8');
+    const index = readFileSync(join(process.cwd(), 'src/app/index.tsx'), 'utf8');
+    const layout = readFileSync(join(process.cwd(), 'src/app/_layout.tsx'), 'utf8');
+    const state = readFileSync(join(process.cwd(), 'src/state/AppState.tsx'), 'utf8');
+    const resetAt = profile.indexOf('await resetLocalData()');
+    const splashAt = profile.indexOf('beginIntroSplash()');
+    assert.ok(resetAt > 0 && splashAt > resetAt);
+    const afterSplash = profile.slice(splashAt, profile.indexOf('} catch', splashAt));
+    assert.doesNotMatch(afterSplash, /router\.|dismissAll|replace\(/);
+    const launchAt = state.indexOf("setLaunch('onboarding')");
+    const resetFn = state.indexOf('const resetLocalData');
+    assert.ok(resetFn > 0 && launchAt > resetFn);
+    assert.match(index, /href=\{launch === 'home' \? '\/home' : '\/onboarding'\}/);
+    assert.match(layout, /introPhase === 'play' \|\| introPhase === 'still' \|\| introPhase === 'fade'/);
+    assert.ok(layout.indexOf('if (!open || cover)') < layout.indexOf('<Stack'));
   });
 });
