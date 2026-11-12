@@ -42,6 +42,15 @@ function load(): ReturnType<typeof loadAppConfig> {
 }
 
 describe('app config', () => {
+  it('shows bored. under the icon and keeps the store linkage', () => {
+    assert.equal(appJson.expo.name, 'bored.');
+    assert.equal(appJson.expo.slug, 'bored');
+    assert.equal(appJson.expo.scheme, 'bored');
+    assert.equal((appJson.expo.ios as { bundleIdentifier: string }).bundleIdentifier, 'no.bored.app');
+    assert.equal((appJson.expo.android as { package: string }).package, 'no.bored.app');
+    assert.equal((appJson.expo.extra as { eas: { projectId: string } }).eas.projectId, PROJECT_ID);
+  });
+
   it('keeps the eas project, owner, and router from app.json', () => {
     withEnv(
       {

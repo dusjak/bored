@@ -8,7 +8,7 @@ Nothing in this repo contains an Apple ID or a team id. Do not invent them. The 
 
 | Setting | Value |
 | --- | --- |
-| Display name | `BORED.` (already in `app.json`; left as it was) |
+| Display name | `bored.` |
 | Bundle id | `no.bored.app` (permanent) |
 | Android package | `no.bored.app` |
 | User-facing version | `1.0.0` |
@@ -95,7 +95,7 @@ Internal testers are people on the App Store Connect team. You do not need a bet
 
 1. On the iPhone, install Apple's TestFlight app from the App Store.
 2. Open the invite email, or open TestFlight and accept the app.
-3. Install bored. The home-screen name is `BORED.`
+3. Install bored. The home-screen name is `bored.`
 
 ## Splash tiers
 
