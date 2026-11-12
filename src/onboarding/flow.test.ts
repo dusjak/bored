@@ -10,6 +10,8 @@ import {
   confirmDuration,
   DURATION_LIST,
   durationPreviewLead,
+  FORK_BODY,
+  FORK_PREVIEW_LABEL,
   FORK_TITLE,
   PRACTICE_DIGIT_SIZE,
   PRACTICE_DONE,
@@ -117,6 +119,19 @@ describe('bli kjent flow', () => {
     assert.doesNotMatch(tid, /onSkip/);
     const veiskille = readFileSync(join(dir, 'veiskille.tsx'), 'utf8');
     assert.equal(FORK_TITLE, 'Nå kan du det viktigste');
+    assert.equal(FORK_TITLE.endsWith('.'), false);
+    assert.equal(FORK_BODY.includes('—'), false);
+    assert.equal(
+      FORK_BODY,
+      'Neste del handler om deg: hva du griper etter, hvordan hodet ditt er og når det passer. Fem korte spørsmål, under ett minutt.',
+    );
+    assert.equal(FORK_PREVIEW_LABEL, 'Første spørsmål');
+    assert.match(veiskille, /FORK_PREVIEW_LABEL/);
+    assert.match(veiskille, /QUESTIONS\.distraction/);
+    assert.match(veiskille, /inert/);
+    assert.match(veiskille, /accessibilityElementsHidden/);
+    assert.match(veiskille, /importantForAccessibility="no-hide-descendants"/);
+    assert.match(veiskille, /pointerEvents="none"/);
     assert.doesNotMatch(veiskille, /FORK_LEAD|Vil du at vi tilpasser/);
     assert.match(veiskille, /Tilpass øktene/);
     assert.match(veiskille, /title="Hopp over"/);

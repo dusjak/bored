@@ -31,7 +31,9 @@ export const HOLD_CONTINUE_AFTER_MS = 30_000;
 
 export const FORK_TITLE = 'Nå kan du det viktigste';
 export const FORK_BODY =
-  'Svar på noen korte spørsmål først, så tilpasser vi øktene til deg. Det tar under ett minutt.';
+  'Neste del handler om deg: hva du griper etter, hvordan hodet ditt er og når det passer. Fem korte spørsmål, under ett minutt.';
+/** Eyebrow above the non-interactive first question. */
+export const FORK_PREVIEW_LABEL = 'Første spørsmål';
 
 export const DURATION_LIST_TITLE = 'Hvor lang tid har du?';
 export const DURATION_LIST_HELP = 'Vi starter her. Du kan alltid endre det.';

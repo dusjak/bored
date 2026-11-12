@@ -11,30 +11,24 @@ type Props = {
   sub?: string;
   icon?: FyllingName;
   selected: boolean;
-  onPress: () => void;
+  onPress?: () => void;
+  /** Painted preview. No press and no radio focus. */
+  inert?: boolean;
 };
 
 /** Onboarding option. Selected uses the ink fill. */
-export function OptionCard({ label, sub, icon, selected, onPress }: Props) {
+export function OptionCard({ label, sub, icon, selected, onPress, inert = false }: Props) {
   const { theme } = useTheme();
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ selected }}
-      onPress={() => {
-        Haptics.selectionAsync();
-        onPress();
-      }}
-      style={({ pressed }) => [
-        styles.card,
-        {
-          borderColor: selected ? theme.color.button['primary-bg'] : theme.color.border.strong,
-          backgroundColor: selected ? theme.color.button['primary-bg'] : 'transparent',
-          borderRadius: theme.radius.medium,
-        },
-        pressed && { opacity: 0.75 },
-      ]}
-    >
+  const card = [
+    styles.card,
+    {
+      borderColor: selected ? theme.color.button['primary-bg'] : theme.color.border.strong,
+      backgroundColor: selected ? theme.color.button['primary-bg'] : 'transparent',
+      borderRadius: theme.radius.medium,
+    },
+  ];
+  const body = (
+    <>
       {icon != null ? (
         <FyllingIcon
           name={icon}
@@ -57,6 +51,20 @@ export function OptionCard({ label, sub, icon, selected, onPress }: Props) {
         ) : null}
       </View>
       {selected ? <Icon name="check" size={18} color={theme.color.button['primary-text']} /> : null}
+    </>
+  );
+  if (inert) return <View style={card}>{body}</View>;
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      onPress={() => {
+        Haptics.selectionAsync();
+        onPress?.();
+      }}
+      style={({ pressed }) => [card, pressed && { opacity: 0.75 }]}
+    >
+      {body}
     </Pressable>
   );
 }
