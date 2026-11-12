@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
 import { HOLD_A11Y_LABEL, HOLD_CONFIRM_END, HOLD_PHASE_TEXT } from '../data/copy.ts';
+import { indexRoute } from './launchRoute.ts';
 import { APP_WIPE_ROUTE, noteEntryRoute, routeWhenSessionMissing } from './resetRoute.ts';
 
 describe('wipe versus the session note entry', () => {
@@ -61,7 +62,8 @@ describe('wipe versus the session note entry', () => {
     const launchAt = state.indexOf("setLaunch('onboarding')");
     const resetFn = state.indexOf('const resetLocalData');
     assert.ok(resetFn > 0 && launchAt > resetFn);
-    assert.match(index, /href=\{launch === 'home' \? '\/home' : '\/onboarding'\}/);
+    assert.match(index, /indexRoute\(/);
+    assert.equal(indexRoute({ launch: 'onboarding', onboarded: false, reflectionSessionId: null }), '/onboarding');
     assert.match(layout, /introPhase === 'play' \|\| introPhase === 'still' \|\| introPhase === 'fade'/);
     assert.ok(layout.indexOf('if (!open || cover)') < layout.indexOf('<Stack'));
   });

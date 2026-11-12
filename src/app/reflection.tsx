@@ -17,7 +17,7 @@ export default function Reflection() {
   const { theme } = useTheme();
   const params = useLocalSearchParams<{ sessionId?: string }>();
   const sessionId = typeof params.sessionId === 'string' ? params.sessionId : '';
-  const { sessions, saveReflection } = useAppState();
+  const { sessions, saveReflection, releaseLaunch } = useAppState();
   const listed = sessions.find((item) => item.id === sessionId) ?? null;
   const [fetched, setFetched] = useState<SessionWithJournal | null>(null);
   const session = listed ?? fetched;
@@ -48,7 +48,10 @@ export default function Reflection() {
       ? abortedPhrase(session.actualDurationSeconds)
       : 'Det var det.';
 
-  const leave = () => router.replace('/home');
+  const leave = () => {
+    releaseLaunch();
+    router.replace('/home');
+  };
 
   const save = async () => {
     if (!sessionId || saving) return;

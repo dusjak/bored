@@ -65,6 +65,11 @@ type AppStateValue = {
   updateUser: (patch: Partial<OnboardingProfile>) => void;
   onboarded: boolean;
   completeOnboarding: () => Promise<void>;
+  /**
+   * The cold-start session or reflection has been left.
+   * Launch returns home so a later index mount does not open it again.
+   */
+  releaseLaunch: () => void;
   durationMinutes: number;
   setDurationMinutes: (minutes: number) => Promise<void>;
   sessions: SessionWithJournal[];
@@ -237,6 +242,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             setActiveSession(active);
             setLaunch('session');
           }
+          // Stays on session or reflection until that screen is left (releaseLaunch).
           const splash = initialSplash({ splashSeen: splashSeen === '1', inSessionOrReflection: true });
           // Write the refs before setState. An AppState event between the two
           // would otherwise still see the previous occasion and replace MegaSplash.
@@ -294,6 +300,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       await setSetting(FIRST_USED_KEY, new Date().toISOString());
     }
     setOnboarded(true);
+    setLaunch('home');
+  }, []);
+
+  const releaseLaunch = useCallback(() => {
+    setReflectionSessionId(null);
+    setLaunch((current) => (current === 'session' || current === 'reflection' ? 'home' : current));
   }, []);
 
   const beginSession = useCallback(async (minutes: number) => {
@@ -322,9 +334,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const endedAt = new Date(Date.parse(session.startedAt) + session.chosenDurationSeconds * 1000);
     await finishSession(session.id, 'completed', session.chosenDurationSeconds, endedAt);
     setActiveSession(null);
+    releaseLaunch();
     await refreshSessions();
     return session.id;
-  }, [refreshSessions]);
+  }, [refreshSessions, releaseLaunch]);
 
   const abortActiveSession = useCallback(async () => {
     const session = activeRef.current;
@@ -334,9 +347,10 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     const actual = elapsedSeconds(Date.parse(session.startedAt), Date.now(), session.chosenDurationSeconds);
     await finishSession(session.id, 'aborted', actual, new Date());
     setActiveSession(null);
+    releaseLaunch();
     await refreshSessions();
     return session.id;
-  }, [refreshSessions]);
+  }, [refreshSessions, releaseLaunch]);
 
   const noteBackground = useCallback(async () => {
     const session = activeRef.current;
@@ -520,10 +534,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       await cancelSessionNotification(active.notificationId);
       await dismissSessionNotification(active.notificationId);
       setActiveSession(null);
+      releaseLaunch();
     }
     await deleteStoredSession(sessionId);
     await refreshSessions();
-  }, [refreshSessions]);
+  }, [refreshSessions, releaseLaunch]);
 
   const value = useMemo<AppStateValue>(
     () => ({
@@ -535,6 +550,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       updateUser,
       onboarded,
       completeOnboarding,
+      releaseLaunch,
       durationMinutes,
       setDurationMinutes,
       sessions,
@@ -575,6 +591,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       updateUser,
       onboarded,
       completeOnboarding,
+      releaseLaunch,
       durationMinutes,
       setDurationMinutes,
       sessions,

@@ -48,6 +48,7 @@ export default function Session() {
     noteBackground,
     noteForeground,
     showCountdown,
+    releaseLaunch,
   } = useAppState();
 
   const session = activeSession;
@@ -116,8 +117,9 @@ export default function Session() {
 
   useEffect(() => {
     if (session || leaving.current || abortId.current || handoff.current) return;
+    releaseLaunch();
     router.replace('/home');
-  }, [session]);
+  }, [releaseLaunch, session]);
 
   const away = useRef(false);
   const noted = useRef(false);

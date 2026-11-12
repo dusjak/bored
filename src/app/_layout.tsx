@@ -1,14 +1,15 @@
-import { useCallback, useEffect, useRef } from 'react';
-import { View } from 'react-native';
+import { useCallback, useEffect, useRef, type ReactNode } from 'react';
+import { Platform, View } from 'react-native';
 import { useFonts } from 'expo-font';
 import { Stack, usePathname } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { FullWindowOverlay } from 'react-native-screens';
 
 import { SluketSplash } from '@/components/SluketSplash';
 import { StillSplash } from '@/components/StillSplash';
 import { exitFadeMs, SPLASH_BG } from '@/splash/splashTiming';
-import { splashSuppressed } from '@/splash/splashDecision';
+import { splashSuppressed, stackStaysMounted } from '@/splash/splashDecision';
 import { preloadStoneImage } from '@/session/stoneImage';
 import { AppStateProvider, useAppState } from '@/state/AppState';
 import { BackupProvider } from '@/state/BackupState';
@@ -64,7 +65,10 @@ function ReadyGate() {
   });
   setSplashSuppressed(suppressed);
 
-  const cover = introPhase === 'play' || introPhase === 'still' || introPhase === 'fade';
+  const splashUp = introPhase === 'play' || introPhase === 'still' || introPhase === 'fade';
+  const keepStack = stackStaysMounted({ open, phase: introPhase, occasion: splashOccasion });
+  // Cold start and Nullstill still replace the tree. A background return does not.
+  const cover = splashUp && !keepStack;
   const startedAt = useRef(Date.now());
   useEffect(() => {
     if (introPhase === 'play') startedAt.current = Date.now();
@@ -96,9 +100,10 @@ function ReadyGate() {
     />
   );
 
-  // The native stack paints above later siblings, so a splash beside it never
-  // shows until a navigation reshuffles the layers. While the splash is up it
-  // is the only view. Onboarding mounts after it, so its entrance can be seen.
+  // The native stack paints above later siblings, so a plate beside it never
+  // shows. Cold start and Nullstill keep the plate as the only view, then the
+  // stack mounts at the start route. A background return keeps this tree and
+  // draws the plate above it, so Logg and a running session stay put.
   if (!open || cover) {
     return (
       <View style={{ flex: 1, backgroundColor: SPLASH_BG }}>
@@ -142,6 +147,25 @@ function ReadyGate() {
         />
         <Stack.Screen name="reflection" options={{ gestureEnabled: false }} />
       </Stack>
+      {keepStack && splashUp ? <SplashAboveStack>{splash}</SplashAboveStack> : null}
     </View>
+  );
+}
+
+/** One full-screen child above the native stack. iOS hosts it on the window. */
+function SplashAboveStack({ children }: { children: ReactNode }) {
+  const plate = (
+    <View
+      pointerEvents="auto"
+      style={{ position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, zIndex: 20, backgroundColor: SPLASH_BG }}
+    >
+      {children}
+    </View>
+  );
+  if (Platform.OS !== 'ios') return plate;
+  return (
+    <FullWindowOverlay unstable_accessibilityContainerViewIsModal>
+      {plate}
+    </FullWindowOverlay>
   );
 }
