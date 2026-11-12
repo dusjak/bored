@@ -77,7 +77,7 @@ export default function Reflection() {
         </View>
 
         <Text style={[theme.text.label, { color: theme.color.text.primary, marginBottom: theme.space['3'] }]}>
-          Hvordan kjentes det?
+          Hvordan føltes det?
         </Text>
         <View style={styles.moods}>
           {MOODS.map((item) => {
