@@ -5,6 +5,7 @@ import { router } from 'expo-router';
 import { Button } from '@/components/Button';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
 import { OptionCard } from '@/components/OptionCard';
+import { OptionRise } from '@/components/OptionRise';
 import { Screen } from '@/components/Screen';
 import { DURATION_LIST, DURATION_LIST_HELP, DURATION_LIST_TITLE, confirmedMinutes } from '@/onboarding/flow';
 import { useAppState } from '@/state/AppState';
@@ -19,24 +20,27 @@ export default function DurationStep() {
     <Screen top="none" contentStyle={styles.screen}>
       <OnboardingHeader step={3} title={DURATION_LIST_TITLE} sub={DURATION_LIST_HELP} />
       <ScrollView style={styles.scroll} contentContainerStyle={styles.options} showsVerticalScrollIndicator={false}>
-        {DURATION_LIST.map((item) => (
-          <OptionCard
-            key={item.minutes}
-            label={item.label}
-            sub={item.sub}
-            selected={selected === item.minutes}
-            onPress={() => setSelected(item.minutes)}
-          />
+        {DURATION_LIST.map((item, index) => (
+          <OptionRise key={item.minutes} delay={160 + index * 40}>
+            <OptionCard
+              label={item.label}
+              sub={item.sub}
+              selected={selected === item.minutes}
+              onPress={() => setSelected(item.minutes)}
+            />
+          </OptionRise>
         ))}
       </ScrollView>
-      <Button
-        title="Fortsett"
-        onPress={() => {
-          updateUser({ duration: String(selected) });
-          void setDurationMinutes(selected);
-          router.push('/onboarding/time');
-        }}
-      />
+      <OptionRise delay={160} duration={240}>
+        <Button
+          title="Fortsett"
+          onPress={() => {
+            updateUser({ duration: String(selected) });
+            void setDurationMinutes(selected);
+            router.push('/onboarding/time');
+          }}
+        />
+      </OptionRise>
     </Screen>
   );
 }

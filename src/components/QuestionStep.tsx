@@ -1,40 +1,13 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
 import { router, type Href } from 'expo-router';
-import Animated, {
-  Easing,
-  useAnimatedStyle,
-  useReducedMotion,
-  useSharedValue,
-  withDelay,
-  withTiming,
-} from 'react-native-reanimated';
-
 import { QUESTIONS, type QuestionKey } from '@/data/mock';
 import { useAppState } from '@/state/AppState';
 import { Button } from './Button';
 import { OnboardingHeader } from './OnboardingHeader';
 import { OptionCard } from './OptionCard';
+import { OptionRise } from './OptionRise';
 import { Screen } from './Screen';
-
-const EASE = Easing.bezier(0.2, 0, 0, 1);
-
-/** Opacity and 8 pt up. No sideways spring. */
-function Rise({ delay, duration = 320, children }: { delay: number; duration?: number; children: ReactNode }) {
-  const reduceMotion = useReducedMotion() === true;
-  const y = useSharedValue(reduceMotion ? 0 : 8);
-  const opacity = useSharedValue(reduceMotion ? 1 : 0);
-  useEffect(() => {
-    if (reduceMotion) return;
-    y.value = withDelay(delay, withTiming(0, { duration, easing: EASE }));
-    opacity.value = withDelay(delay, withTiming(1, { duration, easing: EASE }));
-  }, [delay, duration, opacity, reduceMotion, y]);
-  const style = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-    transform: [{ translateY: y.value }],
-  }));
-  return <Animated.View style={style}>{children}</Animated.View>;
-}
 
 /** Shared single-choice onboarding step, driven by QUESTIONS in data/mock.ts. */
 export function QuestionStep({ questionKey }: { questionKey: QuestionKey }) {
@@ -54,7 +27,7 @@ export function QuestionStep({ questionKey }: { questionKey: QuestionKey }) {
         keyboardShouldPersistTaps="handled"
       >
         {q.options.map((o, i) => (
-          <Rise key={o.id} delay={160 + i * 40}>
+          <OptionRise key={o.id} delay={160 + i * 40}>
             <OptionCard
               question
               label={o.label}
@@ -63,10 +36,10 @@ export function QuestionStep({ questionKey }: { questionKey: QuestionKey }) {
               selected={selected === o.id}
               onPress={() => setSelected(o.id)}
             />
-          </Rise>
+          </OptionRise>
         ))}
       </ScrollView>
-      <Rise delay={160} duration={240}>
+      <OptionRise delay={160} duration={240}>
         <Button
           title="Fortsett"
           disabled={!selected}
@@ -75,7 +48,7 @@ export function QuestionStep({ questionKey }: { questionKey: QuestionKey }) {
             router.push(q.next as Href);
           }}
         />
-      </Rise>
+      </OptionRise>
     </Screen>
   );
 }

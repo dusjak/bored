@@ -12,6 +12,10 @@ describe('features', () => {
     assert.equal(features.aiCard, false);
   });
 
+  it('holds MegaSplash and keeps the player behind the flag', () => {
+    assert.equal(features.megaSplash, false);
+  });
+
   it('keeps the paint-mix pass on so it can be switched off in one place', () => {
     assert.equal(features.sluketColorMix, true);
   });

@@ -11,6 +11,7 @@ import {
   ROW_HIT,
   ROW_STROKE,
   ROW_WIDTHS,
+  maxRingInk,
   SHEET_NUMBER_UNIT_GAP,
   SIZE_SPRING,
   STONE_NUMBER_COLOR,
@@ -155,7 +156,7 @@ export function DurationChooser({
               reduceMotion={reduceMotion}
               fade={fade}
               ghost
-              ghostColor="#F8F6F2"
+              ghostColor={maxRingInk(theme.name, theme.color.text.tertiary, theme.color.text.primary)}
               ghostOpacity={0.55}
               rasterOnly
               unitGap={SHEET_NUMBER_UNIT_GAP}

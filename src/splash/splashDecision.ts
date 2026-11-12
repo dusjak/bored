@@ -1,7 +1,8 @@
 /**
  * Which splash tier plays. Pure, so the launch rules can be tested without React.
  *
- * MegaSplash («Sluket» v5 C) only on first launch and after Nullstill.
+ * MegaSplash («Sluket» v5 C) only on first launch and after Nullstill, and only
+ * while `megaEnabled` is on. While it is held, those occasions play Pust.
  * Splash (D2 Pust) on a later launch, and on a return from background that lasted
  * long enough to be worth a breath. Dråpe is the static wordmark: Reduce Motion,
  * the kill switch, a crash, and a short background return.
@@ -54,6 +55,8 @@ export function decideSplash(input: {
   occasion: SplashOccasion;
   reduceMotion: boolean;
   sluketEnabled: boolean;
+  /** False keeps MegaSplash in the repo but plays Pust for a first play. */
+  megaEnabled: boolean;
   animationFailed: boolean;
   /** Resolved app theme. Dark fades the plate out. Light cuts. */
   darkTheme: boolean;
@@ -89,7 +92,10 @@ export function decideSplash(input: {
     return { mode: 'drape', holdMs: STILL_HOLD_MS, fadeMs, markSeenNow: false, reason: 'kill-switch' };
   }
   if (isFirstPlay(input.occasion)) {
-    return { mode: 'mega', holdMs: 0, fadeMs: 0, markSeenNow: false, reason: 'first-play' };
+    if (input.megaEnabled) {
+      return { mode: 'mega', holdMs: 0, fadeMs: 0, markSeenNow: false, reason: 'first-play' };
+    }
+    return { mode: 'pust', holdMs: PUST_MOTION_MS, fadeMs, markSeenNow: false, reason: 'mega-held' };
   }
   return { mode: 'pust', holdMs: PUST_MOTION_MS, fadeMs, markSeenNow: false, reason: 'later-play' };
 }
@@ -245,8 +251,12 @@ export function shouldPersistSplashSeen(input: {
   phase: IntroPhase;
   crashed: boolean;
   occasion: SplashOccasion;
+  /** While Mega is held, a finished Pust on a first play still stores the flag. */
+  megaEnabled?: boolean;
 }): boolean {
   // A throw or an empty plate must not burn the flag. Mega retries next launch.
   if (input.crashed) return false;
-  return input.phase === 'enter' && isFirstPlay(input.occasion);
+  if (!isFirstPlay(input.occasion)) return false;
+  if (input.phase === 'enter') return true;
+  return input.phase === 'fade' && input.megaEnabled === false;
 }

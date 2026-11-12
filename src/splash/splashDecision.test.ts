@@ -26,6 +26,7 @@ import {
 const base = {
   reduceMotion: false,
   sluketEnabled: true,
+  megaEnabled: false,
   animationFailed: false,
   darkTheme: true,
   calmSplash: true,
@@ -64,15 +65,19 @@ describe('splash decision', () => {
     assert.equal(isFirstPlay('session'), false);
   });
 
-  it('plays MegaSplash on first launch', () => {
+  it('plays Pust on first launch while MegaSplash is held', () => {
     const boot = initialSplash({ splashSeen: false, inSessionOrReflection: false });
     assert.deepEqual(boot, { occasion: 'first-launch', phase: 'play' });
     const decision = decideSplash({ ...base, occasion: boot.occasion });
-    assert.equal(decision.mode, 'mega');
-    assert.equal(decision.reason, 'first-play');
-    assert.equal(decision.fadeMs, 0);
+    assert.equal(decision.mode, 'pust');
+    assert.equal(decision.holdMs, PUST_MOTION_MS);
     assert.equal(decision.markSeenNow, false);
-    assert.equal(splashDecisionLog(boot.occasion, decision), '[splash] first-launch mega first-play');
+    assert.equal(splashDecisionLog(boot.occasion, decision), '[splash] first-launch pust mega-held');
+    const revived = decideSplash({ ...base, occasion: boot.occasion, megaEnabled: true });
+    assert.equal(revived.mode, 'mega');
+    assert.equal(revived.reason, 'first-play');
+    assert.equal(revived.fadeMs, 0);
+    assert.equal(splashDecisionLog(boot.occasion, revived), '[splash] first-launch mega first-play');
   });
 
   it('keeps MegaSplash when iOS reports background during a first play', () => {
@@ -99,7 +104,8 @@ describe('splash decision', () => {
     });
     assert.equal(back.occasion, 'first-launch');
     assert.equal(back.phase, 'play');
-    assert.equal(decideSplash({ ...base, occasion: back.occasion }).mode, 'mega');
+    assert.equal(decideSplash({ ...base, occasion: back.occasion }).mode, 'pust');
+    assert.equal(decideSplash({ ...base, occasion: back.occasion, megaEnabled: true }).mode, 'mega');
     const reset = background({
       event: 'background',
       phase: 'play',
@@ -111,17 +117,19 @@ describe('splash decision', () => {
     assert.equal(reset.phase, 'play');
   });
 
-  it('plays MegaSplash after Nullstill', () => {
+  it('plays Pust after Nullstill while MegaSplash is held', () => {
     const boot = splashAfterReset();
     assert.deepEqual(boot, { occasion: 'after-reset', phase: 'play' });
     const decision = decideSplash({ ...base, occasion: boot.occasion });
-    assert.equal(decision.mode, 'mega');
+    assert.equal(decision.mode, 'pust');
+    assert.equal(decideSplash({ ...base, occasion: boot.occasion, megaEnabled: true }).mode, 'mega');
   });
 
-  it('replays the full first-launch MegaSplash without a data reset', () => {
+  it('replays the full first-launch MegaSplash without a data reset when the flag is on', () => {
     const boot = splashReplay();
     assert.deepEqual(boot, { occasion: 'first-launch', phase: 'play' });
-    assert.equal(decideSplash({ ...base, occasion: boot.occasion }).mode, 'mega');
+    assert.equal(decideSplash({ ...base, occasion: boot.occasion, megaEnabled: true }).mode, 'mega');
+    assert.equal(decideSplash({ ...base, occasion: boot.occasion }).mode, 'pust');
   });
 
   it('plays D2 Pust on a later launch, and cuts when the app is light', () => {
@@ -308,7 +316,8 @@ describe('splash decision', () => {
     assert.equal(shouldPersistSplashSeen({ phase: 'play', crashed: false, occasion: 'first-launch' }), false);
     assert.equal(shouldPersistSplashSeen({ phase: 'enter', crashed: false, occasion: 'first-launch' }), true);
     assert.equal(shouldPersistSplashSeen({ phase: 'enter', crashed: false, occasion: 'later-launch' }), false);
-    assert.equal(shouldPersistSplashSeen({ phase: 'fade', crashed: false, occasion: 'first-launch' }), false);
+    assert.equal(shouldPersistSplashSeen({ phase: 'fade', crashed: false, occasion: 'first-launch', megaEnabled: true }), false);
+    assert.equal(shouldPersistSplashSeen({ phase: 'fade', crashed: false, occasion: 'first-launch', megaEnabled: false }), true);
     assert.equal(shouldPersistSplashSeen({ phase: 'fade', crashed: false, occasion: 'background-return' }), false);
     assert.equal(shouldPersistSplashSeen({ phase: 'off', crashed: false, occasion: 'later-launch' }), false);
   });
@@ -324,7 +333,7 @@ describe('splash after Nullstill', () => {
     assert.match(state, /beginIntroSplash/);
     const reset = splashAfterReset();
     assert.equal(reset.occasion, 'after-reset');
-    assert.equal(decideSplash({ ...base, occasion: reset.occasion }).mode, 'mega');
+    assert.equal(decideSplash({ ...base, occasion: reset.occasion }).mode, 'pust');
     assert.equal(initialSplash({ splashSeen: false, inSessionOrReflection: false }).occasion, 'first-launch');
   });
 });

@@ -161,6 +161,15 @@ export const OUTLINE_COLOR = '#CFC9BF';
 export const OUTLINE_WIDTH = 1;
 export const STONE_COLOR = '#111110';
 export const STONE_NUMBER_COLOR = '#F8F6F2';
+
+/**
+ * The 20-minute outline around the lump.
+ * Light needs a grey ink. #F8F6F2 disappears on the beige page.
+ * Dark keeps the paper ink, which still reads on the dark ground.
+ */
+export function maxRingInk(themeName: string, tertiary: string, primary: string): string {
+  return themeName === 'dark' ? primary : tertiary;
+}
 export const STONE_UNIT_COLOR = '#ADA9A2';
 
 /**

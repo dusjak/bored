@@ -190,7 +190,7 @@ type BodyProps = {
   /** Faint 20-minute contour behind the stone. The sheet uses it; Hjem does not. */
   ghost?: boolean;
   ghostColor?: string;
-  ghostOpacity?: number;
+  ghostOpacity?: number | SharedValue<number>;
   /** Space under the number before «min». Hjem keeps the shared gap. */
   unitGap?: number;
   /** Upright Figtree for onboarding numbers. Hjem keeps Figtree Light. */

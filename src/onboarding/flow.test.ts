@@ -154,6 +154,11 @@ describe('bli kjent flow', () => {
     assert.match(name, /after === 'ready'/);
     const questions = readFileSync(join(root, 'src/components/QuestionStep.tsx'), 'utf8');
     assert.match(questions, /<OnboardingHeader/);
+    assert.match(questions, /OptionRise/);
+    const durationPage = readFileSync(join(dir, 'duration.tsx'), 'utf8');
+    const timePage = readFileSync(join(dir, 'time.tsx'), 'utf8');
+    assert.match(durationPage, /OptionRise/);
+    assert.match(timePage, /QuestionStep/);
     assert.doesNotMatch(questions, /dots=\{false\}/);
     const picture = readFileSync(join(root, 'src/components/GummiPicture.tsx'), 'utf8');
     for (const size of [120, 160, 200, 240]) {
@@ -247,7 +252,10 @@ describe('bli kjent flow', () => {
     assert.match(stone, /FixedRim/);
     assert.match(stone, /RING_OFFSET/);
     assert.match(stone, /outsetContour/);
-    assert.match(practice, /GummiPicture/);
+    assert.match(practice, /KlumpenBody/);
+    assert.match(practice, /rasterOnly/);
+    assert.match(practice, /maxRingInk/);
+    assert.match(practice, /GUESS_HINT/);
     assert.match(practice, /drawProgress/);
     assert.match(practice, /HOLD_PHASE_TEXT/);
     assert.match(practice, /HOLD_CONTINUE_AFTER_MS/);

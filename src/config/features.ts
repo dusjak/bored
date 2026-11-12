@@ -10,6 +10,11 @@ const aiCard =
 
 export const features = {
   sluketAnimation: true,
+  /**
+   * MegaSplash («Sluket») is on hold. The code stays loaded behind this flag.
+   * False plays the regular splash (Pust) on first launch and after Nullstill too.
+   */
+  megaSplash: false,
   aiCard,
   /**
    * Paint-mix pass (Kubelka–Munk + OKLab) on a 4 pt grid.

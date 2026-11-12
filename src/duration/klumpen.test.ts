@@ -44,6 +44,7 @@ import {
   SIZE_SPRING,
   STONE_COLOR,
   STONE_NUMBER_COLOR,
+  maxRingInk,
   SWIPE_ACTIVATION,
   SWIPE_STEP,
   VERTICAL_YIELD,
@@ -213,6 +214,8 @@ describe('sheet geometry', () => {
     assert.equal(OUTLINE_WIDTH, 1);
     assert.equal(STONE_COLOR, '#111110');
     assert.equal(STONE_NUMBER_COLOR, '#F8F6F2');
+    assert.equal(maxRingInk('light', '#66635D', '#F8F6F2'), '#66635D');
+    assert.equal(maxRingInk('dark', '#9A968F', '#F8F6F2'), '#F8F6F2');
     assert.deepEqual(ROW_WIDTHS, [22, 28, 34, 40]);
     assert.equal(ROW_PITCH, 79);
     assert.equal(ROW_HIT, 72);

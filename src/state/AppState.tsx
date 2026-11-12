@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState as AppActivity } from 'react-native';
 
+import { features } from '@/config/features';
 import { clampDurationMinutes, DEFAULT_DURATION_MINUTES, formatClock, resolveReminderClock } from '@/data/copy';
 import { planCountdownUpgrade } from '@/data/showCountdown';
 import { FIRST_USED_TRUSTED_KEY, sinceLinePlan } from '@/data/sinceLine';
@@ -428,7 +429,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
 
   const setIntroPhase = useCallback((phase: IntroPhase) => {
     setIntroPhaseState(phase);
-    if (shouldPersistSplashSeen({ phase, crashed: false, occasion: occasionRef.current })) {
+    if (shouldPersistSplashSeen({ phase, crashed: false, occasion: occasionRef.current, megaEnabled: features.megaSplash })) {
       void setSetting(SPLASH_SEEN_KEY, '1').catch(() => undefined);
     }
   }, []);
