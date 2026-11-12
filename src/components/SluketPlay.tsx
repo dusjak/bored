@@ -123,6 +123,13 @@ export function SluketPlay({ onHandoff, onFirstPaint, armed }: SplashProps) {
             effect: mixed ? sluketMixEffect : null,
           });
           if (alive && next.kind === 'image') {
+            if (!showedPlate.current && typeof __DEV__ !== 'undefined' && __DEV__) {
+              console.log('[splash] first lump frame', {
+                width: w,
+                height: h,
+                ratio: splashPlateRatio(PixelRatio.get()),
+              });
+            }
             showedPlate.current = true;
             setPlate(next);
           }

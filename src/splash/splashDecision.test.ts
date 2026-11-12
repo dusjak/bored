@@ -337,6 +337,8 @@ describe('splash root cause', () => {
     const mix = readFileSync(new URL('./sluketMix.ts', import.meta.url), 'utf8');
     assert.match(overlay, /if \(typeof __DEV__ === 'undefined' \|\| __DEV__ !== true\) return;/);
     assert.match(overlay, /console\.log\(decisionLine\)/);
+    assert.match(root, /if \(!open \|\| cover\)/);
+    assert.ok(root.indexOf('if (!open || cover)') < root.indexOf('<Stack'));
     assert.match(root, /<SluketSplash/);
     assert.match(state, /occasionRef\.current = splash\.occasion;/);
     assert.ok(state.indexOf('occasionRef.current = splash.occasion;') < state.indexOf('setSplashOccasion(splash.occasion);'));

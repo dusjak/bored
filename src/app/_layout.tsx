@@ -96,17 +96,24 @@ function ReadyGate() {
     />
   );
 
-  if (!open) {
+  // The native stack paints above later siblings, so a splash beside it never
+  // shows until a navigation reshuffles the layers. While the splash is up it
+  // is the only view. Onboarding mounts after it, so its entrance can be seen.
+  if (!open || cover) {
     return (
       <View style={{ flex: 1, backgroundColor: SPLASH_BG }}>
-        <StillSplash
-          fading={false}
-          armed={false}
-          holdMs={0}
-          fadeMs={exitFadeMs(darkTheme)}
-          onHandoff={() => undefined}
-          onDismiss={() => undefined}
-        />
+        {open ? (
+          splash
+        ) : (
+          <StillSplash
+            fading={false}
+            armed={false}
+            holdMs={0}
+            fadeMs={exitFadeMs(darkTheme)}
+            onHandoff={() => undefined}
+            onDismiss={() => undefined}
+          />
+        )}
       </View>
     );
   }
@@ -134,7 +141,6 @@ function ReadyGate() {
         />
         <Stack.Screen name="reflection" options={{ gestureEnabled: false }} />
       </Stack>
-      {cover ? splash : null}
     </View>
   );
 }
