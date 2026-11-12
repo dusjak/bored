@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View, type TextLayoutEvent } from 'react-native';
+import { knappetrykk } from '@/analytics/track';
 import { pushStep } from '@/onboarding/stepMotion';
 import Animated, {
   Easing,
@@ -82,7 +83,13 @@ export default function MeetKlumpen() {
         <Text style={[theme.text.body, styles.ingress, { color: theme.color.text.secondary }]}>{WELCOME_BODY}</Text>
       </Rise>
       <Rise delay={2000} duration={450} distance={8} reduceMotion={reduceMotion}>
-        <Button title="Kom i gang" onPress={() => pushStep('/onboarding/kjedomhet')} />
+        <Button
+          title="Kom i gang"
+          onPress={() => {
+            knappetrykk({ type: 'Stegnavigasjon', navn: 'Kom i gang', hendelse: 'trykk', skjerm: 'Ingenting er målet' });
+            pushStep('/onboarding/kjedomhet');
+          }}
+        />
       </Rise>
     </Screen>
   );

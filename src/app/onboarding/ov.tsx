@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { knappetrykk } from '@/analytics/track';
 import { pushStep } from '@/onboarding/stepMotion';
 import * as Haptics from 'expo-haptics';
 import Animated, { Easing, useAnimatedStyle, useDerivedValue, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -270,14 +271,23 @@ export default function PracticeStep() {
         </View>
       </StoneAnchor>
       {showContinue ? (
-        <Button title="Fortsett" onPress={() => pushStep('/onboarding/veiskille')} />
+        <Button
+          title="Fortsett"
+          onPress={() => {
+            knappetrykk({ type: 'Stegnavigasjon', navn: 'Fortsett', hendelse: 'trykk', skjerm: 'Du kan alltid bryte økten hvis du blir urolig' });
+            pushStep('/onboarding/veiskille');
+          }}
+        />
       ) : null}
       <Animated.View style={hintTo}>
         <Button
           title="Hopp over"
           variant="ghost"
           style={showContinue ? { marginTop: 8 } : undefined}
-          onPress={() => pushStep('/onboarding/veiskille')}
+          onPress={() => {
+            knappetrykk({ type: 'Stegnavigasjon', navn: 'Hopp over', hendelse: 'trykk', skjerm: 'Du kan alltid bryte økten hvis du blir urolig' });
+            pushStep('/onboarding/veiskille');
+          }}
         />
       </Animated.View>
     </Screen>

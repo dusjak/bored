@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { knappetrykk } from '@/analytics/track';
 import { pushStep } from '@/onboarding/stepMotion';
 
 import { Button } from '@/components/Button';
@@ -23,7 +24,13 @@ export default function KjedomhetStep() {
       <StoneAnchor height={klumpHeight(klumpWidth(1))}>
         <PressOutLump />
       </StoneAnchor>
-      <Button title="Fortsett" onPress={() => pushStep('/onboarding/tid')} />
+      <Button
+        title="Fortsett"
+        onPress={() => {
+          knappetrykk({ type: 'Stegnavigasjon', navn: 'Fortsett', hendelse: 'trykk', skjerm: 'Hva er kjedsomhet?' });
+          pushStep('/onboarding/tid');
+        }}
+      />
     </Screen>
   );
 }

@@ -19,9 +19,10 @@ describe('BACKUP_MODE build check', () => {
     assert.equal(assertBackupMode('preview', null), 'preview');
   });
 
-  it('allows off and live on a production build', () => {
+  it('allows off, live, and fakedoor on a production build', () => {
     assert.equal(assertBackupMode('off', 'production'), 'off');
     assert.equal(assertBackupMode('live', 'production'), 'live');
+    assert.equal(assertBackupMode('fakedoor', 'production'), 'fakedoor');
   });
 
   it('rejects an unknown mode', () => {

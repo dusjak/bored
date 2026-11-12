@@ -17,7 +17,7 @@
  */
 const { isProductionBuildProfile } = require('./src/config/backupModeGuard.js');
 
-const BACKUP_MODES = ['off', 'preview', 'live'];
+const BACKUP_MODES = ['off', 'preview', 'live', 'fakedoor'];
 
 function configuredBackupMode(extra) {
   if (extra && typeof extra.backupMode === 'string' && BACKUP_MODES.includes(extra.backupMode)) {
@@ -29,7 +29,7 @@ function configuredBackupMode(extra) {
 module.exports = ({ config }) => {
   const backupMode = process.env.BACKUP_MODE ?? configuredBackupMode(config.extra);
   if (!BACKUP_MODES.includes(backupMode)) {
-    throw new Error(`BACKUP_MODE must be 'off', 'preview', or 'live'. Received '${backupMode}'.`);
+    throw new Error(`BACKUP_MODE must be 'off', 'preview', 'live', or 'fakedoor'. Received '${backupMode}'.`);
   }
   const easBuildProfile = process.env.EAS_BUILD_PROFILE ?? process.env.EXPO_PUBLIC_EAS_BUILD_PROFILE;
   if (backupMode === 'preview' && isProductionBuildProfile(easBuildProfile)) {

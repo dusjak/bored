@@ -1,7 +1,7 @@
 import { useEffect, useState, type RefObject } from 'react';
 import { StyleSheet, Text, type HostInstance } from 'react-native';
 
-import { track } from '@/analytics/track';
+import { knappetrykk } from '@/analytics/track';
 import { Button } from '@/components/Button';
 import { ContentColumn } from '@/components/ContentColumn';
 import { ScreenTitle } from '@/components/ScreenTitle';
@@ -35,7 +35,7 @@ export function BackupInterestScreen({ visible, onClose, returnFocusRef }: Props
 
   useEffect(() => {
     if (!visible) return;
-    track('backup_screen_viewed');
+    knappetrykk({ type: 'Knapp', navn: 'Sikkerhetskopi', hendelse: 'åpner', skjerm: 'sikkerhetskopi' });
     let live = true;
     void getSetting(NOTED_KEY).then((value) => {
       if (live && value === '1') setNoted(true);
@@ -49,7 +49,7 @@ export function BackupInterestScreen({ visible, onClose, returnFocusRef }: Props
     if (noted) return;
     setNoted(true);
     void setSetting(NOTED_KEY, '1');
-    track('backup_interest_tapped');
+    knappetrykk({ type: 'Knapp', navn: BACKUP_INTEREST_LABEL, hendelse: 'trykk', skjerm: 'sikkerhetskopi' });
   };
 
   return (

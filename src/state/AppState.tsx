@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState as AppActivity } from 'react-native';
 
+import { durationLabel, okt } from '@/analytics/track';
 import { features } from '@/config/features';
 import { clampDurationMinutes, DEFAULT_DURATION_MINUTES, formatClock, resolveReminderClock } from '@/data/copy';
 import { planCountdownUpgrade } from '@/data/showCountdown';
@@ -305,6 +306,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       return;
     }
     const session = await insertActiveSession(next);
+    okt({ navn: durationLabel(next), hendelse: 'start', sekunder: 0, skjerm: 'økt' });
     setLockHintSessionId(session.id);
     const endsAt = new Date(Date.parse(session.startedAt) + session.chosenDurationSeconds * 1000);
     const notificationId = await scheduleSessionEndNotification(endsAt);
@@ -321,6 +323,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     await cancelSessionNotification(session.notificationId);
     const endedAt = new Date(Date.parse(session.startedAt) + session.chosenDurationSeconds * 1000);
     await finishSession(session.id, 'completed', session.chosenDurationSeconds, endedAt);
+    okt({
+      navn: durationLabel(session.chosenDurationSeconds / 60),
+      hendelse: 'fullført',
+      sekunder: session.chosenDurationSeconds,
+      skjerm: 'økt',
+    });
     setActiveSession(null);
     await refreshSessions();
     return session.id;
@@ -333,6 +341,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     await dismissSessionNotification(session.notificationId);
     const actual = elapsedSeconds(Date.parse(session.startedAt), Date.now(), session.chosenDurationSeconds);
     await finishSession(session.id, 'aborted', actual, new Date());
+    okt({
+      navn: durationLabel(Math.round(session.chosenDurationSeconds / 60)),
+      hendelse: 'avbrutt',
+      sekunder: actual,
+      skjerm: 'økt',
+    });
     setActiveSession(null);
     await refreshSessions();
     return session.id;

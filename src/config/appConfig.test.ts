@@ -61,7 +61,7 @@ describe('app config', () => {
       () => {
         const result = load();
         assert.equal(result.owner, 'thekingdule');
-        assert.equal(result.extra?.backupMode, 'preview');
+        assert.equal(result.extra?.backupMode, 'fakedoor');
         assert.equal(result.extra?.eas?.projectId, PROJECT_ID);
         assert.equal(result.extra?.router?.asyncRoutes?.web, false);
         assert.equal(result.extra?.easBuildProfile, undefined);
@@ -78,7 +78,7 @@ describe('app config', () => {
       },
       () => {
         const result = load();
-        assert.equal(result.extra?.backupMode, 'preview');
+        assert.equal(result.extra?.backupMode, 'fakedoor');
         assert.equal(result.extra?.easBuildProfile, 'testflight');
         assert.equal(result.extra?.eas?.projectId, PROJECT_ID);
         assert.equal(result.owner, 'thekingdule');
@@ -86,15 +86,26 @@ describe('app config', () => {
     );
   });
 
-  it('rejects preview backup for the production profile and allows off', () => {
+  it('rejects preview backup for the production profile and allows off and fakedoor', () => {
     withEnv(
       {
-        BACKUP_MODE: undefined,
+        BACKUP_MODE: 'preview',
         EAS_BUILD_PROFILE: 'production',
         EXPO_PUBLIC_EAS_BUILD_PROFILE: undefined,
       },
       () => {
         assert.throws(() => load(), /preview/);
+      },
+    );
+    withEnv(
+      {
+        BACKUP_MODE: 'fakedoor',
+        EAS_BUILD_PROFILE: 'production',
+        EXPO_PUBLIC_EAS_BUILD_PROFILE: undefined,
+      },
+      () => {
+        const result = load();
+        assert.equal(result.extra?.backupMode, 'fakedoor');
       },
     );
     withEnv(

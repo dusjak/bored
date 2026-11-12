@@ -69,6 +69,8 @@ export const NUDGE_CLOSE = 'Lukk';
 export const PREVIEW_MENU_TITLE = 'Forhåndsvis tilstand';
 
 export function storageLine(mode: BackupMode): string {
+  // TODO: designers' «kommer» tag and interest copy replace this empty line for fakedoor.
+  if (mode === 'fakedoor') return '';
   return mode === 'preview' ? PREVIEW_INTRO : E2E_LINE;
 }
 
@@ -77,7 +79,7 @@ export function statusLine(mode: BackupMode): string {
 }
 
 export function turnOffMessage(mode: BackupMode, anonymous: boolean): string {
-  if (mode === 'preview') {
+  if (mode === 'preview' || mode === 'fakedoor') {
     return anonymous
       ? `Uten konto kan du ikke logge på igjen. ${PREVIEW_NO_CLOUD} Det som ligger på telefonen, blir liggende.`
       : `Det som ligger på telefonen, blir liggende. ${PREVIEW_NO_CLOUD}`;
@@ -88,14 +90,14 @@ export function turnOffMessage(mode: BackupMode, anonymous: boolean): string {
 }
 
 export function deleteAccountMessage(mode: BackupMode): string {
-  if (mode === 'preview') {
+  if (mode === 'preview' || mode === 'fakedoor') {
     return `${PREVIEW_NO_CLOUD} Det som ligger på denne telefonen, blir liggende. Dette kan ikke angres.`;
   }
   return 'Sikkerhetskopien i skyen slettes for godt. Det som ligger på denne telefonen, blir liggende. Dette kan ikke angres.';
 }
 
 export function resetSignedInMessage(mode: BackupMode): string {
-  if (mode === 'preview') {
+  if (mode === 'preview' || mode === 'fakedoor') {
     return `Appen blir som ny. ${PREVIEW_NO_CLOUD} Alle økter, notater og innstillinger forsvinner. Dette kan ikke angres.`;
   }
   return 'Appen blir som ny, og sikkerhetskopien i skyen slettes også. Alle økter, notater og innstillinger forsvinner. Dette kan ikke angres. Kontoen slettes også.';

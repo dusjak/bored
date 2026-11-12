@@ -1,4 +1,5 @@
 import { Text, View } from 'react-native';
+import { knappetrykk } from '@/analytics/track';
 import { pushStep } from '@/onboarding/stepMotion';
 
 import { DurationChooser } from '@/components/DurationChooser';
@@ -15,6 +16,7 @@ export default function TidStep() {
   const current = confirmedMinutes(user.duration);
 
   const save = (minutes: number) => {
+    knappetrykk({ type: 'Stegnavigasjon', navn: 'Velg tiden', hendelse: 'trykk', skjerm: 'Velg en tid du klarer' });
     updateUser({ duration: String(minutes), materialId: user.materialId ?? 'gummi' });
     void setDurationMinutes(minutes);
     pushStep('/onboarding/ov');

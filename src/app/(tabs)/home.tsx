@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { StyleSheet, Text, View, type HostInstance } from 'react-native';
 import { router } from 'expo-router';
 
+import { knappetrykk } from '@/analytics/track';
 import { Button } from '@/components/Button';
 import { DurationSheet } from '@/components/DurationSheet';
 import { HomeKlumpen } from '@/components/Klumpen';
@@ -20,6 +21,7 @@ export default function Home() {
 
   const start = async () => {
     if (starting) return;
+    knappetrykk({ type: 'Knapp', navn: 'Start', hendelse: 'trykk', skjerm: 'Hjem' });
     setStarting(true);
     setError(null);
     try {

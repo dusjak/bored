@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Image, StyleSheet, Text, View } from 'react-native';
+import { knappetrykk } from '@/analytics/track';
 import { pushStep } from '@/onboarding/stepMotion';
 
 import { hasNotificationPermission } from '@/data/notifications';
@@ -28,6 +29,12 @@ export default function NotificationsStep() {
   }, [user.notifications]);
 
   const change = async (next: boolean) => {
+    knappetrykk({
+      type: 'Valg',
+      navn: 'Skru på varsler',
+      hendelse: 'trykk',
+      skjerm: 'En stille påminnelse',
+    });
     if (!next) {
       setEnabled(false);
       await setDailyReminder(false);
@@ -83,6 +90,7 @@ export default function NotificationsStep() {
       <Button
         title="Fortsett"
         onPress={() => {
+          knappetrykk({ type: 'Stegnavigasjon', navn: 'Fortsett', hendelse: 'trykk', skjerm: 'En stille påminnelse' });
           if (!enabled) void setDailyReminder(false);
           pushStep('/onboarding/ready');
         }}

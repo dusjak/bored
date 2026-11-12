@@ -1,8 +1,11 @@
+import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
-import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme } from 'expo-router';
+import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme, usePathname } from 'expo-router';
 import { Tabs } from 'expo-router/js-tabs';
 import { NativeTabs } from 'expo-router/native-tabs';
 
+import { knappetrykk } from '@/analytics/track';
+import { tabPress } from '@/analytics/screens';
 import { GlassTabBar } from '@/components/GlassTabBar';
 import { useTheme } from '@/theme';
 import { nativeTabInk, tabBarKind } from '@/theme/tabBar';
@@ -25,6 +28,18 @@ const deg = {
  * template-tinted. Dark does not get the custom glass or pill.
  * Other platforms keep the existing blur bar.
  */
+function TabAnalytics() {
+  const pathname = usePathname();
+  const previous = useRef(pathname);
+  useEffect(() => {
+    const navn = tabPress(previous.current, pathname);
+    previous.current = pathname;
+    if (!navn) return;
+    knappetrykk({ type: 'Fane', navn, hendelse: 'trykk', skjerm: navn });
+  }, [pathname]);
+  return null;
+}
+
 export default function TabsLayout() {
   const { theme } = useTheme();
   const ink = nativeTabInk(theme.name);
@@ -33,6 +48,8 @@ export default function TabsLayout() {
     const label = { fontSize: theme.text.tab.fontSize, fontFamily: theme.text.tab.fontFamily };
     return (
       <NavigationThemeProvider value={theme.name === 'dark' ? DarkTheme : DefaultTheme}>
+        <>
+        <TabAnalytics />
         <NativeTabs
           minimizeBehavior="never"
           iconColor={{ default: ink.inactive, selected: ink.active }}
@@ -55,11 +72,14 @@ export default function TabsLayout() {
             <NativeTabs.Trigger.Icon src={deg} renderingMode="template" />
           </NativeTabs.Trigger>
         </NativeTabs>
+        </>
       </NavigationThemeProvider>
     );
   }
 
   return (
+    <>
+    <TabAnalytics />
     <Tabs
       tabBar={(props) => <GlassTabBar {...props} />}
       screenOptions={{
@@ -72,5 +92,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="log" />
       <Tabs.Screen name="profile" options={{ sceneStyle: { backgroundColor: theme.color.bg.grouped } }} />
     </Tabs>
+    </>
   );
 }

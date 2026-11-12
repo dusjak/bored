@@ -3,6 +3,7 @@ import { Alert, Platform, Pressable, StyleSheet, Text, View, type StyleProp, typ
 import * as AppleAuthentication from 'expo-apple-authentication';
 import { router, useFocusEffect } from 'expo-router';
 
+import { knappetrykk } from '@/analytics/track';
 import { presentAppleSheet } from '@/backup/apple';
 import {
   ACCOUNT_ANONYMOUS,
@@ -123,7 +124,14 @@ export function BackupScreen({ backLabel }: Props) {
     Alert.alert(ALERT_SIGN_IN_FAILED, 'noe gikk galt. prøv igjen.', [{ text: CONFIRM_OK }]);
   };
 
+  const press = (navn: string, hendelse: 'trykk' | 'åpner' | 'lukker' | 'submit' = 'trykk') => {
+    knappetrykk({ type: 'Knapp', navn, hendelse, skjerm: 'sikkerhetskopi' });
+  };
+
   const enableApple = async () => {
+    press('Fortsett med Apple');
+    // Fake door: the tap is the whole action. No Apple sheet, nothing leaves the phone.
+    if (backup.mode === 'fakedoor') return;
     if (backup.preview.forced === 'accountSwitch') {
       presentSwitch();
       return;
@@ -138,6 +146,8 @@ export function BackupScreen({ backLabel }: Props) {
   };
 
   const linkApple = async () => {
+    press(LINK_APPLE_LABEL);
+    if (backup.mode === 'fakedoor') return;
     if (backup.preview.forced === 'alreadyExists') {
       presentExists();
       return;
@@ -156,6 +166,7 @@ export function BackupScreen({ backLabel }: Props) {
   };
 
   const askTurnOff = () => {
+    press(TURN_OFF, 'åpner');
     const anonymous = backup.preview.account === 'anonymous';
     Alert.alert(ALERT_TURN_OFF, turnOffMessage(backup.mode, anonymous), [
       { text: CONFIRM_CANCEL, style: 'cancel' },
@@ -170,6 +181,7 @@ export function BackupScreen({ backLabel }: Props) {
   };
 
   const askDelete = () => {
+    press(DELETE_ACCOUNT, 'åpner');
     void (async () => {
       if (!(await deviceIsOnline())) {
         Alert.alert(ALERT_OFFLINE, ALERT_OFFLINE_DELETE, [{ text: CONFIRM_OK }]);
@@ -209,6 +221,7 @@ export function BackupScreen({ backLabel }: Props) {
   }
 
   const askNewCopy = () => {
+    press(START_NEW_BACKUP, 'åpner');
     Alert.alert(ALERT_NEW, ALERT_NEW_BODY, [
       { text: CONFIRM_CANCEL, style: 'cancel' },
       { text: CONFIRM_NEW, style: 'destructive', onPress: () => void backup.startNewCopy() },
@@ -224,7 +237,10 @@ export function BackupScreen({ backLabel }: Props) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={backLabel}
-        onPress={() => router.back()}
+        onPress={() => {
+          press(backLabel);
+          router.back();
+        }}
         style={[styles.back, { gap: theme.space['1'] }]}
       >
         <Icon name="chevronLeft" size={22} color={theme.color.text.primary} />
@@ -238,6 +254,7 @@ export function BackupScreen({ backLabel }: Props) {
         >
           {BACKUP_TITLE}
         </Text>
+        {/* TODO: designers' «kommer» tag and interest copy replace the empty fakedoor intro. */}
         {backup.mode === 'preview' ? (
           <View
             style={[
@@ -305,7 +322,11 @@ export function BackupScreen({ backLabel }: Props) {
           <Pressable
             accessibilityRole="button"
             accessibilityLabel={CONTINUE_WITHOUT_ACCOUNT}
-            onPress={() => void backup.enableAnonymous()}
+            onPress={() => {
+              press(CONTINUE_WITHOUT_ACCOUNT);
+              if (backup.mode === 'fakedoor') return;
+              void backup.enableAnonymous();
+            }}
             style={styles.centerAction}
           >
             <Text style={[theme.text.labelSmall, { color: theme.color.text.primary }]}>{CONTINUE_WITHOUT_ACCOUNT}</Text>

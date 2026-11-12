@@ -195,7 +195,78 @@ export class MockBackupService implements BackupService {
  * `off` and `live` return null. `live` is the v2 swap point:
  * `return new SupabaseBackupService(store)` once that class exists.
  */
+/**
+ * Fake door. The screen can ask, and nothing is written or sent.
+ * TODO: designers' «kommer» tag and interest copy land on the screen that uses this.
+ */
+class FakedoorBackupService implements BackupService {
+  async load(): Promise<BackupSnapshot> {
+    return { preview: EMPTY_PREVIEW, everEnabled: false };
+  }
+
+  async enableWithApple(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+
+  async enableAnonymous(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+
+  async linkApple(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+
+  async turnOff(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+
+  async deleteAccount(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+
+  async prepareReset(): Promise<'ok' | 'failed'> {
+    return 'ok';
+  }
+
+  async force(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+
+  async confirmAccountSwitch(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+
+  async cancelAccountSwitch(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+
+  async confirmExistingBackup(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+
+  async cancelExistingBackup(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+
+  async startNewCopy(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+
+  async markRestorePermission(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+
+  async clearRestoreNotificationLine(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+
+  async dismissNotice(): Promise<BackupSnapshot> {
+    return this.load();
+  }
+}
+
 export function createBackupService(mode: BackupMode, store: BackupStore): BackupService | null {
   if (mode === 'preview') return new MockBackupService(store);
+  if (mode === 'fakedoor') return new FakedoorBackupService();
   return null;
 }

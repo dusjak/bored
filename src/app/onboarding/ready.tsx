@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 
+import { knappetrykk } from '@/analytics/track';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
@@ -25,6 +26,7 @@ export default function Ready() {
   ];
 
   const start = async () => {
+    knappetrykk({ type: 'Knapp', navn: 'Start din første økt', hendelse: 'trykk', skjerm: 'Klar' });
     await completeOnboarding();
     await beginSession(minutes);
     router.replace('/home');

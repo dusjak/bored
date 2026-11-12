@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Keyboard, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import { knappetrykk } from '@/analytics/track';
 import { pushStep } from '@/onboarding/stepMotion';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -30,6 +31,12 @@ export default function NameStep() {
   }, []);
 
   const next = (value: string) => {
+    knappetrykk({
+      type: 'Stegnavigasjon',
+      navn: value.trim() ? 'Fortsett' : 'Hopp over',
+      hendelse: 'trykk',
+      skjerm: 'Hva skal vi kalle deg?',
+    });
     updateUser({ name: value });
     const skipped = after === 'ready' || user.introPath === 'skip';
     pushStep(skipped ? '/onboarding/ready' : '/onboarding/notifications');

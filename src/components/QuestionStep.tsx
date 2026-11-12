@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet } from 'react-native';
 import type { Href } from 'expo-router';
 import { QUESTIONS, type QuestionKey } from '@/data/mock';
 import { useAppState } from '@/state/AppState';
+import { knappetrykk } from '@/analytics/track';
 import { pushStep } from '@/onboarding/stepMotion';
 import { Button } from './Button';
 import { OnboardingHeader } from './OnboardingHeader';
@@ -35,7 +36,10 @@ export function QuestionStep({ questionKey }: { questionKey: QuestionKey }) {
               sub={o.sub}
               icon={q.withIcons ? o.icon : undefined}
               selected={selected === o.id}
-              onPress={() => setSelected(o.id)}
+              onPress={() => {
+                knappetrykk({ type: 'Valg', navn: o.label, hendelse: 'trykk', skjerm: q.title });
+                setSelected(o.id);
+              }}
             />
           </OptionRise>
         ))}
@@ -45,6 +49,7 @@ export function QuestionStep({ questionKey }: { questionKey: QuestionKey }) {
           title="Fortsett"
           disabled={!selected}
           onPress={() => {
+            knappetrykk({ type: 'Stegnavigasjon', navn: 'Fortsett', hendelse: 'trykk', skjerm: q.title });
             updateUser({ [questionKey]: selected });
             pushStep(q.next as Href);
           }}

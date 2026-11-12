@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 
 import { shouldShowBackupNudge } from '@/backup/nudge';
 import { BackupNudgeCard } from '@/components/backup/BackupNudgeCard';
+import { knappetrykk } from '@/analytics/track';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { Icon } from '@/components/Icon';
@@ -143,6 +144,14 @@ export default function Log() {
                       hug
                       style={{ height: 32 }}
                       onPress={() => {
+                        knappetrykk({
+                          type: 'Knapp',
+                          navn: 'Lagre',
+                          hendelse: 'submit',
+                          skjerm: 'Logg',
+                          notat: draft.trim().length > 0,
+                          ...(session.journal?.mood ? { stemning: session.journal.mood } : {}),
+                        });
                         saveReflection(session.id, session.journal?.mood ?? null, draft.trim())
                           .then(() => setError(null))
                           .catch(() => setError('fikk ikke lagret. prøv igjen.'));
@@ -156,6 +165,7 @@ export default function Log() {
                         hug
                         textStyle={{ color: theme.color.text.destructive }}
                         onPress={() => {
+                          knappetrykk({ type: 'Knapp', navn: 'Slett', hendelse: 'trykk', skjerm: 'Logg' });
                           removeReflection(session.id)
                             .then(() => {
                               setDraft('');

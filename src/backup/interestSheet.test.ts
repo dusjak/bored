@@ -11,8 +11,9 @@ describe('backup interest sheet', () => {
     assert.match(screen, /Jeg vil ha en sikkerhetskopi/);
     assert.match(screen, /<Sheet /);
     assert.match(screen, /sheetContentPullUp/);
-    assert.match(screen, /backup_screen_viewed/);
-    assert.match(screen, /backup_interest_tapped/);
+    assert.match(screen, /knappetrykk/);
+    assert.match(screen, /skjerm: 'sikkerhetskopi'/);
+    assert.match(screen, /BACKUP_INTEREST_LABEL/);
     assert.doesNotMatch(screen, /Personvernerklæring|PRIVACY/);
     assert.doesNotMatch(screen, /Jeg vil ha det/);
     assert.match(profile, /<BackupInterestScreen/);

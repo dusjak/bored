@@ -1,12 +1,31 @@
-import { Stack } from 'expo-router';
+import { useEffect, useRef } from 'react';
+import { Stack, usePathname } from 'expo-router';
 import { useReducedMotion } from 'react-native-reanimated';
 
+import { onboardingSpor } from '@/analytics/track';
+import { onboardingBeats, onboardingStepName } from '@/analytics/screens';
+import { stepDirection } from '@/onboarding/stepMotion';
 import { useTheme } from '@/theme';
+
+function OnboardingAnalytics() {
+  const pathname = usePathname();
+  const previous = useRef<string | null>(null);
+  useEffect(() => {
+    const next = onboardingStepName(pathname);
+    for (const beat of onboardingBeats(previous.current, next, stepDirection())) {
+      onboardingSpor(beat);
+    }
+    if (next) previous.current = next;
+  }, [pathname]);
+  return null;
+}
 
 export default function OnboardingLayout() {
   const { theme } = useTheme();
   const reduceMotion = useReducedMotion();
   return (
+    <>
+    <OnboardingAnalytics />
     <Stack
       screenOptions={{
         headerShown: false,
@@ -21,5 +40,6 @@ export default function OnboardingLayout() {
     >
       <Stack.Screen name="ready" options={{ contentStyle: { backgroundColor: theme.color.bg.session } }} />
     </Stack>
+    </>
   );
 }

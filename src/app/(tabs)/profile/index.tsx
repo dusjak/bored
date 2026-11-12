@@ -20,6 +20,7 @@ import {
   TRY_AGAIN,
   resetSignedInMessage,
 } from '@/backup/copy';
+import { knappetrykk } from '@/analytics/track';
 import { degBackupValue, resetNeedsNetwork, showHonestyLine, type PreviewForce } from '@/backup/model';
 import { deviceIsOnline } from '@/backup/net';
 import { AppearanceSheet } from '@/components/AppearanceSheet';
@@ -107,6 +108,7 @@ export default function Profile() {
           text: CONFIRM_RESET,
           style: 'destructive',
           onPress: () => {
+            knappetrykk({ type: 'Knapp', navn: 'Nullstill', hendelse: 'submit', skjerm: 'Deg' });
             void (async () => {
               try {
                 if (needsNetwork && !(await deviceIsOnline())) {
@@ -331,6 +333,7 @@ export default function Profile() {
                 accessibilityRole="button"
                 accessibilityLabel={`Sikkerhetskopi, ${backupLabel}`}
                 onPress={() => {
+                  knappetrykk({ type: 'Knapp', navn: 'Sikkerhetskopi', hendelse: 'åpner', skjerm: 'Deg' });
                   closeTime();
                   setBackupOpen(true);
                 }}
@@ -356,6 +359,7 @@ export default function Profile() {
           accessibilityRole="button"
           accessibilityLabel="Nullstill"
           onPress={() => {
+            knappetrykk({ type: 'Knapp', navn: 'Nullstill', hendelse: 'åpner', skjerm: 'Deg' });
             closeTime();
             confirmReset();
           }}
