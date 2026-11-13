@@ -59,16 +59,28 @@ export const DEG_STALE = 'Ikke oppdatert';
 
 export const NOTIFICATIONS_OFF_LINE = 'Varsler er slått av for appen. Åpne Innstillinger ›';
 
-export const NUDGE_TITLE = 'Vil du sikkerhetskopiere øktene dine?';
-export const NUDGE_BODY =
-  'Øktene og notatene dine er bare lagret på denne telefonen. Med sikkerhetskopiering beholder du dem hvis du bytter telefon.';
-export const NUDGE_ENABLE = 'Slå på sikkerhetskopiering';
+export const COMING_TAG = 'Kommer kanskje';
+/** VoiceOver name for the Deg row and the sheet title. */
+export const INTEREST_HEADER_LABEL = 'Sikkerhetskopi, kommer kanskje';
+export const INTEREST_BODY =
+  'Den finnes ikke ennå. I dag ligger alt bare på denne telefonen, og ingenting lagres andre steder.';
+export const INTEREST_CAPTION = 'Trykket telles anonymt. Vi spør ikke om e-post.';
+export const INTEREST_BUTTON = 'Jeg vil ha det';
+export const INTEREST_THANKS = 'Takk, vi har notert det';
+
+export const NUDGE_TITLE = 'Alt ligger bare på denne telefonen';
+export const NUDGE_BODY_BEFORE = 'Vi vurderer en kryptert ';
+export const NUDGE_BODY_LINK = 'sikkerhetskopi';
+export const NUDGE_BODY_AFTER = ', men den finnes ikke ennå. Vil du ha den, kan du si fra.';
+export const NUDGE_BODY = `${NUDGE_BODY_BEFORE}${NUDGE_BODY_LINK}${NUDGE_BODY_AFTER}`;
+export const NUDGE_ENABLE = 'Jeg vil ha det';
 export const NUDGE_LATER = 'Ikke nå';
 export const NUDGE_CLOSE = 'Lukk';
 
 export const PREVIEW_MENU_TITLE = 'Forhåndsvis tilstand';
 
 export function storageLine(mode: BackupMode): string {
+  if (mode === 'fakedoor') return '';
   return mode === 'preview' ? PREVIEW_INTRO : E2E_LINE;
 }
 
@@ -77,7 +89,7 @@ export function statusLine(mode: BackupMode): string {
 }
 
 export function turnOffMessage(mode: BackupMode, anonymous: boolean): string {
-  if (mode === 'preview') {
+  if (mode === 'preview' || mode === 'fakedoor') {
     return anonymous
       ? `Uten konto kan du ikke logge på igjen. ${PREVIEW_NO_CLOUD} Det som ligger på telefonen, blir liggende.`
       : `Det som ligger på telefonen, blir liggende. ${PREVIEW_NO_CLOUD}`;
@@ -88,14 +100,14 @@ export function turnOffMessage(mode: BackupMode, anonymous: boolean): string {
 }
 
 export function deleteAccountMessage(mode: BackupMode): string {
-  if (mode === 'preview') {
+  if (mode === 'preview' || mode === 'fakedoor') {
     return `${PREVIEW_NO_CLOUD} Det som ligger på denne telefonen, blir liggende. Dette kan ikke angres.`;
   }
   return 'Sikkerhetskopien i skyen slettes for godt. Det som ligger på denne telefonen, blir liggende. Dette kan ikke angres.';
 }
 
 export function resetSignedInMessage(mode: BackupMode): string {
-  if (mode === 'preview') {
+  if (mode === 'preview' || mode === 'fakedoor') {
     return `Appen blir som ny. ${PREVIEW_NO_CLOUD} Alle økter, notater og innstillinger forsvinner. Dette kan ikke angres.`;
   }
   return 'Appen blir som ny, og sikkerhetskopien i skyen slettes også. Alle økter, notater og innstillinger forsvinner. Dette kan ikke angres. Kontoen slettes også.';

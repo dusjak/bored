@@ -24,6 +24,7 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AiCard } from '@/components/AiCard';
+import { knappetrykk } from '@/analytics/track';
 import { Button } from '@/components/Button';
 import { ContentColumn } from '@/components/ContentColumn';
 import { KlumpenBody, KlumpenGlyph, crossfadeTo } from '@/components/Klumpen';
@@ -234,6 +235,7 @@ function DurationBody({
   };
 
   const confirm = () => {
+    knappetrykk({ type: 'Knapp', navn: 'Bruk', hendelse: 'trykk', skjerm: 'Hjem' });
     const picked = PRESET_MINUTES[selectedRef.current] ?? PRESET_MINUTES[1];
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     AccessibilityInfo.announceForAccessibility(chosenAnnouncement(picked));

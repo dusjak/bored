@@ -4,11 +4,12 @@ import { isProductionBuildProfile } from '../config/buildProfile.ts';
  * Build flag for sikkerhetskopi.
  * `preview` is TestFlight v1: the UI is real, nothing leaves the phone.
  * `live` is v2 (Supabase). `off` hides the feature.
+ * `fakedoor` may ship in production: nothing leaves the phone and Apple is not called.
  * The check runs when Expo evaluates `app.config.js`, so an App Store build
  * cannot ship the preview by accident. `testflight` is not production.
  */
 
-export const BACKUP_MODES = ['off', 'preview', 'live'] as const;
+export const BACKUP_MODES = ['off', 'preview', 'live', 'fakedoor'] as const;
 export type BackupMode = (typeof BACKUP_MODES)[number];
 
 export function isBackupMode(value: string): value is BackupMode {
@@ -21,7 +22,7 @@ export function isBackupMode(value: string): value is BackupMode {
  */
 export function assertBackupMode(mode: string, easBuildProfile: string | null | undefined): BackupMode {
   if (!isBackupMode(mode)) {
-    throw new Error(`BACKUP_MODE must be 'off', 'preview', or 'live'. Received '${mode}'.`);
+    throw new Error(`BACKUP_MODE must be 'off', 'preview', 'live', or 'fakedoor'. Received '${mode}'.`);
   }
   if (mode === 'preview' && isProductionBuildProfile(easBuildProfile)) {
     throw new Error(

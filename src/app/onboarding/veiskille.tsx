@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { knappetrykk } from '@/analytics/track';
 import { pushStep } from '@/onboarding/stepMotion';
 import Svg, { Circle, Polyline } from 'react-native-svg';
 
@@ -27,11 +28,13 @@ export default function Veiskille() {
   const known = [FORK_KNOWN[0], forkDurationLine(minutes), FORK_KNOWN[1]];
 
   const tailor = () => {
+    knappetrykk({ type: 'Stegnavigasjon', navn: 'Tilpass øktene', hendelse: 'trykk', skjerm: 'Nå kan du det viktigste' });
     updateUser({ introPath: 'del2', duration: String(minutes), materialId: user.materialId ?? 'gummi' });
     pushStep('/onboarding/distraction');
   };
 
   const skip = () => {
+    knappetrykk({ type: 'Stegnavigasjon', navn: 'Hopp over', hendelse: 'trykk', skjerm: 'Nå kan du det viktigste' });
     updateUser({ introPath: 'skip', duration: String(minutes), materialId: user.materialId ?? 'gummi' });
     pushStep({ pathname: '/onboarding/name', params: { after: 'ready' } });
   };

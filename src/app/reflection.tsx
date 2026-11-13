@@ -3,6 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
+import { knappetrykk } from '@/analytics/track';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { ScreenTitle } from '@/components/ScreenTitle';
@@ -48,10 +49,21 @@ export default function Reflection() {
       ? abortedPhrase(session.actualDurationSeconds)
       : 'Det var det.';
 
-  const leave = () => router.replace('/home');
+  const leave = () => {
+    knappetrykk({ type: 'Knapp', navn: 'Hopp over', hendelse: 'trykk', skjerm: 'notat', notat: false });
+    router.replace('/home');
+  };
 
   const save = async () => {
     if (!sessionId || saving) return;
+    knappetrykk({
+      type: 'Knapp',
+      navn: 'Lagre',
+      hendelse: 'submit',
+      skjerm: 'notat',
+      notat: note.trim().length > 0,
+      ...(mood ? { stemning: mood } : {}),
+    });
     setSaving(true);
     setError(null);
     try {

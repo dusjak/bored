@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { Pressable, StyleSheet, Text, View, type HostInstance } from 'react-native';
 
+import { knappetrykk } from '@/analytics/track';
 import { Button } from '@/components/Button';
 import { ContentColumn } from '@/components/ContentColumn';
 import { Icon } from '@/components/Icon';
@@ -52,6 +53,7 @@ export function AppearanceSheet({ visible, onClose, onError, returnFocusRef }: P
   };
 
   const confirm = () => {
+    knappetrykk({ type: 'Knapp', navn: APPEARANCE_CONFIRM, hendelse: 'trykk', skjerm: 'Deg' });
     setPreference(picked).catch(() => onError?.());
     onClose();
   };

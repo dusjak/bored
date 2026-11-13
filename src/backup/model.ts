@@ -1,3 +1,5 @@
+import type { BackupMode } from '@/backup/mode';
+
 /** Local preview record stored in `app_state.backupPreview`. Nothing here is uploaded. */
 
 export type BackupAccount = 'apple' | 'anonymous';
@@ -75,8 +77,9 @@ export function resolveBackupView(preview: BackupPreview): BackupView {
 
 export type DegBackupValue = 'hidden' | 'off' | 'on' | 'onTest' | 'stale';
 
-export function degBackupValue(mode: 'off' | 'preview' | 'live', preview: BackupPreview): DegBackupValue {
+export function degBackupValue(mode: BackupMode, preview: BackupPreview): DegBackupValue {
   if (mode === 'off') return 'hidden';
+  if (mode === 'fakedoor') return 'off';
   if (preview.forced === 'stale' && preview.enabled) return 'stale';
   if (!preview.enabled) return 'off';
   if (mode === 'preview') return 'onTest';
@@ -84,9 +87,9 @@ export function degBackupValue(mode: 'off' | 'preview' | 'live', preview: Backup
 }
 
 /** In preview the line is always true. In live it shows only while backup is off. */
-export function showHonestyLine(mode: 'off' | 'preview' | 'live', preview: BackupPreview): boolean {
+export function showHonestyLine(mode: BackupMode, preview: BackupPreview): boolean {
   if (mode === 'off') return false;
-  if (mode === 'preview') return true;
+  if (mode === 'preview' || mode === 'fakedoor') return true;
   return !preview.enabled;
 }
 

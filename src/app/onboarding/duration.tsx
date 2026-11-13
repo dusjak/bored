@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ScrollView, StyleSheet } from 'react-native';
+import { knappetrykk } from '@/analytics/track';
 import { pushStep } from '@/onboarding/stepMotion';
 
 import { Button } from '@/components/Button';
@@ -26,7 +27,10 @@ export default function DurationStep() {
               label={item.label}
               sub={item.sub}
               selected={selected === item.minutes}
-              onPress={() => setSelected(item.minutes)}
+              onPress={() => {
+                knappetrykk({ type: 'Valg', navn: item.label, hendelse: 'trykk', skjerm: DURATION_LIST_TITLE });
+                setSelected(item.minutes);
+              }}
             />
           </OptionRise>
         ))}
@@ -34,8 +38,9 @@ export default function DurationStep() {
       <OptionRise delay={160} duration={240}>
         <Button
           title="Fortsett"
-          onPress={() => {
-            updateUser({ duration: String(selected) });
+        onPress={() => {
+          knappetrykk({ type: 'Stegnavigasjon', navn: 'Fortsett', hendelse: 'trykk', skjerm: DURATION_LIST_TITLE });
+          updateUser({ duration: String(selected) });
             void setDurationMinutes(selected);
             pushStep('/onboarding/time');
           }}

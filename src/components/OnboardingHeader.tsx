@@ -1,6 +1,6 @@
 import { useCallback, type ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, usePathname } from 'expo-router';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -10,6 +10,8 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
+import { knappetrykk } from '@/analytics/track';
+import { onboardingStepName } from '@/analytics/screens';
 import { backStep, stepDirection } from '@/onboarding/stepMotion';
 
 import { ONBOARDING_STEPS } from '@/data/mock';
@@ -53,6 +55,7 @@ export function OnboardingHeader({
   dotIdle?: string;
 }) {
   const { theme } = useTheme();
+  const pathname = usePathname();
   const subtitle = sub ? (
     <Text
       style={[
@@ -66,7 +69,20 @@ export function OnboardingHeader({
   return (
     <View>
       <View style={styles.bar}>
-        <Pressable hitSlop={12} onPress={backStep} accessibilityLabel="Tilbake" style={styles.back}>
+        <Pressable
+          hitSlop={12}
+          onPress={() => {
+            knappetrykk({
+              type: 'Stegnavigasjon',
+              navn: 'Tilbake',
+              hendelse: 'trykk',
+              skjerm: onboardingStepName(pathname) ?? pathname,
+            });
+            backStep();
+          }}
+          accessibilityLabel="Tilbake"
+          style={styles.back}
+        >
           <Icon name="chevronLeft" size={18} color={subInk ?? theme.color.text.tertiary} />
         </Pressable>
         {dots ? <ProgressDots total={total} current={step} activeColor={dot} idleColor={dotIdle} /> : <View style={styles.spacer} />}
