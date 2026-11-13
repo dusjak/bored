@@ -1,13 +1,21 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
-import { screenPadding } from '../theme/theme.ts';
+import { screenPadding, text } from '../theme/theme.ts';
 import { PRESET_MINUTES } from '../data/copy.ts';
+import { stoneCenterY, STONE_CENTER_ON_852 } from '../duration/klumpen.ts';
+import { screenTopInset } from '../theme/layout.ts';
 import {
+  COMPLETION_TITLE_MAX_LINES,
   SESSION_HINT_BOX,
   SESSION_LAYOUT_SCREENS,
   SESSION_RING_GAP,
   SESSION_TIMER_BOX,
+  completionTitleBottom,
+  completionTitleClearsStone,
+  completionTitleTop,
   sessionCanvasBox,
   sessionColumn,
   sessionKlumpenMargins,
@@ -55,6 +63,39 @@ describe('session column', () => {
       assert.ok(Math.abs(margins.hintMarginTop + (canvas.cy - reach.bottom) - SESSION_RING_GAP) < 1e-9);
       assert.ok(reach.top < canvas.cy && reach.bottom < canvas.cy);
     }
+  });
+
+  it('puts the completion title above the stone and leaves the stone on 435', () => {
+    assert.equal(STONE_CENTER_ON_852, 435);
+    assert.equal(stoneCenterY(852), 435);
+    assert.equal(completionTitleTop(59), 59 + screenTopInset);
+    assert.equal(completionTitleTop(20), 20 + screenTopInset);
+    assert.equal(COMPLETION_TITLE_MAX_LINES, 3);
+    assert.equal(text.headline.lineHeight, 32);
+    assert.equal(completionTitleBottom(0, 1) - completionTitleTop(0), text.headline.lineHeight);
+    const phones = [
+      { name: 'iPhone SE', width: 375, height: 667, safeTop: 20, safeBottom: 0 },
+      { name: 'iPhone 15 Pro', width: 393, height: 852, safeTop: 59, safeBottom: 34 },
+    ] as const;
+    for (const screen of [...SESSION_LAYOUT_SCREENS, ...phones]) {
+      for (const minutes of PRESET_MINUTES) {
+        assert.equal(
+          completionTitleClearsStone(minutes, screen),
+          true,
+          `${minutes} min title overlaps the stone on ${'name' in screen ? screen.name : screen.height}`,
+        );
+        const stoneTop = stoneCenterY(screen.height) - sessionRingReach(minutes).top;
+        assert.ok(completionTitleBottom(screen.safeTop) <= stoneTop);
+      }
+    }
+    const source = readFileSync(join(process.cwd(), 'src/app/session.tsx'), 'utf8');
+    assert.equal(source.includes('Økt fullført'), false);
+    assert.match(source, /top: screenTopInset/);
+    assert.match(source, /contentFrame/);
+    assert.match(source, /contentColumnForWidth\(windowWidth\)/);
+    assert.match(source, /alignItems: 'stretch'/);
+    assert.match(source, /<ScreenTitle align="left" variant="headline">/);
+    assert.match(source, /stoneCenterY\(windowHeight\) - insets\.top - sessionRingReach/);
   });
 
   it('still clears the ring when the countdown is hidden', () => {

@@ -1,9 +1,10 @@
 /**
  * Layout v2.1 (2026-11-04).
  *
- * Column: `screenPadding` (24) on each side, capped at `contentMaxWidth` (345), centered.
- * On a 393pt phone that is 24 + 345 + 24. Wider phones keep 345 and center it.
- * The tab bar uses the same column, so primary buttons share its width and x.
+ * Column: `screenPadding` (24) on each side of every phone. The 345pt cap is only
+ * for tablets and other wide windows (`contentColumnCapMinWidth`, 600). A 393pt
+ * phone is still 24 + 345 + 24. A 440pt phone is 24 + 392 + 24. The tab bar uses
+ * the same column, so primary buttons share its width and x.
  *
  * Top inset is measured under the safe area. The spacing scale is the source of truth.
  * - App screens that lead with a title or count (Refleksjon, Logg, Deg): `space['10']` (40).
@@ -16,8 +17,18 @@ import type { ViewStyle } from 'react-native';
 
 import { screenPadding, size, space } from './theme.ts';
 
-/** Content column and tab bar. Same width, centered on wider phones. */
+/** Content column and tab bar on a 393pt phone, and the cap from tablet width up. */
 export const contentMaxWidth = 345;
+
+/**
+ * Windows this wide keep the 345pt column. Phones, including 440pt Pro Max, do not.
+ * iPad portrait starts at 744. 600 sits between the largest phone and the smallest tablet.
+ */
+export const contentColumnCapMinWidth = 600;
+
+export function contentColumnCapped(screenWidth: number): boolean {
+  return screenWidth >= contentColumnCapMinWidth;
+}
 
 /** Refleksjon, Logg, Deg. Safe area sits above this. */
 export const screenTopInset = space['10'];
@@ -47,11 +58,13 @@ export function insetUnderSafeArea(top: ScreenTop): number {
 
 /**
  * Width of the column at `screenWidth`.
- * Minimum side inset is `screenPadding`. The column never exceeds `contentMaxWidth`.
+ * Side inset stays `screenPadding` on phones. From `contentColumnCapMinWidth` the
+ * column stops at `contentMaxWidth` and centers in the frame.
  */
 export function contentColumnWidth(screenWidth: number): number {
-  const inner = screenWidth - screenPadding * 2;
-  return Math.min(contentMaxWidth, Math.max(0, inner));
+  const inner = Math.max(0, screenWidth - screenPadding * 2);
+  if (contentColumnCapped(screenWidth)) return Math.min(contentMaxWidth, inner);
+  return inner;
 }
 
 /** Outer frame: the 24pt side inset. Pair with `contentColumn`. */
@@ -60,9 +73,13 @@ export const contentFrame: ViewStyle = {
   paddingHorizontal: screenPadding,
 };
 
-/** Inner column: 345pt max, centered once the frame is wider than that. */
+/** Inner column. Full width of the 24pt frame. Wide windows add the 345pt cap. */
 export const contentColumn: ViewStyle = {
   width: '100%',
-  maxWidth: contentMaxWidth,
   alignSelf: 'center',
 };
+
+export function contentColumnForWidth(screenWidth: number): ViewStyle {
+  if (!contentColumnCapped(screenWidth)) return contentColumn;
+  return { ...contentColumn, maxWidth: contentMaxWidth };
+}

@@ -51,11 +51,12 @@ export function RowChevron() {
 const styles = StyleSheet.create({
   card: { overflow: 'hidden' },
   // Drawn on the boundary so a two-row card stays 100 pt, not 100.5.
+  // Both ends stop at the row inset, the same padding as the label and value.
   separator: {
     position: 'absolute',
     top: 0,
     left: deg.rowInset,
-    right: 0,
+    right: deg.rowInset,
     height: deg.separator,
     zIndex: 1,
   },

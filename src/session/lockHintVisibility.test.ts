@@ -9,6 +9,7 @@ import {
   holdHintGateFor,
   holdHintMomentAt,
   isFullscreenWindow,
+  lockHintCanvasBox,
   lockHintFrameVisible,
   lockHintOffer,
   lockHintOfferWhileHolding,
@@ -79,6 +80,24 @@ describe('lock hint offer', () => {
     assert.match(session, /applyHoldHintTimeout/);
     assert.match(session, /holdMoment=\{holdMoment\}/);
     assert.match(hint, /lockHintFrameVisible\(\{ live, offer, moment: holdMoment \}\)/);
+  });
+
+  it('overscans the scrim past both edges and keeps the bulge on the bezel', () => {
+    const box = lockHintCanvasBox(393, 852);
+    assert.equal(box.left, -80);
+    assert.equal(box.top, 0);
+    assert.equal(box.height, 852);
+    assert.equal(box.bezelX - 80, 393);
+    assert.equal(box.width - box.bezelX, 24);
+    assert.equal(box.gradientStartX, 80);
+    assert.ok(80 > 50, 'left bleed covers the 50pt strip on the session screenshot');
+    const narrow = lockHintCanvasBox(0, 0);
+    assert.equal(narrow.width, 80 + 24);
+    assert.equal(narrow.bezelX, 80);
+    const hint = readFileSync(join(process.cwd(), 'src/components/LockHint.tsx'), 'utf8');
+    assert.match(hint, /lockHintCanvasBox\(box\.width, box\.height\)/);
+    assert.match(hint, /left: canvas\.left/);
+    assert.match(hint, /cx=\{canvas\.bezelX\}/);
   });
 
   it('treats a window that matches the screen as full screen', () => {

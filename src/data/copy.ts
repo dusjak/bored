@@ -120,7 +120,7 @@ export function emptyProfile(): OnboardingProfile {
 export const LOCK_HINT_WITH_NOTIFICATION = 'Lås skjermen, vi gir deg\net varsel når tiden har gått ut.';
 
 /** Used when notification permission is missing. Does not promise an alert. */
-export const LOCK_HINT_WITHOUT_NOTIFICATION = 'Lås skjermen. Økten går videre i bakgrunnen.';
+export const LOCK_HINT_WITHOUT_NOTIFICATION = 'Lås skjermen. Økten går\nvidere i bakgrunnen.';
 
 export function lockHintCopy(notificationsGranted: boolean): string {
   return notificationsGranted ? LOCK_HINT_WITH_NOTIFICATION : LOCK_HINT_WITHOUT_NOTIFICATION;

@@ -61,6 +61,36 @@ export function lockHintOffer(input: {
   return input.centerY == null ? 'text' : 'bulge';
 }
 
+/**
+ * The scrim canvas overscans the view. On a 393×852 screenshot the session
+ * ground stayed visible for the first 50pt, then the scrim started. 80pt of
+ * left bleed covers that edge. The right bleed is smaller so a matching gap
+ * cannot show, and the bulge stays on the bezel rather than in the bleed.
+ */
+export const LOCK_HINT_CANVAS_BLEED = { left: 80, right: 24 } as const;
+
+export function lockHintCanvasBox(viewWidth: number, viewHeight: number): {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  bezelX: number;
+  gradientStartX: number;
+} {
+  const left = LOCK_HINT_CANVAS_BLEED.left;
+  const right = LOCK_HINT_CANVAS_BLEED.right;
+  const width = Math.max(0, viewWidth);
+  const height = Math.max(0, viewHeight);
+  return {
+    left: -left,
+    top: 0,
+    width: width + left + right,
+    height,
+    bezelX: left + width,
+    gradientStartX: left,
+  };
+}
+
 /** A window inset past this is split view or a floating window, not the full phone. */
 export const LOCK_HINT_FULLSCREEN_SLOP_PT = 24;
 

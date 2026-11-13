@@ -110,9 +110,10 @@ describe('copy', () => {
     assert.equal(lockHintCopy(true), LOCK_HINT_WITH_NOTIFICATION);
     assert.equal(lockHintCopy(false), LOCK_HINT_WITHOUT_NOTIFICATION);
     assert.equal(LOCK_HINT_WITH_NOTIFICATION, 'Lås skjermen, vi gir deg\net varsel når tiden har gått ut.');
-    assert.equal(LOCK_HINT_WITHOUT_NOTIFICATION, 'Lås skjermen. Økten går videre i bakgrunnen.');
+    assert.equal(LOCK_HINT_WITHOUT_NOTIFICATION, 'Lås skjermen. Økten går\nvidere i bakgrunnen.');
     assert.equal(lockHintSpeech(true), 'Lås skjermen, vi gir deg et varsel når tiden har gått ut.');
-    assert.equal(lockHintSpeech(false), LOCK_HINT_WITHOUT_NOTIFICATION);
+    assert.equal(lockHintSpeech(false), 'Lås skjermen. Økten går videre i bakgrunnen.');
+    assert.equal(lockHintSpeech(false).includes('\n'), false);
   });
 
   it('prefers a saved clock and otherwise uses the onboarding answer', () => {

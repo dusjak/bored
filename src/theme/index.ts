@@ -21,6 +21,9 @@ export {
 } from './theme';
 export {
   contentColumn,
+  contentColumnCapMinWidth,
+  contentColumnCapped,
+  contentColumnForWidth,
   contentColumnWidth,
   contentFrame,
   contentMaxWidth,

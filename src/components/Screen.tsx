@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { ScrollView, StyleSheet, View, useWindowDimensions, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 
-import { contentColumn, contentFrame, insetUnderSafeArea, useTheme, type ScreenTop } from '@/theme';
+import { contentColumnForWidth, contentFrame, insetUnderSafeArea, useTheme, type ScreenTop } from '@/theme';
 
 type Props = {
   children: ReactNode;
@@ -23,7 +23,7 @@ type Props = {
 };
 
 /**
- * Screen shell. Side inset 24, column capped at 345 and centered.
+ * Screen shell. Side inset 24 on phones. The 345pt cap starts at tablet width.
  * Top inset follows `top`. Safe area is the SafeAreaView, not part of the padding.
  */
 export function Screen({
@@ -37,6 +37,8 @@ export function Screen({
   top = 'gutter',
 }: Props) {
   const { theme } = useTheme();
+  const { width: windowWidth } = useWindowDimensions();
+  const column = contentColumnForWidth(windowWidth);
   const bg = background ?? (session ? theme.color.bg.session : theme.color.bg.default);
   const bar = statusBar ?? (session ? 'light' : theme.statusBar);
   const paddingTop = insetUnderSafeArea(top);
@@ -46,7 +48,7 @@ export function Screen({
       <View style={[contentFrame, styles.fill]}>
         {scroll ? (
           <ScrollView
-            style={[contentColumn, styles.fill]}
+            style={[column, styles.fill]}
             contentContainerStyle={[styles.grow, { paddingTop }, contentStyle]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -54,7 +56,7 @@ export function Screen({
             {children}
           </ScrollView>
         ) : (
-          <View style={[contentColumn, styles.fill, { paddingTop }, contentStyle]}>{children}</View>
+          <View style={[column, styles.fill, { paddingTop }, contentStyle]}>{children}</View>
         )}
       </View>
     </SafeAreaView>
