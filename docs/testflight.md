@@ -135,6 +135,6 @@ The splash work and the backup preview are both on master. Only the EAS profile 
 
 `app.config.js` defaults `BACKUP_MODE` to `preview`. That is allowed for `testflight`, so a TestFlight build keeps the honest preview backup: the screens are real, and nothing leaves the phone. The same preview mode throws when `EAS_BUILD_PROFILE` is `production`. Use `BACKUP_MODE=off` or `BACKUP_MODE=live` for that profile.
 
-The splash replay on «Jeg har allerede en konto» stays on for `testflight`. It stays off in a release binary whose profile was not baked in, and when that profile cannot be read. A failed read does not crash launch. The missing profile is not production, so preview backup stays available. Preview backup still fails when the profile is `production`. `app.config.js` copies `EAS_BUILD_PROFILE` into `extra.easBuildProfile` and omits the key when it is unset. Do not write `null` there. Expo's serializer turns `null` into `{}`.
+Holding the welcome title does not replay the splash. A failed profile read does not crash launch. The missing profile is not production, so preview backup stays available. Preview backup still fails when the profile is `production`. `app.config.js` copies `EAS_BUILD_PROFILE` into `extra.easBuildProfile` and omits the key when it is unset. Do not write `null` there. Expo's serializer turns `null` into `{}`.
 
 The native splash is the always-dark S6 wordmark (`splash-wordmark-s6-dark.png`, `#111110`). Change it in `app.json` and ship a new binary. Expo Go will not show the change.

@@ -42,7 +42,9 @@ describe('index route', () => {
     assert.match(finished, /releaseLaunch\(\)/);
     const reflection = readFileSync(new URL('../app/reflection.tsx', import.meta.url), 'utf8');
     const leaveAt = reflection.indexOf('const leave');
-    assert.match(reflection.slice(leaveAt, leaveAt + 120), /releaseLaunch\(\)/);
+    const leave = reflection.slice(leaveAt, reflection.indexOf('const save', leaveAt));
+    assert.match(leave, /knappetrykk\(/);
+    assert.match(leave, /releaseLaunch\(\)/);
     const index = readFileSync(new URL('../app/index.tsx', import.meta.url), 'utf8');
     assert.match(index, /indexRoute\(/);
   });

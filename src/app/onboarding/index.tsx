@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { AccessibilityInfo, Pressable, StyleSheet, Text, View, type TextLayoutEvent } from 'react-native';
+import { AccessibilityInfo, StyleSheet, Text, View, type TextLayoutEvent } from 'react-native';
 import { knappetrykk } from '@/analytics/track';
 import { pushStep } from '@/onboarding/stepMotion';
 import Animated, {
@@ -16,13 +16,7 @@ import { KLUMPEN_PATH } from '@/components/klumpenPath';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { KLUMPEN_BOUNDS } from '@/duration/klumpen';
-import { easBuildProfile, isDevBuild } from '@/config/buildProfile';
-import { isSplashReplayEnabled } from '@/config/features';
-import { useAppState } from '@/state/AppState';
 import { useTheme } from '@/theme';
-
-/** Hidden replay. Dev and TestFlight only. A production profile, or a missing profile, stays off. */
-export const SPLASH_REPLAY_HOLD_MS = 2000;
 
 const EASE_IN = Easing.bezier(0.2, 0, 0, 1);
 const PERIOD = 19;
@@ -40,20 +34,13 @@ const WELCOME_BODY =
 export default function MeetKlumpen() {
   const { theme } = useTheme();
   const reduceMotion = useOsReduceMotion();
-  const { replayIntroSplash } = useAppState();
-  const replay = isSplashReplayEnabled(isDevBuild(), easBuildProfile());
   const ink = theme.color.text.primary;
   const [stop, setStop] = useState<{ left: number; top: number } | null>(null);
 
   return (
     <Screen top="app" contentStyle={styles.content}>
       <View style={styles.spacer} />
-      <Pressable
-        accessibilityRole="header"
-        accessibilityLabel="Ingenting er målet."
-        delayLongPress={SPLASH_REPLAY_HOLD_MS}
-        onLongPress={replay ? () => replayIntroSplash() : undefined}
-      >
+      <View accessibilityRole="header" accessibilityLabel="Ingenting er målet.">
         <Rise delay={0} duration={600} distance={12} reduceMotion={reduceMotion}>
           <HeroLine color={ink} fontFamily={theme.fonts.serif}>Ingenting</HeroLine>
         </Rise>
@@ -78,7 +65,7 @@ export default function MeetKlumpen() {
           </Rise>
           {stop ? <PeriodMark color={ink} reduceMotion={reduceMotion} left={stop.left} top={stop.top} /> : null}
         </View>
-      </Pressable>
+      </View>
       <Rise delay={1700} duration={500} distance={8} reduceMotion={reduceMotion}>
         <Text style={[theme.text.body, styles.ingress, { color: theme.color.text.secondary }]}>{WELCOME_BODY}</Text>
       </Rise>

@@ -115,14 +115,6 @@ export function splashAfterReset(): { occasion: SplashOccasion; phase: IntroPhas
   return { occasion: 'after-reset', phase: 'play' };
 }
 
-/**
- * TODO: The real existing-account flow replaces the button that calls this.
- * Same motion as a cold first launch. Does not read or write storage.
- */
-export function splashReplay(): { occasion: SplashOccasion; phase: IntroPhase } {
-  return { occasion: 'first-launch', phase: 'play' };
-}
-
 export type SplashAppReduction = {
   sawBackground: boolean;
   phase: IntroPhase;

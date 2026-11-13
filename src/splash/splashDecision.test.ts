@@ -19,7 +19,6 @@ import {
   shouldPersistSplashSeen,
   splashAfterReset,
   splashDecisionLog,
-  splashReplay,
   splashSuppressed,
   stackStaysMounted,
 } from './splashDecision.ts';
@@ -124,13 +123,6 @@ describe('splash decision', () => {
     const decision = decideSplash({ ...base, occasion: boot.occasion });
     assert.equal(decision.mode, 'pust');
     assert.equal(decideSplash({ ...base, occasion: boot.occasion, megaEnabled: true }).mode, 'mega');
-  });
-
-  it('replays the full first-launch MegaSplash without a data reset when the flag is on', () => {
-    const boot = splashReplay();
-    assert.deepEqual(boot, { occasion: 'first-launch', phase: 'play' });
-    assert.equal(decideSplash({ ...base, occasion: boot.occasion, megaEnabled: true }).mode, 'mega');
-    assert.equal(decideSplash({ ...base, occasion: boot.occasion }).mode, 'pust');
   });
 
   it('plays D2 Pust on a later launch, and cuts when the app is light', () => {

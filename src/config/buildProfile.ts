@@ -2,11 +2,9 @@
  * Which EAS build this binary is.
  *
  * `production` is the only profile that counts as an App Store production build.
- * `testflight` does not: testers keep the honest preview backup and the
- * temporary splash-replay hook. `isSplashReplayEnabled` stays on for every
- * non-empty profile other than `production`, including `testflight`. A release
- * binary whose profile is missing, or whose manifest cannot be read, turns
- * that hook off. Reading the profile never throws.
+ * `testflight` does not: testers keep the honest preview backup. A release
+ * binary whose profile is missing, or whose manifest cannot be read, is not
+ * production. Reading the profile never throws.
  *
  * `app.config.js` copies `EAS_BUILD_PROFILE` into `extra.easBuildProfile` and
  * omits the key when it is unset. Expo's serializer turns a `null` value into

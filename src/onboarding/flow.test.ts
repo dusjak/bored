@@ -90,9 +90,7 @@ describe('bli kjent flow', () => {
     }
     const index = readFileSync(join(dir, 'index.tsx'), 'utf8');
     assert.equal(index.includes('Jeg har allerede en konto'), false);
-    assert.match(index, /SPLASH_REPLAY_HOLD_MS = 2000/);
-    assert.match(index, /isSplashReplayEnabled/);
-    assert.match(index, /replayIntroSplash\(\)/);
+    assert.doesNotMatch(index, /SPLASH_REPLAY_HOLD_MS|isSplashReplayEnabled|replayIntroSplash|onLongPress|delayLongPress/);
     assert.match(index, /accessibilityLabel="Ingenting er målet\."/);
     assert.match(index, /kjedsomhet, bevisst og regelmessig/);
     assert.doesNotMatch(index, /kjedsomhet —/);
