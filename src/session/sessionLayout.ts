@@ -109,7 +109,7 @@ export function sessionKlumpenMargins(
   };
 }
 
-/** Wrapped completion title. Display is 30/34; three lines covers the narrow phone. */
+/** Wrapped completion title. Headline is 28/32, the same cut as the note screen. */
 export const COMPLETION_TITLE_MAX_LINES = 3;
 
 /**
@@ -122,8 +122,8 @@ export function completionTitleTop(safeTop: number): number {
 }
 
 export function completionTitleBottom(safeTop: number, lines = COMPLETION_TITLE_MAX_LINES): number {
-  const line = text.display.lineHeight;
-  const lineHeight = typeof line === 'number' ? line : 34;
+  const line = text.headline.lineHeight;
+  const lineHeight = typeof line === 'number' ? line : 32;
   return completionTitleTop(safeTop) + lineHeight * lines;
 }
 

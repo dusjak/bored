@@ -33,13 +33,13 @@ import { stoneCenterY } from '@/duration/klumpen';
 import { decideUnfinishedSession } from '@/data/sessionRules';
 import { useAppState } from '@/state/AppState';
 import { noteEntryRoute } from '@/state/resetRoute';
-import { screenPadding, screenTopInset, useTheme } from '@/theme';
+import { contentColumnForWidth, contentFrame, screenPadding, screenTopInset, useTheme } from '@/theme';
 
 /** Active session. Always dark. Hold the Klumpen for four seconds to end early. */
 export default function Session() {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
-  const { height: windowHeight } = useWindowDimensions();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const {
     activeSession,
     lockHintSessionId,
@@ -321,9 +321,13 @@ export default function Session() {
               pointerEvents="none"
               accessibilityElementsHidden={!showDone}
             >
-              <ScreenTitle align="center" variant="display">
-                {sentence}
-              </ScreenTitle>
+              <View style={contentFrame}>
+                <View style={[contentColumnForWidth(windowWidth), styles.doneColumn]}>
+                  <ScreenTitle align="left" variant="headline">
+                    {sentence}
+                  </ScreenTitle>
+                </View>
+              </View>
             </Animated.View>
             <View pointerEvents="box-none" style={styles.stage}>
             <View
@@ -397,11 +401,11 @@ const styles = StyleSheet.create({
   remaining: { position: 'absolute', top: -20, left: 0, right: 0, textAlign: 'center' },
   doneCopy: {
     position: 'absolute',
-    left: screenPadding,
-    right: screenPadding,
-    alignItems: 'center',
+    left: 0,
+    right: 0,
     zIndex: 2,
   },
+  doneColumn: { alignItems: 'stretch' },
   dot: { width: 8, height: 8, borderRadius: 4 },
   error: { position: 'absolute', left: screenPadding, right: screenPadding, bottom: 48, textAlign: 'center', zIndex: 2 },
   circleLayer: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
