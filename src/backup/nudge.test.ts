@@ -45,9 +45,9 @@ describe('backup nudge show rule', () => {
     assert.equal(shouldShowBackupNudge(twice, 40), false);
   });
 
-  it('never shows once backup has been enabled, even with no dismissals', () => {
-    assert.equal(shouldShowBackupNudge(flags({ everEnabled: true }), 3), false);
-    assert.equal(shouldShowBackupNudge(flags({ everEnabled: true }), 20), false);
+  it('never shows once interest is noted, even with no dismissals', () => {
+    assert.equal(shouldShowBackupNudge(flags({ interestNoted: true }), 3), false);
+    assert.equal(shouldShowBackupNudge(flags({ interestNoted: true }), 20), false);
   });
 
   it('stores the session count and a debug timestamp on dismiss without enabling backup', () => {
@@ -56,7 +56,7 @@ describe('backup nudge show rule', () => {
       dismissCount: 1,
       dismissedAtSessions: 4,
       dismissedAt: '2026-11-01T12:00:00.000Z',
-      everEnabled: false,
+      interestNoted: false,
     });
     assert.equal(shouldShowBackupNudge(next, 4), false);
   });

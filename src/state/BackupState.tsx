@@ -1,20 +1,25 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import { currentBackupMode } from '@/backup/currentMode';
+import { BACKUP_INTEREST_NOTED_KEY } from '@/backup/interest';
 import type { BackupPreview, PreviewForce } from '@/backup/model';
 import { EMPTY_PREVIEW } from '@/backup/model';
 import type { BackupMode } from '@/backup/mode';
 import { EMPTY_NUDGE, type NudgeFlags } from '@/backup/nudge';
 import { createBackupService, type BackupService, type BackupSnapshot } from '@/backup/service';
 import { sqliteBackupStore } from '@/backup/store';
-import { dismissBackupNudge, loadNudgeFlags } from '@/data/repository';
+import { dismissBackupNudge, loadNudgeFlags, setSetting } from '@/data/repository';
 
 type BackupContextValue = {
   ready: boolean;
   mode: BackupMode;
   preview: BackupPreview;
   everEnabled: boolean;
+  /** True after «Jeg vil ha det». Lives in `backup.interestNoted`. */
+  interestNoted: boolean;
   nudge: NudgeFlags;
+  /** Writes `backup.interestNoted` and hides the Logg hint. Sends nothing. */
+  noteInterest: () => Promise<void>;
   dismissNudge: (completed: number) => Promise<void>;
   enableWithApple: () => Promise<void>;
   enableAnonymous: () => Promise<void>;
@@ -44,6 +49,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
   const [preview, setPreview] = useState<BackupPreview>(EMPTY_PREVIEW);
   const [everEnabled, setEverEnabled] = useState(false);
   const [nudge, setNudge] = useState<NudgeFlags>(EMPTY_NUDGE);
+  const notedRef = useRef(false);
 
   const apply = useCallback((snapshot: BackupSnapshot) => {
     setPreview(snapshot.preview);
@@ -57,7 +63,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         const flags = await loadNudgeFlags();
-        if (!cancelled) setNudge(flags);
+        if (!cancelled) setNudge(notedRef.current ? { ...flags, interestNoted: true } : flags);
         if (service) {
           const snapshot = await service.load();
           if (!cancelled) apply(snapshot);
@@ -84,10 +90,17 @@ export function BackupProvider({ children }: { children: ReactNode }) {
 
   const dismissNudge = useCallback(async (completed: number) => {
     const next = await dismissBackupNudge(completed, new Date().toISOString());
-    setNudge(next);
+    setNudge(notedRef.current ? { ...next, interestNoted: true } : next);
+  }, []);
+
+  const noteInterest = useCallback(async () => {
+    notedRef.current = true;
+    setNudge((current) => ({ ...current, interestNoted: true }));
+    await setSetting(BACKUP_INTEREST_NOTED_KEY, '1');
   }, []);
 
   const forget = useCallback(() => {
+    notedRef.current = false;
     setPreview(EMPTY_PREVIEW);
     setEverEnabled(false);
     setNudge(EMPTY_NUDGE);
@@ -99,7 +112,9 @@ export function BackupProvider({ children }: { children: ReactNode }) {
       mode,
       preview,
       everEnabled,
+      interestNoted: nudge.interestNoted,
       nudge,
+      noteInterest,
       dismissNudge,
       enableWithApple: () => run((service) => service.enableWithApple()),
       enableAnonymous: () => run((service) => service.enableAnonymous()),
@@ -122,7 +137,7 @@ export function BackupProvider({ children }: { children: ReactNode }) {
       dismissNotice: () => run((service) => service.dismissNotice()),
       forget,
     }),
-    [ready, mode, preview, everEnabled, nudge, dismissNudge, run, forget],
+    [ready, mode, preview, everEnabled, nudge, noteInterest, dismissNudge, run, forget],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

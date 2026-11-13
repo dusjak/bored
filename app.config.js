@@ -1,11 +1,11 @@
 /**
  * Expo loads app.json first and passes it as `config`. Spreading it keeps those
  * values, including the native splash, `owner`, `extra.eas.projectId`, and
- * `extra.router`. This file adds Sign in with Apple and copies the EAS profile
- * into `extra` so a release binary can tell production from preview.
+ * `extra.router`. This file copies the EAS profile into `extra` so a release
+ * binary can tell production from preview. Sign in with Apple is not added.
  *
- * `extra.backupMode` in app.json is `preview`. That is the default when
- * `BACKUP_MODE` is unset. An env value replaces it. Do not drop `extra.eas` or
+ * `extra.backupMode` in app.json is the mode when `BACKUP_MODE` is unset.
+ * An env value replaces it. Do not drop `extra.eas` or
  * `extra.router` when writing `extra`: replace the object only by spreading
  * `config.extra` first.
  *
@@ -46,21 +46,8 @@ module.exports = ({ config }) => {
     extra.easBuildProfile = easBuildProfile;
   }
 
-  const plugins = Array.isArray(config.plugins) ? [...config.plugins] : [];
-  const hasApple = plugins.some(
-    (plugin) =>
-      plugin === 'expo-apple-authentication' ||
-      (Array.isArray(plugin) && plugin[0] === 'expo-apple-authentication'),
-  );
-  if (!hasApple) plugins.push('expo-apple-authentication');
-
   return {
     ...config,
-    ios: {
-      ...config.ios,
-      usesAppleSignIn: true,
-    },
-    plugins,
     extra,
   };
 };

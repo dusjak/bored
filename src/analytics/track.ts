@@ -13,6 +13,11 @@ export type OnboardingHendelse = 'vist' | 'fullført';
 
 export type AnalyticsEventName = 'Knappetrykk' | 'Økt' | 'Onboarding';
 
+/** Where a sikkerhetskopi tap came from. The hint's own buttons use `logg_hint`. */
+export type BackupKilde = 'deg' | 'logg' | 'logg_hint';
+
+export type BackupKnapp = 'sikkerhetskopi_aapne' | 'sikkerhetskopi_meld_interesse' | 'sikkerhetskopi_hint_avvis';
+
 export type AnalyticsProps = {
   skjerm: string;
   type?: KnappType;
@@ -21,6 +26,9 @@ export type AnalyticsProps = {
   sekunder?: number;
   notat?: boolean;
   stemning?: string;
+  /** Sikkerhetskopi action. No name, note, or email is attached. */
+  knapp?: BackupKnapp;
+  kilde?: BackupKilde;
 };
 
 export type AnalyticsEvent = {
@@ -69,6 +77,8 @@ export function knappetrykk(input: {
   skjerm: string;
   notat?: boolean;
   stemning?: string;
+  knapp?: BackupKnapp;
+  kilde?: BackupKilde;
 }): AnalyticsEvent {
   return trackEvent('Knappetrykk', {
     type: input.type,
@@ -77,6 +87,26 @@ export function knappetrykk(input: {
     skjerm: input.skjerm,
     ...(input.notat === undefined ? {} : { notat: input.notat }),
     ...(input.stemning ? { stemning: input.stemning } : {}),
+    ...(input.knapp ? { knapp: input.knapp } : {}),
+    ...(input.kilde ? { kilde: input.kilde } : {}),
+  });
+}
+
+/** One `Knappetrykk` for the fake door. Nothing is sent again once the thanks line is up. */
+export function sikkerhetskopiTrykk(input: {
+  knapp: BackupKnapp;
+  kilde: BackupKilde;
+  skjerm: string;
+  hendelse: KnappHendelse;
+  navn: string;
+}): AnalyticsEvent {
+  return knappetrykk({
+    type: 'Knapp',
+    navn: input.navn,
+    hendelse: input.hendelse,
+    skjerm: input.skjerm,
+    knapp: input.knapp,
+    kilde: input.kilde,
   });
 }
 

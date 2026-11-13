@@ -196,8 +196,8 @@ export class MockBackupService implements BackupService {
  * `return new SupabaseBackupService(store)` once that class exists.
  */
 /**
- * Fake door. The screen can ask, and nothing is written or sent.
- * TODO: designers' «kommer» tag and interest copy land on the screen that uses this.
+ * Fake door. Interest is `backup.interestNoted` on the sheet, not this service.
+ * Nothing here is written or sent.
  */
 class FakedoorBackupService implements BackupService {
   async load(): Promise<BackupSnapshot> {

@@ -16,19 +16,20 @@ import {
   DEG_ON_TEST,
   DEG_STALE,
   HONESTY_LINE,
+  INTEREST_HEADER_LABEL,
   RESET_LOCAL_MESSAGE,
   TRY_AGAIN,
   resetSignedInMessage,
 } from '@/backup/copy';
-import { knappetrykk } from '@/analytics/track';
-import { degBackupValue, resetNeedsNetwork, showHonestyLine, type PreviewForce } from '@/backup/model';
+import { knappetrykk, sikkerhetskopiTrykk } from '@/analytics/track';
+import { degBackupValue, resetNeedsNetwork, showHonestyLine } from '@/backup/model';
 import { deviceIsOnline } from '@/backup/net';
+import { ComingTag } from '@/components/backup/ComingTag';
 import { AppearanceSheet } from '@/components/AppearanceSheet';
 import { TimeWheel } from '@/components/TimeWheel';
 import { BottomFade } from '@/components/BottomFade';
 import { DurationSheet } from '@/components/DurationSheet';
 import { BackupInterestScreen } from '@/components/backup/BackupInterestScreen';
-import { PreviewStateSheet } from '@/components/backup/PreviewStateSheet';
 import { RowChevron, SettingsGroup } from '@/components/SettingsGroup';
 import { Screen } from '@/components/Screen';
 import { Toggle } from '@/components/Toggle';
@@ -60,15 +61,12 @@ export default function Profile() {
     firstUsedAt,
   } = useAppState();
   const backup = useBackup();
-  const versionTaps = useRef(0);
   const durationRef = useRef<HostInstance>(null);
   const appearanceRef = useRef<HostInstance>(null);
-  const previewRef = useRef<HostInstance>(null);
   const backupRef = useRef<HostInstance>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
-  const [previewMenu, setPreviewMenu] = useState(false);
   const [timeOpen, setTimeOpen] = useState(false);
   const [allowed, setAllowed] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -97,7 +95,8 @@ export default function Profile() {
 
   const confirmReset = () => {
     void (async () => {
-      const needsNetwork = backup.mode !== 'off' && resetNeedsNetwork(backup.preview);
+      const needsNetwork =
+        backup.mode !== 'off' && backup.mode !== 'fakedoor' && resetNeedsNetwork(backup.preview);
       if (needsNetwork && !(await deviceIsOnline())) {
         Alert.alert(ALERT_OFFLINE, ALERT_OFFLINE_RESET, [{ text: CONFIRM_OK }]);
         return;
@@ -141,6 +140,7 @@ export default function Profile() {
     })();
   };
 
+  const fakedoor = backup.mode === 'fakedoor';
   const backupValue = degBackupValue(backup.mode, backup.preview);
   const backupLabel =
     backupValue === 'on' ? DEG_ON : backupValue === 'onTest' ? DEG_ON_TEST : backupValue === 'stale' ? DEG_STALE : DEG_OFF;
@@ -331,9 +331,15 @@ export default function Profile() {
               <Pressable
                 ref={backupRef}
                 accessibilityRole="button"
-                accessibilityLabel={`Sikkerhetskopi, ${backupLabel}`}
+                accessibilityLabel={fakedoor ? INTEREST_HEADER_LABEL : `Sikkerhetskopi, ${backupLabel}`}
                 onPress={() => {
-                  knappetrykk({ type: 'Knapp', navn: 'Sikkerhetskopi', hendelse: 'åpner', skjerm: 'Deg' });
+                  sikkerhetskopiTrykk({
+                    knapp: 'sikkerhetskopi_aapne',
+                    kilde: 'deg',
+                    skjerm: 'Deg',
+                    hendelse: 'åpner',
+                    navn: 'Sikkerhetskopi',
+                  });
                   closeTime();
                   setBackupOpen(true);
                 }}
@@ -341,7 +347,7 @@ export default function Profile() {
               >
                 <Text style={label}>Sikkerhetskopi</Text>
                 <View style={styles.trailing}>
-                  <Text style={value}>{backupLabel}</Text>
+                  {fakedoor ? <ComingTag variant="row" /> : <Text style={value}>{backupLabel}</Text>}
                   <DegChevron />
                 </View>
               </Pressable>
@@ -368,23 +374,9 @@ export default function Profile() {
           <Text style={[theme.text.body, styles.rowLabel, { color: theme.color.text.destructive }]}>Nullstill</Text>
         </Pressable>
 
-        <Pressable
-          ref={previewRef}
-          accessibilityRole={backup.mode === 'preview' ? 'button' : 'text'}
-          accessibilityLabel={`Versjon ${version}`}
-          onPress={() => {
-            if (backup.mode !== 'preview') return;
-            versionTaps.current += 1;
-            if (versionTaps.current >= 5) {
-              versionTaps.current = 0;
-              setPreviewMenu(true);
-            }
-          }}
-          hitSlop={{ top: 12, bottom: 16 }}
-          style={styles.version}
-        >
+        <View accessibilityLabel={`Versjon ${version}`} style={styles.version}>
           <Text style={[theme.text.caption, styles.versionText, { color: theme.color.text.meta }]}>{version}</Text>
-        </Pressable>
+        </View>
       </Screen>
       <BottomFade color={canvas} />
 
@@ -407,19 +399,9 @@ export default function Profile() {
       />
       <BackupInterestScreen
         visible={backupOpen}
+        kilde="deg"
         onClose={() => setBackupOpen(false)}
         returnFocusRef={backupRef}
-      />
-      <PreviewStateSheet
-        visible={previewMenu}
-        onClose={() => setPreviewMenu(false)}
-        returnFocusRef={previewRef}
-        onPick={(screen: PreviewForce | null) => {
-          void backup.forcePreview(screen).then(() => {
-            setPreviewMenu(false);
-            if (screen) setBackupOpen(true);
-          });
-        }}
       />
     </View>
   );

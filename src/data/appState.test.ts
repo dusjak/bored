@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import { describe, it } from 'node:test';
 
+import { BACKUP_INTEREST_NOTED_KEY } from '../backup/interest.ts';
 import {
   BACKUP_EVER_ENABLED_KEY,
   BACKUP_PREVIEW_KEY,
@@ -16,7 +17,7 @@ import {
   writeNudgeFlags,
 } from './appState.ts';
 import { SCHEMA_SQL } from './schema.ts';
-import { clearAllLocalData, setSetting, type AppDatabase } from './sessionQueries.ts';
+import { clearAllLocalData, getSetting, setSetting, type AppDatabase } from './sessionQueries.ts';
 import { EMPTY_PREVIEW } from '../backup/model.ts';
 
 function openMemoryDatabase(): AppDatabase {
@@ -47,7 +48,7 @@ describe('Nullstill and backup flags', () => {
       dismissCount: 1,
       dismissedAtSessions: 4,
       dismissedAt: '2026-11-01T12:00:00.000Z',
-      everEnabled: true,
+      interestNoted: true,
     });
     await writeBackupPreview(db, { ...EMPTY_PREVIEW, enabled: true, account: 'apple' });
     for (const key of LEGACY_NUDGE_KEYS) {
@@ -64,7 +65,22 @@ describe('Nullstill and backup flags', () => {
     const fresh = await readNudgeFlags(db);
     assert.equal(fresh.dismissCount, 0);
     assert.equal(fresh.dismissedAtSessions, null);
-    assert.equal(fresh.everEnabled, false);
+    assert.equal(fresh.interestNoted, false);
+    assert.equal(await getSetting(db, BACKUP_INTEREST_NOTED_KEY), null);
+  });
+
+  it('keeps backup.interestNoted when the hint is dismissed', async () => {
+    const db = openMemoryDatabase();
+    await writeNudgeFlags(db, {
+      dismissCount: 0,
+      dismissedAtSessions: null,
+      dismissedAt: null,
+      interestNoted: true,
+    });
+    const next = await dismissNudgeFlags(db, 4, '2026-11-01T12:00:00.000Z');
+    assert.equal(next.interestNoted, true);
+    assert.equal(next.dismissCount, 1);
+    assert.equal(await getSetting(db, BACKUP_INTEREST_NOTED_KEY), '1');
   });
 
   it('drops the v0.3 keys on their own and keeps the v0.4 flags', async () => {

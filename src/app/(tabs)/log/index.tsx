@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
-import { AccessibilityInfo, findNodeHandle, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { AccessibilityInfo, findNodeHandle, Pressable, StyleSheet, Text, TextInput, View, type HostInstance } from 'react-native';
 
+import { NUDGE_ENABLE } from '@/backup/copy';
 import { shouldShowBackupNudge } from '@/backup/nudge';
+import { BackupInterestScreen } from '@/components/backup/BackupInterestScreen';
 import { BackupNudgeCard } from '@/components/backup/BackupNudgeCard';
-import { knappetrykk } from '@/analytics/track';
+import { knappetrykk, sikkerhetskopiTrykk } from '@/analytics/track';
 import { Button } from '@/components/Button';
 import { Screen } from '@/components/Screen';
 import { Icon } from '@/components/Icon';
@@ -35,6 +36,9 @@ export default function Log() {
   const { sessions, saveReflection, removeReflection } = useAppState();
   const backup = useBackup();
   const countRef = useRef<React.ComponentRef<typeof View>>(null);
+  const nudgeRef = useRef<HostInstance>(null);
+  const [backupOpen, setBackupOpen] = useState(false);
+  const [thanksHold, setThanksHold] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +47,9 @@ export default function Log() {
   const [tallyOpen, setTallyOpen] = useState(false);
   const showToggle = total > LOGG_COLLAPSED_MAX;
   const caption = logCaption(total, completed, aborted);
-  const showNudge =
+  const nudgeEligible =
     backup.ready && backup.mode !== 'off' && shouldShowBackupNudge(backup.nudge, completed);
+  const showNudge = nudgeEligible || thanksHold;
 
   const focusCount = () => {
     requestAnimationFrame(() => {
@@ -60,14 +65,45 @@ export default function Log() {
   };
 
   return (
+    <>
     <Screen scroll edges={['top']} top="app" contentStyle={styles.content}>
       {showNudge ? (
-        <BackupNudgeCard
-          onEnable={() => router.push('/log/backup')}
-          onDismiss={() => {
-            void backup.dismissNudge(completed).then(focusCount);
-          }}
-        />
+        <View ref={nudgeRef} collapsable={false}>
+          <BackupNudgeCard
+            onInterest={() => {
+              setThanksHold(true);
+              sikkerhetskopiTrykk({
+                knapp: 'sikkerhetskopi_meld_interesse',
+                kilde: 'logg_hint',
+                skjerm: 'Logg',
+                hendelse: 'trykk',
+                navn: NUDGE_ENABLE,
+              });
+              void backup.noteInterest();
+            }}
+            onOpen={() => {
+              sikkerhetskopiTrykk({
+                knapp: 'sikkerhetskopi_aapne',
+                kilde: 'logg',
+                skjerm: 'Logg',
+                hendelse: 'åpner',
+                navn: 'Sikkerhetskopi',
+              });
+              setBackupOpen(true);
+            }}
+            onDismiss={(navn) => {
+              sikkerhetskopiTrykk({
+                knapp: 'sikkerhetskopi_hint_avvis',
+                kilde: 'logg_hint',
+                skjerm: 'Logg',
+                hendelse: 'lukker',
+                navn,
+              });
+              void backup.dismissNudge(completed).then(focusCount);
+            }}
+            onThanksDone={() => setThanksHold(false)}
+          />
+        </View>
       ) : null}
 
       <View style={{ marginBottom: theme.space['8'] }}>
@@ -213,6 +249,13 @@ export default function Log() {
         })}
       </View>
     </Screen>
+    <BackupInterestScreen
+      visible={backupOpen}
+      kilde="logg"
+      onClose={() => setBackupOpen(false)}
+      returnFocusRef={nudgeRef}
+    />
+    </>
   );
 }
 
