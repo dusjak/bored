@@ -228,6 +228,24 @@ export function reduceSplashAppState(input: {
   };
 }
 
+/**
+ * Cold start and Nullstill replace the navigator: the plate is the only view,
+ * then the stack mounts at the start route.
+ * A return from background draws that same plate above the stack. The stack
+ * stays mounted, so Logg and a running session keep their place.
+ * Nothing is mounted until the app is open.
+ */
+export function stackStaysMounted(input: {
+  open: boolean;
+  phase: IntroPhase;
+  occasion: SplashOccasion;
+}): boolean {
+  if (!input.open) return false;
+  const plateUp = input.phase === 'play' || input.phase === 'still' || input.phase === 'fade';
+  if (!plateUp) return true;
+  return input.occasion === 'background-return';
+}
+
 /** True while the user should see the timer or the reflection, not a splash. */
 export function splashSuppressed(input: {
   pathname: string;

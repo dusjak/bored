@@ -21,6 +21,7 @@ import {
   splashDecisionLog,
   splashReplay,
   splashSuppressed,
+  stackStaysMounted,
 } from './splashDecision.ts';
 
 const base = {
@@ -335,6 +336,41 @@ describe('splash after Nullstill', () => {
     assert.equal(reset.occasion, 'after-reset');
     assert.equal(decideSplash({ ...base, occasion: reset.occasion }).mode, 'pust');
     assert.equal(initialSplash({ splashSeen: false, inSessionOrReflection: false }).occasion, 'first-launch');
+  });
+});
+
+describe('splash layout', () => {
+  it('keeps the stack mounted when a background return shows the plate', () => {
+    const away = background({ event: 'background', nowMs: 1_000 });
+    const back = background({
+      event: 'active',
+      sawBackground: away.sawBackground,
+      phase: away.phase,
+      occasion: away.occasion,
+      armHold: away.armHold,
+      nowMs: 2_000,
+      backgroundAtMs: away.backgroundAtMs,
+      calm: away.calm,
+    });
+    assert.equal(away.phase, 'still');
+    assert.equal(away.occasion, 'background-return');
+    assert.equal(back.phase, 'still');
+    assert.equal(back.occasion, 'background-return');
+    assert.equal(back.calm, false);
+    assert.equal(stackStaysMounted({ open: true, phase: away.phase, occasion: away.occasion }), true);
+    assert.equal(stackStaysMounted({ open: true, phase: 'fade', occasion: 'background-return' }), true);
+    assert.equal(stackStaysMounted({ open: true, phase: 'still', occasion: 'later-launch' }), false);
+    assert.equal(stackStaysMounted({ open: true, phase: 'play', occasion: 'first-launch' }), false);
+    assert.equal(stackStaysMounted({ open: true, phase: 'play', occasion: 'after-reset' }), false);
+    assert.equal(stackStaysMounted({ open: false, phase: 'still', occasion: 'background-return' }), false);
+    assert.equal(stackStaysMounted({ open: true, phase: 'off', occasion: 'session' }), true);
+
+    const root = readFileSync(new URL('../app/_layout.tsx', import.meta.url), 'utf8');
+    assert.match(root, /stackStaysMounted/);
+    assert.match(root, /if \(!open \|\| cover\)/);
+    const stackAt = root.indexOf('<Stack');
+    assert.ok(root.indexOf('if (!open || cover)') < stackAt);
+    assert.ok(root.indexOf('<SplashAboveStack>', stackAt) > stackAt);
   });
 });
 
