@@ -9,7 +9,7 @@
     "ios": {
       "bundleIdentifier": "no.bored.app",
       "buildNumber": "1",
-      "supportsTablet": true,
+      "supportsTablet": false,
       "icon": {
         "light": "./assets/icon/icon-1024.png",
         "dark": "./assets/icon/icon-1024-dark.png",
