@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "BORED.",
+    "name": "bored.",
     "slug": "bored",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -9,13 +9,18 @@
     "ios": {
       "bundleIdentifier": "no.bored.app",
       "buildNumber": "1",
-      "supportsTablet": true,
-      "icon": "./assets/icon/icon-1024.png",
+      "supportsTablet": false,
+      "icon": {
+        "light": "./assets/icon/icon-1024.png",
+        "dark": "./assets/icon/icon-1024-dark.png",
+        "tinted": "./assets/icon/icon-1024-tinted.png"
+      },
       "config": {
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "NSUserNotificationsUsageDescription": "bored. varsler når økta er ferdig."
+        "NSUserNotificationsUsageDescription": "bored. varsler når økta er ferdig.",
+        "CADisableMinimumFrameDurationOnPhone": true
       }
     },
     "android": {
@@ -46,12 +51,12 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#111110",
-          "image": "./assets/splash/splash-wordmark-dark.png",
+          "image": "./assets/splash/splash-wordmark-s6-dark.png",
           "imageWidth": 160,
           "resizeMode": "contain",
           "dark": {
             "backgroundColor": "#111110",
-            "image": "./assets/splash/splash-wordmark-dark.png"
+            "image": "./assets/splash/splash-wordmark-s6-dark.png"
           }
         }
       ],
@@ -69,7 +74,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "backupMode": "preview",
+      "backupMode": "fakedoor",
       "router": {
         "asyncRoutes": {
           "web": false

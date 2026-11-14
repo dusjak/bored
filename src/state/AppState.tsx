@@ -1,7 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { AppState as AppActivity } from 'react-native';
 
-import { clampDurationMinutes, DEFAULT_DURATION_MINUTES, reminderSchedule } from '@/data/copy';
+import { durationLabel, okt } from '@/analytics/track';
+import { features } from '@/config/features';
+import { clampDurationMinutes, DEFAULT_DURATION_MINUTES, formatClock, resolveReminderClock } from '@/data/copy';
+import { planCountdownUpgrade } from '@/data/showCountdown';
+import { FIRST_USED_TRUSTED_KEY, sinceLinePlan } from '@/data/sinceLine';
 import {
   cancelAllScheduledNotifications,
   cancelDailyReminder,
@@ -19,8 +23,10 @@ import {
   deleteSession as deleteStoredSession,
   DURATION_KEY,
   finishSession,
+  FIRST_USED_KEY,
   getActiveSession,
   getProfile,
+  hasPriorUserData,
   getSetting,
   initDatabase,
   insertActiveSession,
@@ -30,6 +36,7 @@ import {
   saveProfile,
   setNotificationId,
   setSetting,
+  SHOW_COUNTDOWN_CHOSEN_KEY,
   SHOW_COUNTDOWN_KEY,
   SPLASH_SEEN_KEY,
   upsertJournal,
@@ -39,8 +46,8 @@ import type { MoodId, OnboardingProfile, SessionRecord, SessionWithJournal } fro
 import {
   initialSplash,
   reduceSplashAppState,
+  shouldPersistSplashSeen,
   splashAfterReset,
-  splashReplay,
   type IntroPhase,
   type SplashOccasion,
 } from '@/splash/splashDecision';
@@ -58,10 +65,17 @@ type AppStateValue = {
   updateUser: (patch: Partial<OnboardingProfile>) => void;
   onboarded: boolean;
   completeOnboarding: () => Promise<void>;
+  /**
+   * The cold-start session or reflection has been left.
+   * Launch returns home so a later index mount does not open it again.
+   */
+  releaseLaunch: () => void;
   durationMinutes: number;
   setDurationMinutes: (minutes: number) => Promise<void>;
   sessions: SessionWithJournal[];
   activeSession: SessionRecord | null;
+  /** Set only when this launch created the session. A restored session does not nudge. */
+  lockHintSessionId: string | null;
   beginSession: (minutes: number) => Promise<void>;
   completeActiveSession: () => Promise<string | null>;
   abortActiveSession: () => Promise<string | null>;
@@ -74,26 +88,33 @@ type AppStateValue = {
   showCountdown: boolean;
   setShowCountdown: (on: boolean) => Promise<void>;
   setDailyReminder: (on: boolean) => Promise<'on' | 'off' | 'denied'>;
+  /** Saves the wheel time and reschedules when the reminder is on. */
+  setReminderClock: (hour: number, minute: number) => Promise<void>;
   refreshDailyReminder: () => Promise<void>;
+  /** ISO instant of first use. Null until storage has been read. */
+  firstUsedAt: string | null;
   /** Wipes local data and scheduled alerts. Does not change the OS notification permission. */
   resetLocalData: () => Promise<void>;
+  /** Re-reads onboarding, duration, and sessions after the dev demo seed. */
+  reloadStoredState: () => Promise<void>;
   /**
-   * play = full «Sluket». still = static wordmark. fade = wordmark fading out.
-   * enter = welcome rises in. off = no overlay.
+   * play = MegaSplash. still = Pust or Dråpe (the plate is up).
+   * fade = the plate is leaving. enter = MegaSplash handed off and welcome rises.
+   * off = no overlay.
    */
   introPhase: IntroPhase;
-  /** Why the overlay is up. The player picks Sluket vs the still wordmark from this. */
+  /** Why the overlay is up. The player picks MegaSplash, Pust, or Dråpe from this. */
   splashOccasion: SplashOccasion;
+  /**
+   * Background return only. False means the plate was the iOS snapshot and should leave
+   * without Pust. True on a cold start.
+   */
+  splashCalm: boolean;
   /** False while the app is backgrounded: the wordmark stays, and the hold waits for active. */
   splashHoldArmed: boolean;
   /** Latest session/reflection flag for the AppState listener. Ref write, no render. */
   setSplashSuppressed: (suppressed: boolean) => void;
   beginIntroSplash: () => void;
-  /**
-   * TODO: The real existing-account flow replaces the caller.
-   * Plays full Sluket as a first launch. Does not change stored data or the route.
-   */
-  replayIntroSplash: () => void;
   setIntroPhase: (phase: IntroPhase) => void;
   /** Crash fallback. Writes bored.splashSeen even if the timeline never reaches fade. */
   markSplashSeen: () => void;
@@ -111,9 +132,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const [durationMinutes, setDurationState] = useState(DEFAULT_DURATION_MINUTES);
   const [sessions, setSessions] = useState<SessionWithJournal[]>([]);
   const [activeSession, setActiveSession] = useState<SessionRecord | null>(null);
+  const [lockHintSessionId, setLockHintSessionId] = useState<string | null>(null);
   const [showCountdown, setShowCountdownState] = useState(true);
+  const [firstUsedAt, setFirstUsedAt] = useState<string | null>(null);
   const [introPhase, setIntroPhaseState] = useState<IntroPhase>('off');
   const [splashOccasion, setSplashOccasion] = useState<SplashOccasion>('later-launch');
+  const [splashCalm, setSplashCalm] = useState(true);
   const [splashHoldArmed, setSplashHoldArmed] = useState(true);
   const userRef = useRef(user);
   const activeRef = useRef(activeSession);
@@ -121,11 +145,14 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   activeRef.current = activeSession;
   const suppressedRef = useRef(false);
   const sawBackgroundRef = useRef(false);
+  const backgroundAtRef = useRef<number | null>(null);
   const phaseRef = useRef(introPhase);
   const occasionRef = useRef(splashOccasion);
+  const calmRef = useRef(splashCalm);
   const holdRef = useRef(splashHoldArmed);
   phaseRef.current = introPhase;
   occasionRef.current = splashOccasion;
+  calmRef.current = splashCalm;
   holdRef.current = splashHoldArmed;
 
   const refreshSessions = useCallback(async () => {
@@ -137,11 +164,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     (async () => {
       try {
         await initDatabase();
-        const [profile, onboardedRaw, durationRaw, countdownRaw, splashSeen, finished, active] = await Promise.all([
+        const [profile, onboardedRaw, durationRaw, countdownRaw, countdownChosen, splashSeen, finished, active] =
+          await Promise.all([
           getProfile(),
           getSetting(ONBOARDED_KEY),
           getSetting(DURATION_KEY),
           getSetting(SHOW_COUNTDOWN_KEY),
+          getSetting(SHOW_COUNTDOWN_CHOSEN_KEY),
           getSetting(SPLASH_SEEN_KEY),
           listFinishedSessions(),
           getActiveSession(),
@@ -158,15 +187,36 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             ? clampDurationMinutes(fromProfile)
             : DEFAULT_DURATION_MINUTES;
         setDurationState(initialDuration);
-        setShowCountdownState(countdownRaw !== '0');
+        let priorData = true;
+        try {
+          priorData = await hasPriorUserData();
+        } catch {
+          priorData = true;
+        }
+        const countdownPlan = planCountdownUpgrade(countdownRaw, countdownChosen === '1');
+        setShowCountdownState(countdownPlan.show);
         setSessions(finished);
         try {
-          if (profile.notifications === true && (await hasNotificationPermission())) {
-            const clock = reminderSchedule(profile.time);
+          const wantsReminder = profile.notifications === true && (await hasNotificationPermission());
+          if (wantsReminder) {
+            const clock = resolveReminderClock(profile.time, profile.reminderClock);
             await scheduleDailyReminder(clock.hour, clock.minute);
+          } else {
+            await cancelDailyReminder();
           }
         } catch {
           // A reminder failure must not block the first screen.
+        }
+        try {
+          const since = sinceLinePlan({
+            trustedRaw: await getSetting(FIRST_USED_TRUSTED_KEY),
+            hasPriorData: priorData,
+            nowIso: new Date().toISOString(),
+          });
+          if (since.writeTrusted) await setSetting(FIRST_USED_TRUSTED_KEY, since.writeTrusted);
+          setFirstUsedAt(since.displayIso);
+        } catch {
+          setFirstUsedAt(null);
         }
 
         if (active) {
@@ -187,13 +237,22 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
             setActiveSession(active);
             setLaunch('session');
           }
+          // Stays on session or reflection until that screen is left (releaseLaunch).
           const splash = initialSplash({ splashSeen: splashSeen === '1', inSessionOrReflection: true });
+          // Write the refs before setState. An AppState event between the two
+          // would otherwise still see the previous occasion and replace MegaSplash.
+          occasionRef.current = splash.occasion;
+          phaseRef.current = splash.phase;
+          holdRef.current = splash.phase !== 'off';
           setSplashOccasion(splash.occasion);
           setIntroPhaseState(splash.phase);
           setSplashHoldArmed(splash.phase !== 'off');
         } else {
           setLaunch(isOnboarded ? 'home' : 'onboarding');
           const splash = initialSplash({ splashSeen: splashSeen === '1', inSessionOrReflection: false });
+          occasionRef.current = splash.occasion;
+          phaseRef.current = splash.phase;
+          holdRef.current = true;
           setSplashOccasion(splash.occasion);
           setIntroPhaseState(splash.phase);
           setSplashHoldArmed(true);
@@ -210,7 +269,9 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateUser = useCallback((patch: Partial<OnboardingProfile>) => {
-    setUser((current) => ({ ...current, ...patch }));
+    const next = { ...userRef.current, ...patch };
+    userRef.current = next;
+    setUser(next);
   }, []);
 
   const setDurationMinutes = useCallback(async (minutes: number) => {
@@ -229,7 +290,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       setDurationState(next);
       await setSetting(DURATION_KEY, String(next));
     }
+    const existingFirst = await getSetting(FIRST_USED_KEY);
+    if (!existingFirst) {
+      await setSetting(FIRST_USED_KEY, new Date().toISOString());
+    }
     setOnboarded(true);
+    setLaunch('home');
+  }, []);
+
+  const releaseLaunch = useCallback(() => {
+    setReflectionSessionId(null);
+    setLaunch((current) => (current === 'session' || current === 'reflection' ? 'home' : current));
   }, []);
 
   const beginSession = useCallback(async (minutes: number) => {
@@ -241,6 +312,8 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       return;
     }
     const session = await insertActiveSession(next);
+    okt({ navn: durationLabel(next), hendelse: 'start', sekunder: 0, skjerm: 'økt' });
+    setLockHintSessionId(session.id);
     const endsAt = new Date(Date.parse(session.startedAt) + session.chosenDurationSeconds * 1000);
     const notificationId = await scheduleSessionEndNotification(endsAt);
     if (notificationId) {
@@ -256,10 +329,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     await cancelSessionNotification(session.notificationId);
     const endedAt = new Date(Date.parse(session.startedAt) + session.chosenDurationSeconds * 1000);
     await finishSession(session.id, 'completed', session.chosenDurationSeconds, endedAt);
+    okt({
+      navn: durationLabel(session.chosenDurationSeconds / 60),
+      hendelse: 'fullført',
+      sekunder: session.chosenDurationSeconds,
+      skjerm: 'økt',
+    });
     setActiveSession(null);
+    releaseLaunch();
     await refreshSessions();
     return session.id;
-  }, [refreshSessions]);
+  }, [refreshSessions, releaseLaunch]);
 
   const abortActiveSession = useCallback(async () => {
     const session = activeRef.current;
@@ -268,10 +348,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     await dismissSessionNotification(session.notificationId);
     const actual = elapsedSeconds(Date.parse(session.startedAt), Date.now(), session.chosenDurationSeconds);
     await finishSession(session.id, 'aborted', actual, new Date());
+    okt({
+      navn: durationLabel(Math.round(session.chosenDurationSeconds / 60)),
+      hendelse: 'avbrutt',
+      sekunder: actual,
+      skjerm: 'økt',
+    });
     setActiveSession(null);
+    releaseLaunch();
     await refreshSessions();
     return session.id;
-  }, [refreshSessions]);
+  }, [refreshSessions, releaseLaunch]);
 
   const noteBackground = useCallback(async () => {
     const session = activeRef.current;
@@ -298,12 +385,13 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
   const setShowCountdown = useCallback(async (on: boolean) => {
     setShowCountdownState(on);
     await setSetting(SHOW_COUNTDOWN_KEY, on ? '1' : '0');
+    await setSetting(SHOW_COUNTDOWN_CHOSEN_KEY, '1');
   }, []);
 
   const refreshDailyReminder = useCallback(async () => {
     if (userRef.current.notifications !== true) return;
     if (!(await hasNotificationPermission())) return;
-    const clock = reminderSchedule(userRef.current.time);
+    const clock = resolveReminderClock(userRef.current.time, userRef.current.reminderClock);
     await scheduleDailyReminder(clock.hour, clock.minute);
   }, []);
 
@@ -317,7 +405,7 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     }
     const granted = await requestNotificationPermission();
     if (!granted) return 'denied';
-    const clock = reminderSchedule(userRef.current.time);
+    const clock = resolveReminderClock(userRef.current.time, userRef.current.reminderClock);
     await scheduleDailyReminder(clock.hour, clock.minute);
     const next = { ...userRef.current, notifications: true };
     setUser(next);
@@ -325,25 +413,33 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     return 'on';
   }, []);
 
-  const beginIntroSplash = useCallback(() => {
-    const splash = splashAfterReset();
-    setSplashOccasion(splash.occasion);
-    setIntroPhaseState(splash.phase);
-    setSplashHoldArmed(true);
-    sawBackgroundRef.current = false;
+  const setReminderClock = useCallback(async (hour: number, minute: number) => {
+    const reminderClock = formatClock(hour, minute);
+    const next = { ...userRef.current, reminderClock };
+    setUser(next);
+    await saveProfile(next);
+    if (next.notifications === true && (await hasNotificationPermission())) {
+      await scheduleDailyReminder(hour, minute);
+    }
   }, []);
 
-  const replayIntroSplash = useCallback(() => {
-    const splash = splashReplay();
+  const beginIntroSplash = useCallback(() => {
+    const splash = splashAfterReset();
+    occasionRef.current = splash.occasion;
+    phaseRef.current = splash.phase;
+    calmRef.current = true;
+    holdRef.current = true;
     setSplashOccasion(splash.occasion);
+    setSplashCalm(true);
     setIntroPhaseState(splash.phase);
     setSplashHoldArmed(true);
     sawBackgroundRef.current = false;
+    backgroundAtRef.current = null;
   }, []);
 
   const setIntroPhase = useCallback((phase: IntroPhase) => {
     setIntroPhaseState(phase);
-    if (phase === 'fade' || phase === 'enter') {
+    if (shouldPersistSplashSeen({ phase, crashed: false, occasion: occasionRef.current, megaEnabled: features.megaSplash })) {
       void setSetting(SPLASH_SEEN_KEY, '1').catch(() => undefined);
     }
   }, []);
@@ -365,15 +461,22 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
         phase: phaseRef.current,
         occasion: occasionRef.current,
         armHold: holdRef.current,
+        nowMs: Date.now(),
+        backgroundAtMs: backgroundAtRef.current,
+        calm: calmRef.current,
       });
       const phaseChanged = reduced.phase !== phaseRef.current;
       const occasionChanged = reduced.occasion !== occasionRef.current;
+      const calmChanged = reduced.calm !== calmRef.current;
       sawBackgroundRef.current = reduced.sawBackground;
+      backgroundAtRef.current = reduced.backgroundAtMs;
       phaseRef.current = reduced.phase;
       occasionRef.current = reduced.occasion;
+      calmRef.current = reduced.calm;
       holdRef.current = reduced.armHold;
       if (phaseChanged) setIntroPhaseState(reduced.phase);
       if (occasionChanged) setSplashOccasion(reduced.occasion);
+      if (calmChanged) setSplashCalm(reduced.calm);
       setSplashHoldArmed(reduced.armHold);
     });
     return () => sub.remove();
@@ -386,10 +489,37 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
     setOnboarded(false);
     setDurationState(DEFAULT_DURATION_MINUTES);
     setShowCountdownState(true);
+    await setSetting(SHOW_COUNTDOWN_KEY, '1');
+    await setSetting(SHOW_COUNTDOWN_CHOSEN_KEY, '1');
+    const trusted = new Date().toISOString();
+    await setSetting(FIRST_USED_TRUSTED_KEY, trusted);
+    setFirstUsedAt(trusted);
+    // Last write. A handoff that was already in flight cannot leave the flag set.
+    await setSetting(SPLASH_SEEN_KEY, '0');
     setSessions([]);
     setActiveSession(null);
     setReflectionSessionId(null);
     setLaunch('onboarding');
+  }, []);
+
+  const reloadStoredState = useCallback(async () => {
+    const [profile, onboardedRaw, durationRaw, trusted, finished] = await Promise.all([
+      getProfile(),
+      getSetting(ONBOARDED_KEY),
+      getSetting(DURATION_KEY),
+      getSetting(FIRST_USED_TRUSTED_KEY),
+      listFinishedSessions(),
+    ]);
+    setUser(profile);
+    const isOnboarded = onboardedRaw === '1';
+    setOnboarded(isOnboarded);
+    const parsed = parseInt(durationRaw ?? '', 10);
+    setDurationState(clampDurationMinutes(Number.isFinite(parsed) ? parsed : DEFAULT_DURATION_MINUTES));
+    setFirstUsedAt(trusted);
+    setSessions(finished);
+    setActiveSession(null);
+    setReflectionSessionId(null);
+    setLaunch(isOnboarded ? 'home' : 'onboarding');
   }, []);
 
   const deleteSession = useCallback(async (sessionId: string) => {
@@ -398,10 +528,11 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       await cancelSessionNotification(active.notificationId);
       await dismissSessionNotification(active.notificationId);
       setActiveSession(null);
+      releaseLaunch();
     }
     await deleteStoredSession(sessionId);
     await refreshSessions();
-  }, [refreshSessions]);
+  }, [refreshSessions, releaseLaunch]);
 
   const value = useMemo<AppStateValue>(
     () => ({
@@ -413,10 +544,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       updateUser,
       onboarded,
       completeOnboarding,
+      releaseLaunch,
       durationMinutes,
       setDurationMinutes,
       sessions,
       activeSession,
+      lockHintSessionId,
       beginSession,
       completeActiveSession,
       abortActiveSession,
@@ -428,14 +561,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       showCountdown,
       setShowCountdown,
       setDailyReminder,
+      setReminderClock,
       refreshDailyReminder,
+      firstUsedAt,
       resetLocalData,
+      reloadStoredState,
       introPhase,
       splashOccasion,
+      splashCalm,
       splashHoldArmed,
       setSplashSuppressed,
       beginIntroSplash,
-      replayIntroSplash,
       setIntroPhase,
       markSplashSeen,
     }),
@@ -448,10 +584,12 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       updateUser,
       onboarded,
       completeOnboarding,
+      releaseLaunch,
       durationMinutes,
       setDurationMinutes,
       sessions,
       activeSession,
+      lockHintSessionId,
       beginSession,
       completeActiveSession,
       abortActiveSession,
@@ -463,14 +601,17 @@ export function AppStateProvider({ children }: { children: ReactNode }) {
       showCountdown,
       setShowCountdown,
       setDailyReminder,
+      setReminderClock,
       refreshDailyReminder,
+      firstUsedAt,
       resetLocalData,
+      reloadStoredState,
       introPhase,
       splashOccasion,
+      splashCalm,
       splashHoldArmed,
       setSplashSuppressed,
       beginIntroSplash,
-      replayIntroSplash,
       setIntroPhase,
       markSplashSeen,
     ],

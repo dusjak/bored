@@ -226,6 +226,37 @@ export async function deleteSession(db: AppDatabase, id: string): Promise<void> 
   await db.runAsync('DELETE FROM sessions WHERE id = ?', id);
 }
 
+/**
+ * True when this install already has sessions, notes, app state, or any setting
+ * other than the countdown key. Does not write and does not delete.
+ */
+export async function hasPriorUserData(db: AppDatabase, countdownKey: string): Promise<boolean> {
+  const row = await db.getFirstAsync<{ present: number }>(
+    `SELECT 1 AS present FROM sessions
+     UNION ALL SELECT 1 FROM journal_entries
+     UNION ALL SELECT 1 FROM app_state
+     UNION ALL SELECT 1 FROM settings WHERE key != ?
+     LIMIT 1`,
+    countdownKey,
+  );
+  return row != null;
+}
+
+/**
+ * Oldest stored instant. Sessions and settings both count.
+ * Empty tables return null. Does not write.
+ */
+export async function earliestStoredUse(db: AppDatabase): Promise<string | null> {
+  const row = await db.getFirstAsync<{ iso: string | null }>(`
+    SELECT MIN(iso) AS iso FROM (
+      SELECT MIN(started_at) AS iso FROM sessions
+      UNION ALL
+      SELECT MIN(updated_at) AS iso FROM settings
+    )
+  `);
+  return row?.iso ?? null;
+}
+
 /** Wipes sessions, notes, settings, and app_state. The next launch looks newly installed. */
 export async function clearAllLocalData(db: AppDatabase): Promise<void> {
   await db.runAsync('DELETE FROM journal_entries');
@@ -234,12 +265,12 @@ export async function clearAllLocalData(db: AppDatabase): Promise<void> {
   await db.runAsync('DELETE FROM app_state');
 }
 
-/** Oldest first, one mark per finished session. Aborted marks use the muted stroke. */
+/** Newest first, one mark per finished session. Does not mutate the stored rows. */
 export function tallyMarks(sessions: { status: SessionStatus; startedAt: string }[]): { aborted: boolean }[] {
   return sessions
     .filter((session) => session.status === 'completed' || session.status === 'aborted')
     .slice()
-    .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+    .sort((a, b) => b.startedAt.localeCompare(a.startedAt))
     .map((session) => ({ aborted: session.status === 'aborted' }));
 }
 

@@ -5,9 +5,12 @@ import { describe, it } from 'node:test';
 import { SCHEMA_SQL } from './schema.ts';
 import {
   clearAllLocalData,
+  deleteJournal,
   deleteSession,
   finishSession,
   getSession,
+  getSetting,
+  hasPriorUserData,
   insertActiveSession,
   listFinishedSessions,
   sessionTotals,
@@ -16,6 +19,8 @@ import {
   upsertJournal,
   type AppDatabase,
 } from './sessionQueries.ts';
+import { planCountdownUpgrade } from './showCountdown.ts';
+import { FIRST_USED_TRUSTED_KEY, sinceLinePlan } from './sinceLine.ts';
 
 function openMemoryDatabase(): AppDatabase {
   const db = new DatabaseSync(':memory:');
@@ -81,14 +86,85 @@ describe('session notes and delete', () => {
     assert.equal(await getSession(db, 'missing'), null);
   });
 
-  it('draws tally marks oldest first and marks an aborted session', async () => {
+  it('draws tally marks newest first without rewriting the stored sessions', async () => {
     const db = openMemoryDatabase();
     const first = await insertActiveSession(db, 10);
     await finishSession(db, first.id, 'completed', 600, new Date('2026-10-18T12:10:00.000Z'));
     const second = await insertActiveSession(db, 5);
     await finishSession(db, second.id, 'aborted', 40, new Date('2026-10-18T13:00:00.000Z'));
-    const marks = tallyMarks(await listFinishedSessions(db));
-    assert.deepEqual(marks, [{ aborted: false }, { aborted: true }]);
+    await db.runAsync('UPDATE sessions SET started_at = ? WHERE id = ?', '2026-10-18T12:10:00.000Z', first.id);
+    await db.runAsync('UPDATE sessions SET started_at = ? WHERE id = ?', '2026-10-18T13:00:00.000Z', second.id);
+    const listed = await listFinishedSessions(db);
+    const snapshot = listed.map((session) => ({ id: session.id, status: session.status, startedAt: session.startedAt }));
+    assert.equal(listed[0]?.id, second.id);
+    assert.deepEqual(tallyMarks(listed), [{ aborted: true }, { aborted: false }]);
+    assert.deepEqual(
+      listed.map((session) => ({ id: session.id, status: session.status, startedAt: session.startedAt })),
+      snapshot,
+    );
+  });
+
+  it('keeps countdown on and leaves every other record when an existing install has no countdown key', async () => {
+    const db = openMemoryDatabase();
+    const kept = await insertActiveSession(db, 10);
+    await finishSession(db, kept.id, 'completed', 600, new Date('2026-10-18T12:10:00.000Z'));
+    await upsertJournal(db, kept.id, 'calm', 'behold denne');
+    const other = await insertActiveSession(db, 15);
+    await finishSession(db, other.id, 'aborted', 40, new Date('2026-10-18T13:00:00.000Z'));
+    await upsertJournal(db, other.id, 'restless', 'den andre');
+    await setSetting(db, 'bored.themePreference', 'dark');
+    await setSetting(db, 'bored.onboarded', '1');
+    await db.runAsync('INSERT INTO app_state (key, value) VALUES (?, ?)', 'backup.ever', '1');
+
+    assert.equal(await getSetting(db, 'bored.showCountdown'), null);
+    assert.equal(await hasPriorUserData(db, 'bored.showCountdown'), true);
+    const plan = planCountdownUpgrade(null, true);
+    assert.deepEqual(plan, { show: true, writeDefaultOff: false });
+
+    await deleteJournal(db, kept.id);
+
+    assert.equal(await getSetting(db, 'bored.showCountdown'), null);
+    assert.equal(await getSetting(db, 'bored.themePreference'), 'dark');
+    assert.equal(await getSetting(db, 'bored.onboarded'), '1');
+    const keptRow = await getSession(db, kept.id);
+    const otherRow = await getSession(db, other.id);
+    assert.equal(keptRow?.journal, null);
+    assert.equal(otherRow?.journal?.note, 'den andre');
+    assert.equal(otherRow?.status, 'aborted');
+    const flags = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_state WHERE key = ?', 'backup.ever');
+    assert.equal(flags?.value, '1');
+    assert.equal((await listFinishedSessions(db)).length, 2);
+  });
+
+  it('keeps an old first-use key and the other rows when that key is not trusted', async () => {
+    const db = openMemoryDatabase();
+    const kept = await insertActiveSession(db, 10);
+    await finishSession(db, kept.id, 'completed', 600, new Date('2026-10-18T12:10:00.000Z'));
+    await upsertJournal(db, kept.id, 'calm', 'behold denne');
+    await setSetting(db, 'bored.firstUsedAt', '2024-01-15T00:00:00.000Z');
+    await setSetting(db, 'bored.themePreference', 'dark');
+    const plan = sinceLinePlan({
+      trustedRaw: await getSetting(db, FIRST_USED_TRUSTED_KEY),
+      hasPriorData: await hasPriorUserData(db, 'bored.showCountdown'),
+      nowIso: '2026-11-07T06:00:00.000Z',
+    });
+    assert.equal(plan.displayIso, null);
+    assert.equal(plan.writeTrusted, null);
+    assert.equal(await getSetting(db, 'bored.firstUsedAt'), '2024-01-15T00:00:00.000Z');
+    assert.equal(await getSetting(db, FIRST_USED_TRUSTED_KEY), null);
+    assert.equal(await getSetting(db, 'bored.themePreference'), 'dark');
+    assert.equal((await getSession(db, kept.id))?.journal?.note, 'behold denne');
+  });
+
+  it('treats an empty database as a new install and a countdown key alone as not prior data', async () => {
+    const db = openMemoryDatabase();
+    assert.equal(await hasPriorUserData(db, 'bored.showCountdown'), false);
+    assert.deepEqual(planCountdownUpgrade(null, false), { show: true, writeDefaultOff: false });
+    await setSetting(db, 'bored.showCountdown', '0');
+    assert.equal(await hasPriorUserData(db, 'bored.showCountdown'), false);
+    assert.deepEqual(planCountdownUpgrade('0', true), { show: false, writeDefaultOff: false });
+    const settings = await db.getAllAsync<{ key: string }>('SELECT key FROM settings');
+    assert.deepEqual(settings.map((row) => row.key), ['bored.showCountdown']);
   });
 
   it('clears sessions, notes, and settings together', async () => {
@@ -98,6 +174,7 @@ describe('session notes and delete', () => {
     await upsertJournal(db, session.id, 'calm', 'en tanke');
     await setSetting(db, 'bored.themePreference', 'dark');
     await setSetting(db, 'bored.onboarded', '1');
+    await setSetting(db, 'bored.splashSeen', '1');
     await clearAllLocalData(db);
     assert.equal(await getSession(db, session.id), null);
     assert.deepEqual(sessionTotals(await listFinishedSessions(db)), { total: 0, completed: 0, aborted: 0 });

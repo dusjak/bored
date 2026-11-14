@@ -1,6 +1,7 @@
+import { BACKUP_INTEREST_NOTED_KEY } from '../backup/interest.ts';
 import { EMPTY_NUDGE, nudgeAfterDismiss, type NudgeFlags } from '../backup/nudge.ts';
 import { EMPTY_PREVIEW, parseBackupPreview, type BackupPreview } from '../backup/model.ts';
-import type { AppDatabase } from './sessionQueries.ts';
+import { getSetting, setSetting, type AppDatabase } from './sessionQueries.ts';
 
 /** Local keys. They live in `app_state`, not `settings`, and are not synced. */
 export const NUDGE_DISMISS_COUNT_KEY = 'backupNudgeDismissCount';
@@ -34,18 +35,18 @@ function clampDismissCount(raw: string | null): number {
 }
 
 export async function readNudgeFlags(db: AppDatabase): Promise<NudgeFlags> {
-  const [count, atSessions, at, ever] = await Promise.all([
+  const [count, atSessions, at, noted] = await Promise.all([
     readValue(db, NUDGE_DISMISS_COUNT_KEY),
     readValue(db, NUDGE_DISMISSED_AT_SESSIONS_KEY),
     readValue(db, NUDGE_DISMISSED_AT_KEY),
-    readValue(db, BACKUP_EVER_ENABLED_KEY),
+    getSetting(db, BACKUP_INTEREST_NOTED_KEY),
   ]);
   const parsedSessions = atSessions == null ? null : parseInt(atSessions, 10);
   return {
     dismissCount: clampDismissCount(count),
     dismissedAtSessions: parsedSessions != null && Number.isFinite(parsedSessions) ? parsedSessions : null,
     dismissedAt: at,
-    everEnabled: ever === '1',
+    interestNoted: noted === '1',
   };
 }
 
@@ -61,8 +62,8 @@ export async function writeNudgeFlags(db: AppDatabase, flags: NudgeFlags): Promi
   } else {
     await writeValue(db, NUDGE_DISMISSED_AT_KEY, flags.dismissedAt);
   }
-  if (flags.everEnabled) await writeValue(db, BACKUP_EVER_ENABLED_KEY, '1');
-  else await db.runAsync('DELETE FROM app_state WHERE key = ?', BACKUP_EVER_ENABLED_KEY);
+  if (flags.interestNoted) await setSetting(db, BACKUP_INTEREST_NOTED_KEY, '1');
+  else await db.runAsync('DELETE FROM settings WHERE key = ?', BACKUP_INTEREST_NOTED_KEY);
 }
 
 export async function dismissNudgeFlags(db: AppDatabase, completed: number, dismissedAt: string): Promise<NudgeFlags> {

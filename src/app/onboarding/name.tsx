@@ -1,6 +1,9 @@
-import { useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
-import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { Keyboard, KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { knappetrykk } from '@/analytics/track';
+import { pushStep } from '@/onboarding/stepMotion';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button } from '@/components/Button';
 import { OnboardingHeader } from '@/components/OnboardingHeader';
@@ -11,15 +14,37 @@ import { useTheme } from '@/theme';
 export default function NameStep() {
   const { theme } = useTheme();
   const { user, updateUser } = useAppState();
+  const { after } = useLocalSearchParams<{ after?: string }>();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState(user.name ?? '');
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, () => setKeyboardOpen(true));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardOpen(false));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
 
   const next = (value: string) => {
+    knappetrykk({
+      type: 'Stegnavigasjon',
+      navn: value.trim() ? 'Fortsett' : 'Hopp over',
+      hendelse: 'trykk',
+      skjerm: 'Hva skal vi kalle deg?',
+    });
     updateUser({ name: value });
-    router.push('/onboarding/notifications');
+    const skipped = after === 'ready' || user.introPath === 'skip';
+    pushStep(skipped ? '/onboarding/ready' : '/onboarding/notifications');
   };
 
   return (
-    <Screen contentStyle={{ paddingBottom: 40 }}>
+    <Screen top="none" edges={['top']}>
+      <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <OnboardingHeader step={5} title="Hva skal vi kalle deg?" sub="Bare fornavn holder." />
       <TextInput
         autoFocus
@@ -39,13 +64,17 @@ export default function NameStep() {
         ]}
       />
       <View style={{ flex: 1 }} />
-      <Button title="Fortsett" disabled={!name.trim()} onPress={() => next(name.trim())} />
-      <Button title="Hopp over" variant="ghost" style={{ marginTop: 8 }} onPress={() => next('')} />
+      <View style={{ paddingBottom: keyboardOpen ? 0 : 40 + insets.bottom }}>
+        <Button title="Fortsett" disabled={!name.trim()} onPress={() => next(name.trim())} />
+        <Button title="Hopp over" variant="ghost" style={{ marginTop: 8 }} onPress={() => next('')} />
+      </View>
+      </KeyboardAvoidingView>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  fill: { flex: 1 },
   input: {
     fontSize: 22,
     paddingVertical: 8,

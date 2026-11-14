@@ -1,0 +1,7 @@
+{
+  "name": "haptic-intensity",
+  "version": "1.0.0",
+  "description": "One iOS Core Haptics transient at a numeric intensity. Not used by the hold clock.",
+  "main": "index.ts",
+  "private": true
+}

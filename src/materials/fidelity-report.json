@@ -1,0 +1,382 @@
+{
+  "evidence": "mathematical-port",
+  "skia_executed": false,
+  "skia_reason": "This environment has no Skia frame of DynamicMaterial. Color and normals are the Python port of shadeNormal and numpy.gradient, which is what the unmounted renderer uploads at 1 px.",
+  "engineering_targets_not_visual_acceptance": {
+    "interior_mae_8bit_lte": 2,
+    "interior_max_8bit_lte": 8,
+    "detail_ratio_gte": 0.9,
+    "normal_p95_deg_lte": 2,
+    "status": "proposals from P\u00e5l, not design sign-off"
+  },
+  "sources": {
+    "base_r_sha256": "b7d4acf627a36d9b2d67480f6610e696a1b1d8b8c35eee29687976b8833b8766",
+    "base_r_0": 0.4866666666666667,
+    "rest_r_sha256": "9e3eed9eee604d9ee82852f828b54f47a63b33364a7409513bab9c35b2414cc9",
+    "parameters_sha256": "334c91489411bc739efa99c8f7755a956c00f8a9f3761b3a308be5e7650c2e26",
+    "bevel_seed": 47,
+    "gummi_seed": 7,
+    "export_grain_seed": 100,
+    "skifer_aniso_deg": 18,
+    "normal_step_px": 1,
+    "previous_normal_step_px": 10
+  },
+  "materials": {
+    "skifer": {
+      "normal_angle_deg_vs_source_1px": {
+        "runtime_1px": {
+          "count": 337962,
+          "mae": 0.14838975348341105,
+          "max": 0.5808087587356567,
+          "p95": 0.338619589805603,
+          "region": "interior>12px"
+        },
+        "runtime_1px_edge_0_12px": {
+          "count": 25306,
+          "mae": 0.05964723635155177,
+          "max": 0.2601962685585022,
+          "p95": 0.1557663530111313
+        },
+        "previous_10px_step": {
+          "count": 337962,
+          "mae": 12.421290258932732,
+          "max": 63.032588958740234,
+          "p95": 25.3792667388916
+        }
+      },
+      "color_8bit_vs_base_shade_light": {
+        "runtime_1px_interior_gt_12px": {
+          "count": 337962,
+          "mae": 0.3911521866327758,
+          "max": 1.9392127990722656,
+          "p95": 0.7624454498291016
+        },
+        "runtime_1px_edge_0_12px": {
+          "count": 25306,
+          "mae": 0.41275089813825744,
+          "max": 1.4091911315917969,
+          "p95": 0.7940425872802734,
+          "count_abs_gt_8": 0,
+          "count_abs_gt_15": 0,
+          "mean_signed_port_minus_source": -0.0021196913439780474
+        },
+        "previous_10px_interior_gt_12px": {
+          "count": 337962,
+          "mae": 4.4678944222143935,
+          "max": 33.71111297607422,
+          "p95": 14.601459503173832
+        },
+        "note": "Shader formula without the export seed-100 grain. Reference composite includes that grain. Not a Skia frame."
+      },
+      "detail_highpass_1_to_10px": {
+        "energy_reference": 34.58855056762695,
+        "energy_runtime_1px": 34.58684158325195,
+        "energy_previous_10px": 7.678440093994141,
+        "ratio_runtime_over_reference": 0.9999505910381628,
+        "ratio_previous_over_reference": 0.22199369351951836,
+        "definition": "mean square of gaussian(lum,1) - gaussian(lum,10) on interior>12px"
+      },
+      "R": 294.56747953567447,
+      "height_sha256_f16": "85cff9771e9502ec7c31a1c2366b4118a78a5efe62c923945acb2c4986b5e340"
+    },
+    "kull": {
+      "normal_angle_deg_vs_source_1px": {
+        "runtime_1px": {
+          "count": 337904,
+          "mae": 0.5613571242566409,
+          "max": 2.422123670578003,
+          "p95": 1.2660953998565674,
+          "region": "interior>12px"
+        },
+        "runtime_1px_edge_0_12px": {
+          "count": 25250,
+          "mae": 0.08619697627668628,
+          "max": 0.9278841614723206,
+          "p95": 0.24708151817321777
+        },
+        "previous_10px_step": {
+          "count": 337904,
+          "mae": 30.009313211702906,
+          "max": 106.31082916259766,
+          "p95": 55.27023620605469
+        }
+      },
+      "color_8bit_vs_base_shade_light": {
+        "runtime_1px_interior_gt_12px": {
+          "count": 337904,
+          "mae": 0.41158041687685537,
+          "max": 7.59918212890625,
+          "p95": 0.8325220108032219
+        },
+        "runtime_1px_edge_0_12px": {
+          "count": 25250,
+          "mae": 0.5116812195494623,
+          "max": 1.4929084777832031,
+          "p95": 0.9878210067749023,
+          "count_abs_gt_8": 0,
+          "count_abs_gt_15": 0,
+          "mean_signed_port_minus_source": -0.0032744533382356167
+        },
+        "previous_10px_interior_gt_12px": {
+          "count": 337904,
+          "mae": 4.257677164135659,
+          "max": 130.98101806640625,
+          "p95": 10.735422897338868
+        },
+        "note": "Shader formula without the export seed-100 grain. Reference composite includes that grain. Not a Skia frame."
+      },
+      "detail_highpass_1_to_10px": {
+        "energy_reference": 22.50164031982422,
+        "energy_runtime_1px": 22.4857120513916,
+        "energy_previous_10px": 12.685676574707031,
+        "ratio_runtime_over_reference": 0.9992921285645747,
+        "ratio_previous_over_reference": 0.5637667474193335,
+        "definition": "mean square of gaussian(lum,1) - gaussian(lum,10) on interior>12px"
+      },
+      "R": 295.14911485552517,
+      "height_sha256_f16": "917c1d693740260d4842ed1fe753c5d6db6a081c7e3e9effc88ec4a757767b3d"
+    },
+    "emalje": {
+      "normal_angle_deg_vs_source_1px": {
+        "runtime_1px": {
+          "count": 337904,
+          "mae": 0.7194004727114867,
+          "max": 2.4430437088012695,
+          "p95": 1.6193082332611084,
+          "region": "interior>12px"
+        },
+        "runtime_1px_edge_0_12px": {
+          "count": 25250,
+          "mae": 0.07678794246646438,
+          "max": 0.3449174165725708,
+          "p95": 0.19935013949870992
+        },
+        "previous_10px_step": {
+          "count": 337904,
+          "mae": 1.0524260037667457,
+          "max": 16.85190773010254,
+          "p95": 3.7989048957824707
+        }
+      },
+      "color_8bit_vs_base_shade_light": {
+        "runtime_1px_interior_gt_12px": {
+          "count": 337904,
+          "mae": 0.8275373226734684,
+          "max": 7.264007568359375,
+          "p95": 2.961061477661133
+        },
+        "runtime_1px_edge_0_12px": {
+          "count": 25250,
+          "mae": 0.5008887655616987,
+          "max": 1.20880126953125,
+          "p95": 0.9686772346496582,
+          "count_abs_gt_8": 0,
+          "count_abs_gt_15": 0,
+          "mean_signed_port_minus_source": -0.003737944643944502
+        },
+        "previous_10px_interior_gt_12px": {
+          "count": 337904,
+          "mae": 0.7361244289304583,
+          "max": 18.411941528320312,
+          "p95": 2.3190460205078125
+        },
+        "note": "Shader formula without the export seed-100 grain. Reference composite includes that grain. Not a Skia frame."
+      },
+      "detail_highpass_1_to_10px": {
+        "energy_reference": 1.3245829343795776,
+        "energy_runtime_1px": 1.3924055099487305,
+        "energy_previous_10px": 0.7430386543273926,
+        "ratio_runtime_over_reference": 1.051202966465003,
+        "ratio_previous_over_reference": 0.560960461622907,
+        "definition": "mean square of gaussian(lum,1) - gaussian(lum,10) on interior>12px"
+      },
+      "R": 295.14911485552517,
+      "height_sha256_f16": "2b897921772db42f0b54899eafc345b77a50439b20d90cd5a3118a50dca8f4c5"
+    },
+    "floyel": {
+      "normal_angle_deg_vs_source_1px": {
+        "runtime_1px": {
+          "count": 337904,
+          "mae": 0.6661975805879488,
+          "max": 2.3748748302459717,
+          "p95": 1.4013731479644775,
+          "region": "interior>12px"
+        },
+        "runtime_1px_edge_0_12px": {
+          "count": 25250,
+          "mae": 0.0861814481790113,
+          "max": 0.8388347029685974,
+          "p95": 0.24549256265163422
+        },
+        "previous_10px_step": {
+          "count": 337904,
+          "mae": 23.115956146384274,
+          "max": 80.46420288085938,
+          "p95": 43.61504020690916
+        }
+      },
+      "color_8bit_vs_base_shade_light": {
+        "runtime_1px_interior_gt_12px": {
+          "count": 337904,
+          "mae": 0.5732052846130782,
+          "max": 2.8152008056640625,
+          "p95": 1.2486560821533201
+        },
+        "runtime_1px_edge_0_12px": {
+          "count": 25250,
+          "mae": 0.6235987936340937,
+          "max": 1.6101303100585938,
+          "p95": 1.0948150634765623,
+          "count_abs_gt_8": 0,
+          "count_abs_gt_15": 0,
+          "mean_signed_port_minus_source": -0.0014302664203569293
+        },
+        "previous_10px_interior_gt_12px": {
+          "count": 337904,
+          "mae": 8.284503165830225,
+          "max": 73.53823852539062,
+          "p95": 25.798942184448237
+        },
+        "note": "Shader formula without the export seed-100 grain. Reference composite includes that grain. Not a Skia frame."
+      },
+      "detail_highpass_1_to_10px": {
+        "energy_reference": 29.995792388916016,
+        "energy_runtime_1px": 29.98200035095215,
+        "energy_previous_10px": 1.9614046812057495,
+        "ratio_runtime_over_reference": 0.9995402009126799,
+        "ratio_previous_over_reference": 0.06538932713544596,
+        "definition": "mean square of gaussian(lum,1) - gaussian(lum,10) on interior>12px"
+      },
+      "R": 295.14911485552517,
+      "height_sha256_f16": "2cda9f4e4f75ff7e108788d24931e6d8700c6014a3b4bafb5d51179ece2d10c7"
+    },
+    "gummi": {
+      "normal_angle_deg_vs_source_1px": {
+        "runtime_1px": {
+          "count": 337904,
+          "mae": 0.0056332475757904146,
+          "max": 0.05595290660858154,
+          "p95": 0.01978234015405178,
+          "region": "interior>12px"
+        },
+        "runtime_1px_edge_0_12px": {
+          "count": 25250,
+          "mae": 0.01915554360868317,
+          "max": 0.07132624834775925,
+          "p95": 0.04423465579748154
+        },
+        "previous_10px_step": {
+          "count": 337904,
+          "mae": 3.9622976784529036,
+          "max": 15.183762550354004,
+          "p95": 7.7389044761657715
+        }
+      },
+      "color_8bit_vs_base_shade_light": {
+        "runtime_1px_interior_gt_12px": {
+          "count": 337904,
+          "mae": 0.46898130292360507,
+          "max": 7.11296272277832,
+          "p95": 0.9726022720336913
+        },
+        "runtime_1px_edge_0_12px": {
+          "count": 25250,
+          "mae": 1.3282319776327303,
+          "max": 21.096452713012695,
+          "p95": 5.61225423812866,
+          "count_abs_gt_8": 897,
+          "count_abs_gt_15": 99,
+          "mean_signed_port_minus_source": -0.2673878073692322
+        },
+        "previous_10px_interior_gt_12px": {
+          "count": 337904,
+          "mae": 3.907022612599172,
+          "max": 28.636600494384766,
+          "p95": 15.173768997192383
+        },
+        "note": "Shader formula without the export seed-100 grain. Reference composite includes that grain. Not a Skia frame."
+      },
+      "detail_highpass_1_to_10px": {
+        "energy_reference": 1.1165680885314941,
+        "energy_runtime_1px": 1.1340759992599487,
+        "energy_previous_10px": 3.3139004707336426,
+        "ratio_runtime_over_reference": 1.01568011024879,
+        "ratio_previous_over_reference": 2.9679340693786718,
+        "definition": "mean square of gaussian(lum,1) - gaussian(lum,10) on interior>12px"
+      },
+      "post_warp_height_gradient_vs_source_p95": 19.732930660247803,
+      "color_if_normals_come_from_warped_height": {
+        "count": 337904,
+        "mae": 4.149335181689397,
+        "max": 26.911422729492188,
+        "p95": 19.35228023529052
+      },
+      "R": 587.9941836447024,
+      "height_sha256_f16": "5818ad1880ab5ad0b3d1efdd568bf353b7b63d3fae5311bb37f93d586e32f720",
+      "npz": {
+        "npz_sha256": "1a9c3eb047fd782780dc30aff00c57e46d689afe3fe564d4b46c7df1063e2f06",
+        "ccx_offset": 4.866758956926333,
+        "ccy_offset": 18.655123674911465,
+        "centroid_minus_1260": [
+          5.281520797600933,
+          19.047901604381423
+        ],
+        "mapping": "export-gummi.py lines 26-39. Center stays (1260,1260). ccx/ccy are recorded and not added.",
+        "bh": 205,
+        "small_center_y_half": 307.5,
+        "warp_center_y": 304.56,
+        "R_canvas": 587.9941836447024,
+        "crop": [
+          645,
+          1875,
+          540,
+          1980
+        ]
+      },
+      "normal_note": "The 1 px angle is float16 rounding of the warped canvas normals. Differentiating the height after the warp is a different field.",
+      "edge_investigation": {
+        "kept_all_edge_pixels": true,
+        "mae": 1.3282319776327303,
+        "p95": 5.61225423812866,
+        "max": 21.096452713012695,
+        "count": 25250,
+        "count_abs_gt_8": 897,
+        "count_abs_gt_15": 99,
+        "mean_signed_port_minus_source": -0.2673878073692322,
+        "cause": "The tail is the steep rim after Lanczos and the radial warp. The port relights the warped albedo with the warped normal, and that BRDF is darker there than the exported light-screen. Shading on the canvas and then warping the color, and sampling canvas normals without Lanczos, both increase this max. The pixels stay in the score. It is not a mask cutoff and not the 2.94 px difference between 0.423\u00b7w\u00b73 and half the crop."
+      }
+    }
+  },
+  "engineering_diagnostic": {
+    "skifer": {
+      "mae": true,
+      "max": true,
+      "detail_ratio": true,
+      "normal_p95": true
+    },
+    "kull": {
+      "mae": true,
+      "max": true,
+      "detail_ratio": true,
+      "normal_p95": true
+    },
+    "emalje": {
+      "mae": true,
+      "max": true,
+      "detail_ratio": true,
+      "normal_p95": true
+    },
+    "floyel": {
+      "mae": true,
+      "max": true,
+      "detail_ratio": true,
+      "normal_p95": true
+    },
+    "gummi": {
+      "mae": true,
+      "max": true,
+      "detail_ratio": true,
+      "normal_p95": true
+    }
+  }
+}

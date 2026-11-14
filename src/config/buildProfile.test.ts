@@ -101,6 +101,7 @@ describe('build profile', () => {
     assert.throws(() => assertBackupMode('preview', production), /preview/);
     assert.equal(assertBackupMode('off', production), 'off');
     assert.equal(assertBackupMode('live', production), 'live');
+    assert.equal(assertBackupMode('fakedoor', production), 'fakedoor');
   });
 
   it('returns null when the manifest cannot be read', () => {

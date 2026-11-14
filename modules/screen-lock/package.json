@@ -1,0 +1,7 @@
+{
+  "name": "screen-lock",
+  "version": "1.0.0",
+  "description": "iOS screen-lock signal for bored. Absent in Expo Go; linked in EAS and dev-client builds.",
+  "main": "index.ts",
+  "private": true
+}

@@ -8,12 +8,12 @@ Nothing in this repo contains an Apple ID or a team id. Do not invent them. The 
 
 | Setting | Value |
 | --- | --- |
-| Display name | `BORED.` (already in `app.json`; left as it was) |
+| Display name | `bored.` |
 | Bundle id | `no.bored.app` (permanent) |
 | Android package | `no.bored.app` |
 | User-facing version | `1.0.0` |
 | iOS build number seed | `1` |
-| Icon | `assets/icon/icon-1024.png` (opaque RGB, no rounded corners added) |
+| Icon | `assets/icon/icon-1024.png` (light, opaque RGB). iOS 18 also uses `ios.icon.dark` (`icon-1024-dark.png`, transparent background) and `ios.icon.tinted` (`icon-1024-tinted.png`, greyscale on black). No rounded corners. The top-level `icon` is the light file. |
 | Icon source | `assets/icon/icon.svg` (not used by the app config) |
 | Export compliance | `ios.config.usesNonExemptEncryption: false` |
 | Notification prompt | `bored. varsler når økta er ferdig.` |
@@ -95,11 +95,31 @@ Internal testers are people on the App Store Connect team. You do not need a bet
 
 1. On the iPhone, install Apple's TestFlight app from the App Store.
 2. Open the invite email, or open TestFlight and accept the app.
-3. Install bored. The home-screen name is `BORED.`
+3. Install bored. The home-screen name is `bored.`
+
+## Splash tiers
+
+Three plates, all `#111110` with the S6 wordmark in `#F8F6F2`.
+
+| Tier | When | What you should see |
+| --- | --- | --- |
+| MegaSplash | First launch, and after Nullstill (Profil → Nullstill) | The wordmark draws into the dot for 150 ms, then «Sluket» v5 preset C. About 3.45 s, then a cut into the app. |
+| Splash (D2 Pust) | A later cold start. Also a return from background after 60 s or more away. | The wordmark holds, Klumpen scales up to 1.14 and back by 700 ms. Dark app: 200 ms fade. Light app: a cut. |
+| Dråpe | Reduce Motion, the kill switch, a crash, and the native splash | The still wordmark. Reduce Motion holds 600 ms. A return under 60 s leaves as soon as the app is active. |
+
+Tap anywhere on MegaSplash, Pust, or Dråpe to skip. An open session or a reflection never shows a plate. Control Center (`inactive`) does not either.
+
+The 60 s background threshold is an open question. It lives in `BACKGROUND_RETURN_MIN_MS`.
+
+`bored.splashSeen` is written when MegaSplash hands off, and immediately if that player crashes. Dråpe on a first launch does not write it, so MegaSplash still runs once motion is allowed. Backgrounding during MegaSplash does not count as seeing it.
 
 ## Native splash
 
-`expo-splash-screen` is baked into the native binary. You can only check that splash in a TestFlight build or another release build. Expo Go shows Expo Go's own splash, so it is not a check of this app's native splash.
+The native splash is Dråpe: `assets/splash/splash-wordmark-s6-dark.png` at 160 pt wide on `#111110`, including the `@2x` and `@3x` files. `expo-splash-screen` bakes that into the native binary.
+
+Expo Go does not show this image. On SDK 58 it shows the app icon instead of the splash screen configured in `app.json`. A development build also does not apply every splash-screen plugin property. Check the native splash in a TestFlight build or another release build: it should be the still S6 wordmark, then the JS plate (MegaSplash or Pust) should already be up when it hides, with no empty frame and no jump.
+
+In Expo Go you can still check the JS tiers: delete the app data or use Nullstill for MegaSplash, relaunch for Pust, and turn on Reduce Motion for Dråpe. The theme exit (cut on light, fade on dark) is also visible in Expo Go. The native image itself is not.
 
 ## Profiles
 
@@ -115,6 +135,6 @@ The splash work and the backup preview are both on master. Only the EAS profile 
 
 `app.config.js` defaults `BACKUP_MODE` to `preview`. That is allowed for `testflight`, so a TestFlight build keeps the honest preview backup: the screens are real, and nothing leaves the phone. The same preview mode throws when `EAS_BUILD_PROFILE` is `production`. Use `BACKUP_MODE=off` or `BACKUP_MODE=live` for that profile.
 
-The splash replay on «Jeg har allerede en konto» stays on for `testflight`. It stays off in a release binary whose profile was not baked in, and when that profile cannot be read. A failed read does not crash launch. The missing profile is not production, so preview backup stays available. Preview backup still fails when the profile is `production`. `app.config.js` copies `EAS_BUILD_PROFILE` into `extra.easBuildProfile` and omits the key when it is unset. Do not write `null` there. Expo's serializer turns `null` into `{}`.
+Holding the welcome title does not replay the splash. A failed profile read does not crash launch. The missing profile is not production, so preview backup stays available. Preview backup still fails when the profile is `production`. `app.config.js` copies `EAS_BUILD_PROFILE` into `extra.easBuildProfile` and omits the key when it is unset. Do not write `null` there. Expo's serializer turns `null` into `{}`.
 
-The native splash config is the always-dark v4 setup from master. Leave it as it is.
+The native splash is the always-dark S6 wordmark (`splash-wordmark-s6-dark.png`, `#111110`). Change it in `app.json` and ship a new binary. Expo Go will not show the change.

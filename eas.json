@@ -20,14 +20,12 @@
   "submit": {
     "testflight": {
       "ios": {
-        // appleId: Apple ID email for App Store Connect. Add it after the Developer Program enrollment is active. Do not guess.
-        // ascAppId: numeric App Store Connect app id from App Information. Not the bundle id.
+        "ascAppId": "6829862550"
       }
     },
     "production": {
       "ios": {
-        // appleId: same Apple ID as submit.testflight, once you have it.
-        // ascAppId: same numeric App Store Connect app id as submit.testflight.
+        "ascAppId": "6829862550"
       }
     }
   }

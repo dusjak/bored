@@ -1,10 +1,11 @@
-import type { ReactNode } from 'react';
+import { forwardRef, type ReactNode } from 'react';
 import {
   Animated,
   Pressable,
   StyleSheet,
   View,
   type AccessibilityActionEvent,
+  type HostInstance,
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
@@ -27,7 +28,7 @@ type Props = {
 };
 
 /** 176pt matte circle. One outer shadow, plus a 1pt top highlight. */
-export function TactileCircle({
+export const TactileCircle = forwardRef<HostInstance, Props>(function TactileCircle({
   children,
   onPress,
   onPressIn,
@@ -40,11 +41,12 @@ export function TactileCircle({
   onAccessibilityAction,
   fill,
   style,
-}: Props) {
+}, ref) {
   const { theme } = useTheme();
   const diameter = theme.size.object;
   return (
     <Pressable
+      ref={ref}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
@@ -83,7 +85,7 @@ export function TactileCircle({
       </Animated.View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   circle: { alignItems: 'center', justifyContent: 'center' },

@@ -1,10 +1,11 @@
 /**
- * bored. design tokens v1 – generated from the Figma file "bored." (pages Designsystem + Look & feel – Taktil gjenstand).
- * Source of truth: /workspace/design/tokens/tokens.json. Do not hand-edit; regenerate (see README.md).
- * Names mirror the Figma variables: Figma `color/text/primary` == `theme.color.text.primary` here.
+ * bored. design tokens.
+ * Color, space, and radius keep the Figma names: `color/text/primary` == `theme.color.text.primary`.
+ * Type is system F (2026-11-03). Faces load only in src/theme/fonts.ts.
+ * src/theme/tokens.json mirrors these type roles.
  *
- * Shape: keeps the exports of src/theme (palette, colors, onDark, space, screenPadding, radius,
- * shadow, motion, fonts) so it can replace src/theme/ step by step, and adds `themes`, `ThemePreference`.
+ * DM Serif Display: display (hero) and quotes.
+ * Figtree: UI, body, and numbers. Body is Regular (400). Light (300) is only the timer and the hero number.
  */
 import type { TextStyle, ViewStyle } from 'react-native';
 
@@ -31,6 +32,8 @@ const prim = {
   },
   sand: {
     '400': '#C4B09A',
+    /** Links on a light surface. 5.0:1 on #F8F6F2, 4.6:1 on #F0EDE7. */
+    '700': '#7D6650',
   },
   red: {
     '700': '#9F2D2D',
@@ -52,7 +55,12 @@ const prim = {
     'black-60': 'rgba(0,0,0,0.6)',
     'warm-8': 'rgba(60,50,40,0.08)',
     'warm-12': 'rgba(60,50,40,0.12)',
+    'warm-22': 'rgba(60,50,40,0.22)',
     'night-60': 'rgba(26,26,24,0.6)',
+    /** Off-white at 8% and 10%. Hairlines and the time-wheel band on a dark card. */
+    'paper-8': 'rgba(248,246,242,0.08)',
+    'paper-10': 'rgba(248,246,242,0.10)',
+    'ink-6': 'rgba(17,17,16,0.06)',
   },
 } as const;
 
@@ -60,17 +68,25 @@ const prim = {
 const lightColor = {
   bg: {
     default: prim.neutral['100'],
+    /** Deg canvas. Matches the v2.2 frame (#F8F6F2). Other screens keep bg.default. */
+    grouped: prim.neutral['50'],
     session: prim.neutral['950'],
     overlay: prim.alpha['ink-40'],
   },
   surface: {
     default: prim.neutral['50'],
+    /** Inset grouped cards on Deg. White in light, the same card as surface.default in dark. */
+    grouped: prim.neutral['0'],
     sheet: prim.neutral['50'],
   },
   text: {
     primary: prim.neutral['900'],
     secondary: prim.neutral['650'],
     tertiary: prim.neutral['600'],
+    /** Sand link. Light uses sand.700 so it clears 4.5:1. Dark keeps sand.400. */
+    link: prim.sand['700'],
+    /** Lowest weight. Version line. */
+    meta: prim.neutral['600'],
     destructive: prim.red['700'],
     'on-ink': prim.neutral['50'],
   },
@@ -83,12 +99,30 @@ const lightColor = {
   border: {
     default: prim.neutral['200'],
     strong: prim.alpha['ink-24'],
+    /** Hairline between rows in one group. 0.5pt, inset 16. */
+    separator: prim.neutral['200'],
+  },
+  icon: {
+    /** Chevron. Graphic, not text: neutral.300 on light, neutral.600 on dark. */
+    chevron: prim.neutral['300'],
   },
   control: {
     off: prim.neutral['250'],
+    /** Off knob. Light adds a warm shadow in the switch, not here. */
+    offKnob: prim.neutral['0'],
+    on: prim.neutral['900'],
+    onKnob: prim.neutral['50'],
+    /**
+     * 1pt off-track border. The fill is 1.5:1 on a white card (WCAG 1.4.11 wants 3:1).
+     * neutral.300 is 2.3:1. neutral.450 is 3.6:1 on white and 3.1:1 on the page.
+     */
+    offBorder: prim.neutral['450'],
+    capsule: prim.neutral['150'],
+    band: prim.alpha['ink-6'],
   },
   object: {
-    fill: prim.neutral['150'],
+    /** Approved object black. The S6 wordmark dot is not this token. */
+    fill: prim.neutral['900'],
     content: prim.neutral['800'],
     highlight: prim.alpha['white-70'],
     shade: prim.alpha['black-6'],
@@ -114,6 +148,25 @@ const lightColor = {
     'text-tertiary': prim.neutral['400'],
     decorative: prim.neutral['700'],
     object: prim.neutral['850'],
+    /**
+     * Rest contour while the Klumpen is held.
+     * neutral.450 against the light page is about 3.1:1, the same contrast as
+     * the dark track (#66635D) against #111110. The Avsluttet fill stays `glow`.
+     */
+    'ring-track': prim.neutral['450'],
+  },
+  /**
+   * Warm light shared by the hold contour and the lock-button bulge.
+   * `amber` is #E8C98E. `matte` is the bulge before the glow ramps.
+   */
+  glow: {
+    core: '#F6EBD6',
+    amber: '#E8C98E',
+    highlight: prim.alpha['white-35'],
+    /** Increase Contrast and Reduce Transparency. Solid stroke, no blur. */
+    solid: prim.neutral['50'],
+    /** Bulge surface before the glow ramps. */
+    matte: '#D8CCB6',
   },
   tally: {
     default: prim.neutral['900'],
@@ -124,17 +177,22 @@ const lightColor = {
 const darkColor = {
   bg: {
     default: prim.neutral['900'],
+    grouped: prim.neutral['900'],
     session: prim.neutral['950'],
-    overlay: prim.alpha['black-60'],
+    /** Sheet scrim. 0.40, same dim as the shared sheet (#111110 at 40%). */
+    overlay: prim.alpha['ink-40'],
   },
   surface: {
     default: prim.neutral['850'],
+    grouped: prim.neutral['850'],
     sheet: prim.neutral['850'],
   },
   text: {
     primary: prim.neutral['50'],
     secondary: prim.neutral['300'],
     tertiary: prim.neutral['400'],
+    link: prim.sand['400'],
+    meta: prim.neutral['450'],
     destructive: prim.red['200'],
     'on-ink': prim.neutral['900'],
   },
@@ -147,9 +205,24 @@ const darkColor = {
   border: {
     default: prim.neutral['800'],
     strong: prim.alpha['white-24'],
+    /** Off-white at 10% on the dark card. Reads as #30302E over #1A1A18. */
+    separator: prim.alpha['paper-10'],
+  },
+  icon: {
+    chevron: prim.neutral['600'],
   },
   control: {
     off: prim.neutral['700'],
+    offKnob: prim.neutral['850'],
+    on: prim.neutral['50'],
+    onKnob: prim.neutral['900'],
+    /**
+     * 1pt off-track border. The fill (#4A4945) is 1.9:1 on the card.
+     * neutral.600 is 2.9:1, still short. neutral.500 is 3.9:1.
+     */
+    offBorder: prim.neutral['500'],
+    capsule: prim.neutral['800'],
+    band: prim.alpha['paper-8'],
   },
   object: {
     fill: prim.neutral['850'],
@@ -178,6 +251,18 @@ const darkColor = {
     'text-tertiary': prim.neutral['400'],
     decorative: prim.neutral['700'],
     object: prim.neutral['850'],
+    /** Rest contour around the session Klumpen. */
+    'ring-track': prim.neutral['600'],
+  },
+  /**
+   * Same on both themes. The session screen is always dark.
+   */
+  glow: {
+    core: '#F6EBD6',
+    amber: '#E8C98E',
+    highlight: prim.alpha['white-35'],
+    solid: prim.neutral['50'],
+    matte: '#D8CCB6',
   },
   tally: {
     default: prim.neutral['50'],
@@ -206,7 +291,8 @@ export const space = {
   '24': 96,
   '32': 128,
 } as const;
-export const screenPadding = space[4]; // 16 (HIG). Was space[7] = 28 until 2026-11-01.
+/** Side inset. 24pt. Was 28 (2026-10-21), then 16 (2026-11-01). Layout v2.1. */
+export const screenPadding = space['6'];
 export const radius = {
   none: 0,
   small: 4,
@@ -226,24 +312,48 @@ export const size = {
   'hit-min': 44,
 } as const;
 
-/* ---------- Typography (Figma text styles type/*) ---------- */
-/** React Native: each weight is its own family (names match src/theme/typography.ts fontAssets). */
+/* ---------- Typography (system F) ---------- */
+/**
+ * Each weight is its own family (the keys of fontAssets).
+ * Do not also set fontWeight: on iOS that asks the family for a face and can leave the Light cut.
+ * Body text is `fonts.sans` (Figtree Regular, 400). `fonts.sansLight` is 300 and is not body text.
+ * `fonts.sansMedium` is Figtree Medium, including tab labels.
+ */
 export const fonts = {
-  sansLight: 'DMSans_300Light',
-  sansLightItalic: 'DMSans_300Light_Italic',
-  sans: 'DMSans_400Regular',
-  sansItalic: 'DMSans_400Regular_Italic', // NOTE: not loaded in src/theme/typography.ts yet – add @expo-google-fonts/dm-sans/400Regular_Italic
-  sansMedium: 'DMSans_500Medium',
-  sansSemiBold: 'DMSans_600SemiBold',
+  sansLight: 'Figtree_300Light',
+  sans: 'Figtree_400Regular',
+  sansMedium: 'Figtree_500Medium',
+  sansSemiBold: 'Figtree_600SemiBold',
   serif: 'DMSerifDisplay_400Regular',
   serifItalic: 'DMSerifDisplay_400Regular_Italic',
-  monoLight: 'DMMono_300Light',
-  mono: 'DMMono_400Regular',
 } as const;
-/** Color-free text styles; combine with a color from the active theme. */
+/** OpenType tnum. Figtree ships it. Put it on number readouts, not on prose. */
+export const tabularNums: TextStyle['fontVariant'] = ['tabular-nums'];
+/**
+ * Color-free text styles. Combine with a color from the active theme.
+ * Roles follow system F. Keys already used by screens stay, so a parallel tab-bar change
+ * can keep reading `fonts.sansMedium`, `text.tab`, and the number styles.
+ *
+ * display   hero      DM Serif Display Regular 30/34, tracking −2%
+ * headline  title     DM Serif Display Regular 28/32
+ * body                Figtree Regular 16/24
+ * bodySmall           Figtree Regular 14/20
+ * bodyLarge           Figtree Regular 18/28 (log count word, name field)
+ * label               Figtree Medium 15/20
+ * labelSmall chip     Figtree Medium 14/20
+ * button              Figtree Medium 16/24
+ * eyebrow             Figtree Medium 13/18
+ * caption             Figtree Regular 13/18
+ * tab                 Figtree Medium 10/12
+ * monoTimer timer     Figtree Light 88/96, tabular-nums
+ * monoHero  hero num  Figtree Light 56/56, tabular-nums
+ * monoData  data      Figtree Medium 15/20, tabular-nums
+ * monoMeta  meta      Figtree Regular 13/18, tabular-nums
+ * note      quote     DM Serif Display Italic 15/20
+ */
 export const text = {
-  display: { fontFamily: fonts.serifItalic, fontSize: 44, lineHeight: 48 } as TextStyle,
-  headline: { fontFamily: fonts.serifItalic, fontSize: 28, lineHeight: 32 } as TextStyle,
+  display: { fontFamily: fonts.serif, fontSize: 30, lineHeight: 34, letterSpacing: -0.6 } as TextStyle,
+  headline: { fontFamily: fonts.serif, fontSize: 28, lineHeight: 32 } as TextStyle,
   bodyLarge: { fontFamily: fonts.sans, fontSize: 18, lineHeight: 28 } as TextStyle,
   body: { fontFamily: fonts.sans, fontSize: 16, lineHeight: 24 } as TextStyle,
   bodySmall: { fontFamily: fonts.sans, fontSize: 14, lineHeight: 20 } as TextStyle,
@@ -253,26 +363,21 @@ export const text = {
   eyebrow: { fontFamily: fonts.sansMedium, fontSize: 13, lineHeight: 18 } as TextStyle,
   caption: { fontFamily: fonts.sans, fontSize: 13, lineHeight: 18 } as TextStyle,
   tab: { fontFamily: fonts.sansMedium, fontSize: 10, lineHeight: 12 } as TextStyle,
-  monoTimer: { fontFamily: fonts.monoLight, fontSize: 88, lineHeight: 96, fontVariant: ['tabular-nums'] } as TextStyle,
-  monoHero: { fontFamily: fonts.monoLight, fontSize: 56, lineHeight: 56, fontVariant: ['tabular-nums'] } as TextStyle,
-  monoData: { fontFamily: fonts.mono, fontSize: 15, lineHeight: 20, fontVariant: ['tabular-nums'] } as TextStyle,
-  monoMeta: { fontFamily: fonts.mono, fontSize: 13, lineHeight: 18, fontVariant: ['tabular-nums'] } as TextStyle,
-  note: { fontFamily: fonts.sansItalic, fontSize: 13, lineHeight: 18 } as TextStyle,
+  monoTimer: { fontFamily: fonts.sansLight, fontSize: 88, lineHeight: 96, fontVariant: tabularNums } as TextStyle,
+  monoHero: { fontFamily: fonts.sansLight, fontSize: 56, lineHeight: 56, fontVariant: tabularNums } as TextStyle,
+  monoData: { fontFamily: fonts.sansMedium, fontSize: 15, lineHeight: 20, fontVariant: tabularNums } as TextStyle,
+  monoMeta: { fontFamily: fonts.sans, fontSize: 13, lineHeight: 18, fontVariant: tabularNums } as TextStyle,
+  note: { fontFamily: fonts.serifItalic, fontSize: 15, lineHeight: 20 } as TextStyle,
 };
 /**
- * Top inset under the safe area on screens that opened with a title or wordmark.
- * «Logg» was `text.headline` (lineHeight 32) plus `space['6']` (24) under it: 56.
- * That sat on `screenPadding` (16), so the next line started at 72.
- * Welcome, Logg, and Deg use this. Hjem stays on `screenPadding`.
- */
-export const screenHeaderInset = screenPadding + Number(text.headline.lineHeight) + space['6'];
-/**
- * DM Mono 300 Light line box at `text.monoHero` size (56).
- * Ascender 992, descender −310, unitsPerEm 1000 → ceil(56 × 1.302) = 73.
+ * Figtree Light line box at `text.monoHero` size (56).
+ * OS/2 useTypoMetrics is on: typo ascender 950, descender −250, unitsPerEm 1000.
+ * ceil(56 × 1.2) = 68.
  * iOS clips a line when `lineHeight` is shorter than that box, which cuts the top of «2».
  * The token stays 56 so Hjem's circle is unchanged. Logg's count uses this.
+ * Screen tops are `screenTopInset` and `welcomeTopInset` in layout.ts, not a header inset.
  */
-export const monoHeroFontLineHeight = Math.ceil((56 * (992 - -310)) / 1000);
+export const monoHeroFontLineHeight = Math.ceil((56 * (950 - -250)) / 1000);
 
 /* ---------- Effects (Figma effect styles effect/object/*, effect/glass/*) ---------- */
 /** RN can render one shadow per view: use the soft drop shadow; highlight/shade need an inner overlay (e.g. a 1px top border or LinearGradient-free inset View). */

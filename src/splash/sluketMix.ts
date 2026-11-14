@@ -4,7 +4,8 @@ import { Skia, type SkRuntimeEffect } from '@shopify/react-native-skia';
  * Paint mix, isolated so it can be switched off.
  * One source image (the unfiltered shapes). The shader blurs by sampling:
  * a wide ring for Kubelka–Munk + OKLab, a tight ring for the goo alpha 18a−7.
- * m, radius and sigma are uniforms, updated every frame.
+ * m, radius and sigma are uniforms. The player draws this on a 4 pt grid
+ * (one pixel per cell) and scales it up, so radius and sigma are in those pixels.
  */
 const SOURCE = `
 uniform shader image;
@@ -153,4 +154,18 @@ half4 main(float2 xy) {
 }
 `;
 
-export const sluketMixEffect: SkRuntimeEffect | null = Skia.RuntimeEffect.Make(SOURCE);
+/**
+ * Native `RuntimeEffect.Make` throws on a bad shader (it does not return null).
+ * A throw while this module loads is a render error, so the splash boundary
+ * would replace MegaSplash with Dråpe and write bored.splashSeen. A failed
+ * compile just skips the mix. The pebbles still draw.
+ */
+function compileMix(source: string): SkRuntimeEffect | null {
+  try {
+    return Skia.RuntimeEffect.Make(source);
+  } catch {
+    return null;
+  }
+}
+
+export const sluketMixEffect: SkRuntimeEffect | null = compileMix(SOURCE);

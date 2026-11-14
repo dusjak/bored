@@ -4,17 +4,25 @@ import { describe, it } from 'node:test';
 import {
   ITALIC_BLEED,
   screenTitleBox,
+  screenTitleFamily,
   titleEdgeRoom,
   titleLineWidth,
   titleOrigin,
 } from './screenTitle.ts';
-import { screenPadding } from './theme.ts';
+import { fonts, screenPadding } from './theme.ts';
 
-/** iPhone SE content column: 320 minus the 16pt margin on each side. */
+/** iPhone SE content column: 320 minus the 24pt margin on each side. */
 const NARROW = 320 - screenPadding * 2;
 
 describe('screen titles', () => {
-  it('keeps a left-aligned title on the 16pt margin and inside the screen', () => {
+  it('uses upright DM Serif Display for every title, including onboarding', () => {
+    assert.equal(screenTitleFamily(fonts.serif), fonts.serif);
+    assert.equal(fonts.serif, 'DMSerifDisplay_400Regular');
+    assert.equal(fonts.serifItalic, 'DMSerifDisplay_400Regular_Italic');
+    assert.notEqual(fonts.serif, fonts.serifItalic);
+  });
+
+  it('keeps a left-aligned title on the 24pt margin and inside the screen', () => {
     const box = screenTitleBox('left');
     assert.equal(titleOrigin(box), 0);
     assert.equal(box.numberOfLines, null);

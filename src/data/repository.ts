@@ -20,7 +20,12 @@ export const DURATION_KEY = 'bored.defaultDurationMinutes';
 export const ONBOARDED_KEY = 'bored.onboarded';
 export const PROFILE_KEY = 'bored.profile';
 export const SHOW_COUNTDOWN_KEY = 'bored.showCountdown';
+/** Set only when the person uses the Deg switch. A legacy '0' without this stays on. */
+export const SHOW_COUNTDOWN_CHOSEN_KEY = 'bored.showCountdownChosen';
 export const SPLASH_SEEN_KEY = 'bored.splashSeen';
+/** Older first-use key. It may have been backfilled. The since-line does not read it. */
+export const FIRST_USED_KEY = 'bored.firstUsedAt';
+export { FIRST_USED_TRUSTED_KEY } from '@/data/sinceLine';
 
 function connection(db: Awaited<ReturnType<typeof openDatabase>>): AppDatabase {
   return db as unknown as AppDatabase;
@@ -32,6 +37,16 @@ export async function initDatabase(): Promise<void> {
 
 export async function getSetting(key: string): Promise<string | null> {
   return queries.getSetting(connection(await openDatabase()), key);
+}
+
+/** Oldest session or setting timestamp, for «Kjedet deg siden …» when no first-use key exists. */
+export async function earliestStoredUse(): Promise<string | null> {
+  return queries.earliestStoredUse(connection(await openDatabase()));
+}
+
+/** Existing install evidence. The countdown key alone does not count. Does not write. */
+export async function hasPriorUserData(): Promise<boolean> {
+  return queries.hasPriorUserData(connection(await openDatabase()), SHOW_COUNTDOWN_KEY);
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {

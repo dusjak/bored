@@ -3,12 +3,22 @@ import { StyleSheet, View } from 'react-native';
 import { useTheme } from '@/theme';
 
 /** Step indicator. The label carries the state; the dots are decorative. */
-export function ProgressDots({ total, current }: { total: number; current: number }) {
+export function ProgressDots({
+  total,
+  current,
+  activeColor,
+  idleColor,
+}: {
+  total: number;
+  current: number;
+  activeColor?: string;
+  idleColor?: string;
+}) {
   const { theme } = useTheme();
   return (
     <View
       accessible
-      accessibilityLabel={`Trinn ${current + 1} av ${total}`}
+      accessibilityLabel={`Steg ${current + 1} av ${total}`}
       style={styles.row}
     >
       {Array.from({ length: total }).map((_, index) => {
@@ -21,9 +31,9 @@ export function ProgressDots({ total, current }: { total: number; current: numbe
             style={[
               styles.dot,
               {
-                width: active ? 24 : 6,
-                borderRadius: 3,
-                backgroundColor: done || active ? theme.color.ink.default : theme.color.control.off,
+                width: active ? 20 : 4,
+                borderRadius: 2,
+                backgroundColor: done || active ? (activeColor ?? theme.color.ink.default) : (idleColor ?? theme.color.control.off),
               },
             ]}
           />
@@ -34,6 +44,6 @@ export function ProgressDots({ total, current }: { total: number; current: numbe
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', gap: 6, alignItems: 'center' },
-  dot: { height: 6 },
+  row: { flexDirection: 'row', gap: 5, alignItems: 'center' },
+  dot: { height: 4 },
 });

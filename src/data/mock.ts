@@ -2,7 +2,9 @@
  * Onboarding copy. Session history lives in the database, not here.
  */
 
-export type Option = { id: string; label: string; sub?: string; icon?: string };
+import type { FyllingName } from './fylling.ts';
+
+export type Option = { id: string; label: string; sub?: string; icon?: FyllingName };
 
 export type QuestionKey = 'distraction' | 'state' | 'goal' | 'duration' | 'time';
 
@@ -16,17 +18,18 @@ export type Question = {
   withIcons?: boolean;
 };
 
+/** Del 2 screens with dots: griper, hodet, mål, tid, når, navn, påminnelse. */
 export const ONBOARDING_STEPS = 7;
 
 export const QUESTIONS: Record<QuestionKey, Question> = {
   distraction: {
     key: 'distraction',
     step: 0,
-    title: 'Hva rekker du etter?',
+    title: 'Hva griper du etter?',
     sub: 'Når det plutselig er 5 ledige minutter.',
     next: '/onboarding/state',
     options: [
-      { id: 'phone', label: 'Telefonen', sub: 'Instagram, nyheter, noe — hva som helst' },
+      { id: 'phone', label: 'Telefonen', sub: 'Instagram, nyheter, hva som helst' },
       { id: 'podcast', label: 'Musikk eller podkast', sub: 'Lyd fyller stillheten' },
       { id: 'mat', label: 'Mat eller drikke', sub: 'Noe i munnen, noe i hendene' },
       { id: 'work', label: 'Mer jobb', sub: 'Produktivitet som trøst' },
@@ -65,7 +68,7 @@ export const QUESTIONS: Record<QuestionKey, Question> = {
     key: 'duration',
     step: 3,
     title: 'Hvor lang tid har du?',
-    sub: 'Du kan endre det når du vil.',
+    sub: 'Vi starter her. Du kan alltid endre det.',
     next: '/onboarding/time',
     options: [
       { id: '5', label: '5 minutter' },
@@ -82,10 +85,10 @@ export const QUESTIONS: Record<QuestionKey, Question> = {
     next: '/onboarding/name',
     withIcons: true,
     options: [
-      { id: 'morgen', label: 'Morgen', sub: 'Før dagen tar over', icon: '○' },
-      { id: 'lunsj', label: 'Midt på dagen', sub: 'En pause i arbeidsdagen', icon: '◑' },
-      { id: 'kveld', label: 'Kveld', sub: 'Avslutte dagen med ro', icon: '●' },
-      { id: 'varierer', label: 'Varierer', sub: 'Ingen fast rytme ennå', icon: '◌' },
+      { id: 'morgen', label: 'Morgen', sub: 'Før dagen tar over', icon: 'morgen' },
+      { id: 'lunsj', label: 'Midt på dagen', sub: 'En pause i arbeidsdagen', icon: 'lunsj' },
+      { id: 'kveld', label: 'Kveld', sub: 'Avslutte dagen med ro', icon: 'kveld' },
+      { id: 'varierer', label: 'Varierer', sub: 'Ingen fast rytme ennå', icon: 'varierer' },
     ],
   },
 };

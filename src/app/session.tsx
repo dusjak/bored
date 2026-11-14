@@ -1,27 +1,54 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AccessibilityInfo, Animated, AppState, Easing, StyleSheet, Text, View } from 'react-native';
+import { AccessibilityInfo, Alert, Animated, AppState, Easing, StyleSheet, Text, View, useWindowDimensions, type ViewInstance } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import Reanimated, { useAnimatedStyle, useSharedValue } from 'react-native-reanimated';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LockHint } from '@/components/LockHint';
 import { ScreenTitle } from '@/components/ScreenTitle';
-import { TactileCircle } from '@/components/TactileCircle';
-import { HOLD_TO_END_MS, chosenMinutes, completionSentence } from '@/data/copy';
+import { SessionKlumpen } from '@/components/SessionKlumpen';
+import {
+  HOLD_A11Y_HINT,
+  HOLD_A11Y_LABEL,
+  HOLD_CONFIRM_CONTINUE,
+  HOLD_CONFIRM_END,
+  HOLD_CONFIRM_TITLE,
+  HOLD_DONE_TEXT,
+  REMAINING_LABEL,
+  chosenMinutes,
+  completionSentence,
+} from '@/data/copy';
+import { HOLD } from '@/session/holdToEnd';
+import {
+  HOLD_HINT_IDLE,
+  applyHoldHintTimeout,
+  holdHintGateFor,
+  holdHintMomentAt,
+  type HoldHintGate,
+} from '@/session/lockHintVisibility';
+import { SESSION_TIMER_BOX, sessionRingReach } from '@/session/sessionLayout';
+import { stoneCenterY } from '@/duration/klumpen';
 import { decideUnfinishedSession } from '@/data/sessionRules';
 import { useAppState } from '@/state/AppState';
-import { screenPadding, useTheme } from '@/theme';
+import { noteEntryRoute } from '@/state/resetRoute';
+import { contentColumnForWidth, contentFrame, screenPadding, screenTopInset, useTheme } from '@/theme';
 
-/** Active session. Always dark. Hold the circle for one second to end early. */
+/** Active session. Always dark. Hold the Klumpen for four seconds to end early. */
 export default function Session() {
   const { theme } = useTheme();
+  const insets = useSafeAreaInsets();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const {
     activeSession,
+    lockHintSessionId,
     completeActiveSession,
     abortActiveSession,
     noteBackground,
     noteForeground,
     showCountdown,
+    releaseLaunch,
   } = useAppState();
 
   const session = activeSession;
@@ -42,21 +69,41 @@ export default function Session() {
   remainingRef.current = remaining;
   const finished = useRef(false);
   const leaving = useRef(false);
-  const didLong = useRef(false);
-  const hint = useRef(new Animated.Value(0)).current;
   const morph = useRef(new Animated.Value(0)).current;
   const dissolve = useRef(new Animated.Value(1)).current;
-  const holdScale = useRef(new Animated.Value(1)).current;
-  const holding = useRef(false);
-  const holdHaptics = useRef<ReturnType<typeof setInterval> | null>(null);
+  const holdFade = useSharedValue(0);
+  const abortId = useRef<string | null>(null);
+  const holdSettled = useRef(false);
+  const holdHintRef = useRef<ViewInstance>(null);
+  const [holdWindowY, setHoldWindowY] = useState<number | null>(null);
+  const lockHintLabel = useSharedValue(1);
+  const remainingStyle = useAnimatedStyle(() => ({
+    opacity: lockHintLabel.value,
+  }));
+  const freshLockHint = session != null && session.id === lockHintSessionId;
+  const [holdGate, setHoldGate] = useState<HoldHintGate>(HOLD_HINT_IDLE);
+  const holdMoment = holdHintMomentAt(holdGate, Date.now());
+  useEffect(() => {
+    if (holdGate.moment !== 'cancel' || holdGate.reopenAt == null) return;
+    const scheduled = holdGate.reopenAt;
+    const delay = Math.max(0, scheduled - Date.now());
+    const id = setTimeout(() => {
+      setHoldGate((current) => applyHoldHintTimeout(current, scheduled, Date.now()));
+    }, delay);
+    return () => clearTimeout(id);
+  }, [holdGate]);
+  const hideHintForHold = useCallback(() => {
+    setHoldGate(holdHintGateFor('start', Date.now(), HOLD.releaseMs));
+  }, []);
+  const hideHintForCancel = useCallback(() => {
+    setHoldGate(holdHintGateFor('cancel', Date.now(), HOLD.releaseMs));
+  }, []);
+  const hideHintForComplete = useCallback(() => {
+    setHoldGate(holdHintGateFor('complete', Date.now(), HOLD.releaseMs));
+  }, []);
   const minutesRef = useRef(minutes);
   if (session) minutesRef.current = minutes;
-
-  useEffect(() => {
-    return () => {
-      if (holdHaptics.current) clearInterval(holdHaptics.current);
-    };
-  }, []);
+  const fadeStyle = useAnimatedStyle(() => ({ opacity: holdFade.value }));
 
   useEffect(() => {
     AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => undefined);
@@ -64,20 +111,36 @@ export default function Session() {
     return () => sub.remove();
   }, []);
 
+  const sessionIdRef = useRef<string | null>(null);
+  sessionIdRef.current = session?.id ?? null;
+  const handoff = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!session && !leaving.current) router.replace('/home');
-  }, [session]);
+    if (session || leaving.current || abortId.current || handoff.current) return;
+    releaseLaunch();
+    router.replace('/home');
+  }, [releaseLaunch, session]);
 
   const away = useRef(false);
+  const noted = useRef(false);
+
+  const holdNote = () => {
+    const id = sessionIdRef.current;
+    if (id) handoff.current = id;
+    leaving.current = true;
+  };
 
   const openReflection = useCallback((id: string) => {
-    router.replace({ pathname: '/reflection', params: { sessionId: id } });
+    if (!id || noted.current) return;
+    noted.current = true;
+    handoff.current = id;
+    router.replace(noteEntryRoute(id));
   }, []);
 
   const finishExpired = useCallback(async () => {
     if (finished.current) return;
     finished.current = true;
-    leaving.current = true;
+    holdNote();
     setRemaining(0);
     try {
       const id = await completeActiveSession();
@@ -99,7 +162,7 @@ export default function Session() {
         return;
       }
       finished.current = true;
-      leaving.current = true;
+      holdNote();
       setRemaining(0);
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
       setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft), 90);
@@ -136,8 +199,9 @@ export default function Session() {
     }
     if (finished.current) return;
     finished.current = true;
-    leaving.current = true;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    holdNote();
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    AccessibilityInfo.announceForAccessibility(HOLD_DONE_TEXT);
     try {
       const id = await abortActiveSession();
       if (!id) {
@@ -146,14 +210,57 @@ export default function Session() {
       }
       Animated.timing(dissolve, {
         toValue: 0,
-        duration: theme.motion.default,
+        duration: HOLD.doneFadeMs,
         easing: Easing.out(Easing.ease),
         useNativeDriver: true,
       }).start(() => openReflection(id));
     } catch {
       setError('fikk ikke lagret. prøv igjen.');
     }
-  }, [abortActiveSession, dissolve, openReflection, playCompletion, theme.motion.default]);
+  }, [abortActiveSession, dissolve, openReflection, playCompletion]);
+
+  const maybeNavigate = useCallback(() => {
+    if (abortId.current && holdSettled.current) openReflection(abortId.current);
+  }, [openReflection]);
+
+  const finishHeld = useCallback(async () => {
+    hideHintForComplete();
+    if (remainingRef.current <= 0) {
+      playCompletion();
+      return;
+    }
+    if (finished.current) return;
+    finished.current = true;
+    holdNote();
+    AccessibilityInfo.announceForAccessibility(HOLD_DONE_TEXT);
+    try {
+      const id = await abortActiveSession();
+      if (!id) {
+        setError('fikk ikke lagret. prøv igjen.');
+        return;
+      }
+      abortId.current = id;
+      maybeNavigate();
+      // The hold frame only reports settle inside a 50 ms window. If that frame
+      // is missed, the note entry still opens with this session id.
+      setTimeout(() => openReflection(id), HOLD.doneFadeAtMs + HOLD.doneFadeMs + 80);
+    } catch {
+      setError('fikk ikke lagret. prøv igjen.');
+    }
+  }, [abortActiveSession, hideHintForComplete, maybeNavigate, openReflection, playCompletion]);
+
+  const onHoldSettled = useCallback(() => {
+    holdSettled.current = true;
+    maybeNavigate();
+  }, [maybeNavigate]);
+
+  const confirmEnd = useCallback(() => {
+    if (finished.current || showDone) return;
+    Alert.alert(HOLD_CONFIRM_TITLE, undefined, [
+      { text: HOLD_CONFIRM_CONTINUE, style: 'cancel' },
+      { text: HOLD_CONFIRM_END, onPress: () => playAbort() },
+    ]);
+  }, [playAbort, showDone]);
 
   useEffect(() => {
     if (!session || finished.current) return;
@@ -191,38 +298,10 @@ export default function Session() {
     return () => sub.remove();
   }, [session, startedAtMs, chosenSeconds, noteBackground, noteForeground, finishExpired]);
 
-  const stopHold = () => {
-    holding.current = false;
-    if (holdHaptics.current) {
-      clearInterval(holdHaptics.current);
-      holdHaptics.current = null;
-    }
-    Animated.spring(holdScale, { toValue: 1, useNativeDriver: true, speed: 20, bounciness: 0 }).start();
-  };
-
-  const startHold = () => {
-    if (finished.current || showDone) return;
-    holding.current = true;
-    Animated.timing(holdScale, {
-      toValue: 0.94,
-      duration: HOLD_TO_END_MS,
-      easing: Easing.out(Easing.ease),
-      useNativeDriver: true,
-    }).start();
-    const started = Date.now();
-    holdHaptics.current = setInterval(() => {
-      if (!holding.current) return;
-      if (Date.now() - started < 300) return;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Soft);
-    }, 180);
-  };
-
-  const brightenHint = () => {
-    hint.setValue(1);
-    Animated.timing(hint, { toValue: 0, duration: 1000, useNativeDriver: false }).start();
-  };
-
-  if (!session && !showDone) return null;
+  // Ending clears activeSession before the hold confirmation finishes, so the
+  // screen and the klumpen's settle callback must stay mounted until navigation.
+  // Otherwise onHoldSettled never fires and the Skia canvas unmounts mid-animation.
+  if (!session && !showDone && !leaving.current) return null;
 
   const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
   const ss = String(remaining % 60).padStart(2, '0');
@@ -231,103 +310,105 @@ export default function Session() {
     inputRange: [0, 1],
     outputRange: [theme.color.bg.session, theme.color.bg.default],
   });
-  const circleFill = morph.interpolate({
-    inputRange: [0, 1],
-    outputRange: [theme.color.session.object, theme.color.object.fill],
-  });
   const runningOpacity = morph.interpolate({ inputRange: [0, 1], outputRange: [1, 0] });
   const doneOpacity = morph;
-  const hintColor = hint.interpolate({
-    inputRange: [0, 1],
-    outputRange: [theme.color.session['text-tertiary'], theme.color.session['text-secondary']],
-  });
 
   return (
     <Animated.View style={[styles.root, { backgroundColor: background }]}>
       <StatusBar style={statusBar} />
       <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
         <Animated.View style={[styles.root, { opacity: dissolve }]}>
-          <View style={styles.stage}>
-            <View style={styles.timerBlock}>
-              {showCountdown ? (
-                <Animated.View style={{ opacity: runningOpacity, alignItems: 'center' }} pointerEvents={showDone ? 'none' : 'auto'}>
-                  <Text
-                    accessibilityRole="timer"
-                    accessibilityLabel={`${mm} minutter og ${ss} sekunder gjenstår`}
-                    adjustsFontSizeToFit
-                    numberOfLines={1}
-                    style={[theme.text.monoTimer, styles.timer, { color: theme.color.session['text-primary'] }]}
-                  >
-                    {mm}:{ss}
-                  </Text>
-                  <Text style={[theme.text.caption, { color: theme.color.session['text-secondary'] }]}>gjenstår</Text>
-                </Animated.View>
-              ) : null}
-              <Animated.View
-                style={[styles.doneCopy, { opacity: doneOpacity }]}
-                pointerEvents="none"
-                accessibilityElementsHidden={!showDone}
-              >
-                <Text style={[theme.text.eyebrow, { color: theme.color.text.primary }]}>Økt fullført</Text>
-                <ScreenTitle align="center">{sentence}</ScreenTitle>
-              </Animated.View>
-            </View>
-
-            <Animated.View style={{ transform: [{ scale: holdScale }] }}>
-            <TactileCircle
-              fill={circleFill}
-              onPressIn={startHold}
-              onPressOut={stopHold}
-              onPress={() => {
-                if (didLong.current) {
-                  didLong.current = false;
-                  return;
-                }
-                if (finished.current) return;
-                brightenHint();
-              }}
-              onLongPress={() => {
-                if (finished.current || remainingRef.current <= 0) return;
-                didLong.current = true;
-                playAbort();
-              }}
-              delayLongPress={HOLD_TO_END_MS}
-              accessibilityLabel={showDone ? `Økt fullført. ${sentence}` : 'Sirkel'}
-              accessibilityHint={showDone ? undefined : 'Hold inne sirkelen for å avslutte'}
-              accessibilityActions={showDone ? undefined : [{ name: 'end', label: 'Avslutt økt' }]}
-              onAccessibilityAction={(event) => {
-                if (event.nativeEvent.actionName === 'end') playAbort();
-              }}
+            <Animated.View
+              style={[styles.doneCopy, { top: screenTopInset, opacity: doneOpacity }]}
+              pointerEvents="none"
+              accessibilityElementsHidden={!showDone}
             >
-              <Animated.View pointerEvents="none" style={[styles.circleLayer, { opacity: doneOpacity }]}>
-                <View
-                  accessible={false}
-                  importantForAccessibility="no-hide-descendants"
-                  accessibilityElementsHidden
-                  style={[styles.dot, { backgroundColor: theme.color.ink.default }]}
-                />
-              </Animated.View>
-            </TactileCircle>
+              <View style={contentFrame}>
+                <View style={[contentColumnForWidth(windowWidth), styles.doneColumn]}>
+                  <ScreenTitle align="left" variant="headline">
+                    {sentence}
+                  </ScreenTitle>
+                </View>
+              </View>
             </Animated.View>
-
-            <Animated.Text style={[theme.text.caption, styles.hint, { color: hintColor, opacity: runningOpacity }]}>
-              Hold inne sirkelen for å avslutte
-            </Animated.Text>
-            {error ? <Text style={[theme.text.caption, { color: theme.color.session['text-secondary'] }]}>{error}</Text> : null}
+            <View pointerEvents="box-none" style={styles.stage}>
+            <View
+              pointerEvents="box-none"
+              style={[
+                styles.column,
+                { marginTop: stoneCenterY(windowHeight) - insets.top - sessionRingReach(minutesRef.current).top },
+              ]}
+            >
+              <SessionKlumpen
+                minutes={minutesRef.current}
+                enabled={!showDone}
+                showHint={!showDone}
+                fade={holdFade}
+                morph={morph}
+                gapAbove={0}
+                material="gummi"
+                clock={showCountdown ? `${mm}:${ss}` : null}
+                accessibilityLabel={showDone ? sentence : HOLD_A11Y_LABEL}
+                accessibilityHint={showDone ? undefined : HOLD_A11Y_HINT}
+                accessibilityAction={!showDone}
+                onComplete={finishHeld}
+                onSettled={onHoldSettled}
+                onHoldStart={hideHintForHold}
+                onHoldCancel={hideHintForCancel}
+                onAccessibilityEnd={confirmEnd}
+                hintAnchorRef={holdHintRef}
+                onHintLayout={() => {
+                  holdHintRef.current?.measureInWindow((_x, y) => {
+                    if (y > 0) setHoldWindowY(y);
+                  });
+                }}
+              >
+                <Animated.View pointerEvents="none" style={[styles.circleLayer, { opacity: doneOpacity }]}>
+                  <View
+                    accessible={false}
+                    importantForAccessibility="no-hide-descendants"
+                    accessibilityElementsHidden
+                    style={[styles.dot, { backgroundColor: theme.color.ink.default }]}
+                  />
+                </Animated.View>
+              </SessionKlumpen>
+            </View>
           </View>
         </Animated.View>
       </SafeAreaView>
+      <Reanimated.View
+        pointerEvents="none"
+        style={[StyleSheet.absoluteFill, { backgroundColor: theme.color.bg.session }, fadeStyle]}
+      />
+      {error ? (
+        <Text style={[theme.text.caption, styles.error, { color: theme.color.session['text-secondary'] }]}>{error}</Text>
+      ) : null}
+      <LockHint
+        enabled={freshLockHint}
+        sessionId={session?.id ?? null}
+        labelOpacity={lockHintLabel}
+        flowAnchorY={holdWindowY}
+        holdMoment={holdMoment}
+      />
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  stage: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: screenPadding, paddingTop: 30, gap: 28 },
-  timerBlock: { minHeight: 140, alignItems: 'center', justifyContent: 'center' },
-  timer: { width: '100%', textAlign: 'center' },
-  doneCopy: { position: 'absolute', left: 0, right: 0, alignItems: 'center', gap: 8 },
-  hint: { textAlign: 'center' },
+  root: { flex: 1, overflow: 'visible' },
+  stage: { flex: 1, alignItems: 'center', paddingHorizontal: screenPadding },
+  column: { alignSelf: 'stretch', alignItems: 'center', overflow: 'visible' },
+  timerSlot: { height: SESSION_TIMER_BOX, alignSelf: 'stretch' },
+  timer: { height: SESSION_TIMER_BOX, textAlign: 'center', includeFontPadding: false },
+  remaining: { position: 'absolute', top: -20, left: 0, right: 0, textAlign: 'center' },
+  doneCopy: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    zIndex: 2,
+  },
+  doneColumn: { alignItems: 'stretch' },
   dot: { width: 8, height: 8, borderRadius: 4 },
+  error: { position: 'absolute', left: screenPadding, right: screenPadding, bottom: 48, textAlign: 'center', zIndex: 2 },
   circleLayer: { ...StyleSheet.absoluteFill, alignItems: 'center', justifyContent: 'center' },
 });

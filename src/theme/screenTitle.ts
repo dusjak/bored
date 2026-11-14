@@ -3,7 +3,7 @@ import { screenPadding } from './theme.ts';
 /**
  * DM Serif Display Italic draws outside its advance box.
  * "f" overhangs about 5px at headline size and 8px at display size.
- * The bleed stays inside the 16pt screen margin.
+ * The bleed stays inside the 24pt screen margin.
  */
 export const ITALIC_BLEED = 8;
 
@@ -18,6 +18,14 @@ export type TitleBox = {
   /** Null means wrap. Screen titles never ellipsize. */
   numberOfLines: null;
 };
+
+/**
+ * Upright DM Serif Display for titles, modal titles, and the profile name.
+ * Onboarding uses the same cut. Logg notes keep the italic file through `text.note`.
+ */
+export function screenTitleFamily(roman: string): string {
+  return roman;
+}
 
 export function screenTitleBox(align: TitleAlign): TitleBox {
   const bleed = ITALIC_BLEED;
@@ -48,7 +56,7 @@ export function titleOrigin(box: TitleBox): number {
 
 /**
  * Width the glyphs wrap inside, given the content column
- * (screen width minus the 16pt margin on each side).
+ * (screen width minus the 24pt margin on each side).
  */
 export function titleLineWidth(contentWidth: number, box: TitleBox): number {
   return contentWidth - box.marginLeft - box.marginRight - box.paddingLeft - box.paddingRight;

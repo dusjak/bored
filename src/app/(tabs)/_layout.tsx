@@ -1,43 +1,85 @@
+import { useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
-import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme } from 'expo-router';
+import { ThemeProvider as NavigationThemeProvider, DarkTheme, DefaultTheme, usePathname } from 'expo-router';
 import { Tabs } from 'expo-router/js-tabs';
 import { NativeTabs } from 'expo-router/native-tabs';
 
+import { knappetrykk } from '@/analytics/track';
+import { tabPress } from '@/analytics/screens';
 import { GlassTabBar } from '@/components/GlassTabBar';
 import { useTheme } from '@/theme';
+import { nativeTabInk, tabBarKind } from '@/theme/tabBar';
 
-const iosMajor = Platform.OS === 'ios' ? parseInt(String(Platform.Version), 10) : 0;
-/** System Liquid Glass tab bar. iOS 26 draws it; earlier systems use the blur bar. */
-const useLiquidGlass = Platform.OS === 'ios' && iosMajor >= 26;
+const hjem = {
+  default: require('../../../assets/tabs/hjem.png'),
+  selected: require('../../../assets/tabs/hjem-fill.png'),
+};
+const logg = {
+  default: require('../../../assets/tabs/logg.png'),
+  selected: require('../../../assets/tabs/logg-fill.png'),
+};
+const deg = {
+  default: require('../../../assets/tabs/deg.png'),
+  selected: require('../../../assets/tabs/deg-fill.png'),
+};
+
+/**
+ * iOS keeps one system tab bar in both themes. The marks are the v6 artwork,
+ * template-tinted. Dark does not get the custom glass or pill.
+ * Other platforms keep the existing blur bar.
+ */
+function TabAnalytics() {
+  const pathname = usePathname();
+  const previous = useRef(pathname);
+  useEffect(() => {
+    const navn = tabPress(previous.current, pathname);
+    previous.current = pathname;
+    if (!navn) return;
+    knappetrykk({ type: 'Fane', navn, hendelse: 'trykk', skjerm: navn });
+  }, [pathname]);
+  return null;
+}
 
 export default function TabsLayout() {
   const { theme } = useTheme();
-  if (useLiquidGlass) {
+  const ink = nativeTabInk(theme.name);
+  if (tabBarKind(Platform.OS) === 'native') {
+    const background = theme.color.bg.default;
+    const label = { fontSize: theme.text.tab.fontSize, fontFamily: theme.text.tab.fontFamily };
     return (
       <NavigationThemeProvider value={theme.name === 'dark' ? DarkTheme : DefaultTheme}>
+        <>
+        <TabAnalytics />
         <NativeTabs
           minimizeBehavior="never"
-          iconColor={theme.color.text.primary}
-          labelStyle={{ fontSize: theme.text.tab.fontSize, fontFamily: theme.fonts.sansMedium }}
+          iconColor={{ default: ink.inactive, selected: ink.active }}
+          labelStyle={
+            theme.name === 'dark'
+              ? { default: { ...label, color: ink.inactive }, selected: { ...label, color: ink.active } }
+              : label
+          }
         >
-          <NativeTabs.Trigger name="home" contentStyle={{ backgroundColor: theme.color.bg.default }}>
+          <NativeTabs.Trigger name="home" contentStyle={{ backgroundColor: background }}>
             <NativeTabs.Trigger.Label>Hjem</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon sf={{ default: 'clock', selected: 'clock.fill' }} md="schedule" />
+            <NativeTabs.Trigger.Icon src={hjem} renderingMode="template" />
           </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="log" contentStyle={{ backgroundColor: theme.color.bg.default }}>
+          <NativeTabs.Trigger name="log" contentStyle={{ backgroundColor: background }}>
             <NativeTabs.Trigger.Label>Logg</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon sf="list.bullet" md="list" />
+            <NativeTabs.Trigger.Icon src={logg} renderingMode="template" />
           </NativeTabs.Trigger>
-          <NativeTabs.Trigger name="profile" contentStyle={{ backgroundColor: theme.color.bg.default }}>
+          <NativeTabs.Trigger name="profile" contentStyle={{ backgroundColor: theme.color.bg.grouped }}>
             <NativeTabs.Trigger.Label>Deg</NativeTabs.Trigger.Label>
-            <NativeTabs.Trigger.Icon sf={{ default: 'person', selected: 'person.fill' }} md="person" />
+            <NativeTabs.Trigger.Icon src={deg} renderingMode="template" />
           </NativeTabs.Trigger>
         </NativeTabs>
+        </>
       </NavigationThemeProvider>
     );
   }
 
   return (
+    <>
+    <TabAnalytics />
     <Tabs
       tabBar={(props) => <GlassTabBar {...props} />}
       screenOptions={{
@@ -48,7 +90,8 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="home" />
       <Tabs.Screen name="log" />
-      <Tabs.Screen name="profile" />
+      <Tabs.Screen name="profile" options={{ sceneStyle: { backgroundColor: theme.color.bg.grouped } }} />
     </Tabs>
+    </>
   );
 }

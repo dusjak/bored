@@ -1,10 +1,14 @@
 import { Image, type ImageSourcePropType } from 'react-native';
 
-const dark = require('../../assets/splash/splash-wordmark-dark.png') as ImageSourcePropType;
+const dark = require('../../assets/splash/splash-wordmark-s6-dark.png') as ImageSourcePropType;
 
-/** Always the dark wordmark. The splash does not follow the app theme. */
+/** S6 on the dark plate. The splash does not follow the app theme. Raster fallback when Skia cannot draw the vector. */
 export const wordmarkSource = dark;
 
+/**
+ * Native splash canvas, 160 × 80 pt. The S6 vector is centred on the same point.
+ * The extra padding is the native image; the glyph sits in the middle.
+ */
 export const WORDMARK_W = 160;
 export const WORDMARK_H = 80;
 

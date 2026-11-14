@@ -1,0 +1,212 @@
+{
+  "gummi": {
+    "parameters": {
+      "name": "Gummi",
+      "albedo": "#1A1A19",
+      "profile": "pillow",
+      "hs": 0.4,
+      "flat": 2.4,
+      "crown": 0.0,
+      "und": [
+        [
+          0.12
+        ],
+        [
+          0.0004
+        ]
+      ],
+      "grain": [
+        [
+          0.0022,
+          0.0011,
+          0.00055
+        ],
+        [
+          8.8e-05,
+          5.6e-05,
+          3.2e-05
+        ]
+      ],
+      "pits": [
+        0.03,
+        0.06,
+        0.0006,
+        0.0014,
+        0.0004
+      ],
+      "alb_var": [
+        [
+          0.02,
+          0.003
+        ],
+        [
+          0.03,
+          0.035
+        ]
+      ],
+      "specks": [
+        [
+          0.05,
+          0.1,
+          0.0004,
+          0.0009,
+          "#4A4844",
+          0.35,
+          0.0
+        ]
+      ],
+      "spec": 0.07,
+      "pow": 2.6,
+      "f0": 0.03,
+      "kd": 1.0,
+      "refl": 0.4,
+      "env_refl": 0.12,
+      "sheen": 0.04
+    },
+    "seed": 7,
+    "GA": 4,
+    "AV": 0.035,
+    "SS": 6,
+    "N": 2520,
+    "OW": 1440,
+    "floor": "#F0EDE7",
+    "P_reproduction_max": 0,
+    "size": [
+      1200,
+      1200
+    ],
+    "tileable": false,
+    "interior_MAE_8bit": 0.6329830288887024,
+    "interior_max_8bit": 208.0,
+    "deep_interior_MAE_8bit": 0.5784167647361755,
+    "deep_interior_max_8bit": 2.0,
+    "note": "Captured albedo and col before premultiplication; same crop, resize and radial warp. No silhouette in master; edge differs from approved premultiplied raster."
+  },
+  "skifer": {
+    "parameters": {
+      "name": "Skifer",
+      "desc": "kløvd, lagdelt stein",
+      "albedo": "#1C1D1D",
+      "speck": 0.1,
+      "speck_s": 0.004,
+      "bevel": 0.16,
+      "crown": 0.0,
+      "hs": 0.35,
+      "det": 0.004,
+      "aniso": [
+        0.12,
+        0.018,
+        18
+      ],
+      "det2": 0.0015,
+      "det2_s": 0.006,
+      "spec": 0.1,
+      "pow": 9,
+      "f0": 0.03,
+      "layers": 0.1
+    },
+    "seed": 47,
+    "grain_seed": 100,
+    "R": 294.5674743652344,
+    "D": 589.1349487304688,
+    "interior_MAE_8bit": 0.21455417573451996,
+    "interior_max_8bit": 1.0,
+    "size": [
+      1200,
+      1200
+    ],
+    "tileable": false
+  },
+  "kull": {
+    "parameters": {
+      "name": "Kull",
+      "desc": "porøst, dypt matt",
+      "albedo": "#141312",
+      "speck": 0.2,
+      "speck_s": 0.006,
+      "bevel": 0.5,
+      "crown": 0.05,
+      "hs": 0.55,
+      "det": 0.006,
+      "det_s": 0.008,
+      "det2": 0.002,
+      "det2_s": 0.003,
+      "spec": 0.02,
+      "pow": 4,
+      "f0": 0.01,
+      "glint": 0.0008
+    },
+    "seed": 47,
+    "grain_seed": 100,
+    "R": 295.14910888671875,
+    "D": 590.2982177734375,
+    "interior_MAE_8bit": 0.19548532366752625,
+    "interior_max_8bit": 1.0,
+    "size": [
+      1200,
+      1200
+    ],
+    "tileable": false
+  },
+  "emalje": {
+    "parameters": {
+      "name": "Emalje",
+      "desc": "svart lakk, myk softbox",
+      "albedo": "#111110",
+      "speck": 0.0,
+      "speck_s": 0.01,
+      "bevel": 0.4,
+      "crown": 0.06,
+      "hs": 0.55,
+      "det": 2e-05,
+      "det_s": 0.02,
+      "spec": 0.0,
+      "pow": 40,
+      "f0": 0.045,
+      "box": 0.4,
+      "box_w": 0.17
+    },
+    "seed": 47,
+    "grain_seed": 100,
+    "R": 295.14910888671875,
+    "D": 590.2982177734375,
+    "interior_MAE_8bit": 0.1188187375664711,
+    "interior_max_8bit": 1.0,
+    "size": [
+      1200,
+      1200
+    ],
+    "tileable": false
+  },
+  "floyel": {
+    "parameters": {
+      "name": "Fløyel",
+      "desc": "flokket, sheen i kanten",
+      "albedo": "#141313",
+      "speck": 0.05,
+      "speck_s": 0.002,
+      "bevel": 0.85,
+      "crown": 0.0,
+      "hs": 0.45,
+      "det": 0.0015,
+      "det_s": 0.0016,
+      "spec": 0.0,
+      "pow": 2,
+      "f0": 0.0,
+      "sheen": 1.0,
+      "sheen_exp": 1.2,
+      "kd": 0.5
+    },
+    "seed": 47,
+    "grain_seed": 100,
+    "R": 295.14910888671875,
+    "D": 590.2982177734375,
+    "interior_MAE_8bit": 0.2526733875274658,
+    "interior_max_8bit": 1.0,
+    "size": [
+      1200,
+      1200
+    ],
+    "tileable": false
+  }
+}

@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import { Alert, AppState, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, AppState, Linking, Pressable, StyleSheet, Text, View, type HostInstance } from 'react-native';
 import Constants from 'expo-constants';
-import { router } from 'expo-router';
-
+import * as Haptics from 'expo-haptics';
 import {
   ALERT_OFFLINE,
   ALERT_OFFLINE_RESET,
@@ -17,29 +16,34 @@ import {
   DEG_ON_TEST,
   DEG_STALE,
   HONESTY_LINE,
-  NOTIFICATIONS_OFF_LINE,
+  INTEREST_HEADER_LABEL,
   RESET_LOCAL_MESSAGE,
   TRY_AGAIN,
   resetSignedInMessage,
 } from '@/backup/copy';
-import { degBackupValue, resetNeedsNetwork, showHonestyLine, type PreviewForce } from '@/backup/model';
+import { knappetrykk, sikkerhetskopiTrykk } from '@/analytics/track';
+import { degBackupValue, resetNeedsNetwork, showHonestyLine } from '@/backup/model';
 import { deviceIsOnline } from '@/backup/net';
+import { ComingTag } from '@/components/backup/ComingTag';
 import { AppearanceSheet } from '@/components/AppearanceSheet';
-import { PreviewStateSheet } from '@/components/backup/PreviewStateSheet';
-import { Button } from '@/components/Button';
+import { TimeWheel } from '@/components/TimeWheel';
+import { BottomFade } from '@/components/BottomFade';
 import { DurationSheet } from '@/components/DurationSheet';
-import { Icon } from '@/components/Icon';
+import { BackupInterestScreen } from '@/components/backup/BackupInterestScreen';
+import { RowChevron, SettingsGroup } from '@/components/SettingsGroup';
 import { Screen } from '@/components/Screen';
-import { ScreenTitle } from '@/components/ScreenTitle';
 import { Toggle } from '@/components/Toggle';
 import { features } from '@/config/features';
-import { appearanceLabel, durationParts, minutesPhrase, reminderSchedule } from '@/data/copy';
+import { appearanceLabel, boredSinceLine, durationParts, minutesPhrase, resolveReminderClock } from '@/data/copy';
+import { degHeaderLines } from '@/data/sinceLine';
+import { reminderIsOn } from '@/data/reminderPolicy';
 import { hasNotificationPermission } from '@/data/notifications';
 import { useAppState } from '@/state/AppState';
 import { useBackup } from '@/state/BackupState';
-import { fonts, screenHeaderInset, useTheme } from '@/theme';
+import { deg } from '@/theme/deg';
+import { tabularNums, useTheme } from '@/theme';
 
-/** Deg. Preferences, appearance, then a full reset. */
+/** Deg. Grouped preferences, appearance, backup, then a quiet reset. */
 export default function Profile() {
   const { theme, preference, forgetPreference } = useTheme();
   const {
@@ -49,21 +53,29 @@ export default function Profile() {
     showCountdown,
     setShowCountdown,
     setDailyReminder,
+    setReminderClock,
     refreshDailyReminder,
     resetLocalData,
     beginIntroSplash,
     sessions,
+    firstUsedAt,
   } = useAppState();
   const backup = useBackup();
-  const versionTaps = useRef(0);
+  const durationRef = useRef<HostInstance>(null);
+  const appearanceRef = useRef<HostInstance>(null);
+  const backupRef = useRef<HostInstance>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [appearanceOpen, setAppearanceOpen] = useState(false);
-  const [previewMenu, setPreviewMenu] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
+  const [timeOpen, setTimeOpen] = useState(false);
   const [allowed, setAllowed] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const reminderOn = user.notifications === true && allowed;
-  const clock = reminderSchedule(user.time);
+  const reminderOn = reminderIsOn(user.notifications, allowed);
+  const clock = resolveReminderClock(user.time, user.reminderClock);
+  const since = firstUsedAt ? boredSinceLine(new Date(firstUsedAt)) : null;
+  const header = degHeaderLines(user.name, since);
   const duration = durationParts(durationMinutes);
+  const canvas = theme.color.bg.grouped;
 
   useEffect(() => {
     const check = () => {
@@ -77,9 +89,14 @@ export default function Profile() {
     return () => sub.remove();
   }, [refreshDailyReminder]);
 
+  useEffect(() => {
+    if (!reminderOn) setTimeOpen(false);
+  }, [reminderOn]);
+
   const confirmReset = () => {
     void (async () => {
-      const needsNetwork = backup.mode !== 'off' && resetNeedsNetwork(backup.preview);
+      const needsNetwork =
+        backup.mode !== 'off' && backup.mode !== 'fakedoor' && resetNeedsNetwork(backup.preview);
       if (needsNetwork && !(await deviceIsOnline())) {
         Alert.alert(ALERT_OFFLINE, ALERT_OFFLINE_RESET, [{ text: CONFIRM_OK }]);
         return;
@@ -90,6 +107,7 @@ export default function Profile() {
           text: CONFIRM_RESET,
           style: 'destructive',
           onPress: () => {
+            knappetrykk({ type: 'Knapp', navn: 'Nullstill', hendelse: 'submit', skjerm: 'Deg' });
             void (async () => {
               try {
                 if (needsNetwork && !(await deviceIsOnline())) {
@@ -109,9 +127,9 @@ export default function Profile() {
                 await resetLocalData();
                 backup.forget();
                 forgetPreference();
+                // The splash unmounts the stack. The remount is one fresh route,
+                // and index sends launch 'onboarding' to step 1. No navigator call here.
                 beginIntroSplash();
-                if (router.canDismiss()) router.dismissAll();
-                router.replace('/onboarding');
               } catch {
                 setError('noe gikk galt. prøv igjen.');
               }
@@ -122,154 +140,245 @@ export default function Profile() {
     })();
   };
 
+  const fakedoor = backup.mode === 'fakedoor';
   const backupValue = degBackupValue(backup.mode, backup.preview);
   const backupLabel =
     backupValue === 'on' ? DEG_ON : backupValue === 'onTest' ? DEG_ON_TEST : backupValue === 'stale' ? DEG_STALE : DEG_OFF;
   const honesty = showHonestyLine(backup.mode, backup.preview);
-  const restoreDenied =
-    backup.preview.notificationsDeniedAfterRestore && user.notifications === true && !allowed;
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
+  const label = [theme.text.body, styles.rowLabel, { color: theme.color.text.primary }];
+  const value = [theme.text.body, styles.rowValue, { color: theme.color.text.tertiary }];
+  const closeTime = () => setTimeOpen(false);
+
   return (
-    <Screen scroll edges={['top']} contentStyle={styles.content}>
-      {user.name ? <ScreenTitle style={{ marginBottom: theme.space['6'] }}>{user.name}</ScreenTitle> : null}
+    <View style={[styles.fill, { backgroundColor: canvas }]}>
+      <Screen scroll edges={['top']} top="none" background={canvas} contentStyle={styles.content}>
+        {header.name || header.since ? (
+          <Pressable accessible={false} onPress={closeTime}>
+            {header.name ? (
+              <Text
+                style={[
+                  styles.title,
+                  {
+                    fontFamily: theme.fonts.serif,
+                    color: theme.color.text.primary,
+                    marginBottom: header.since ? 0 : deg.afterTitle,
+                  },
+                ]}
+              >
+                {header.name}
+              </Text>
+            ) : null}
+            {header.since ? (
+              <Text
+                style={[
+                  styles.since,
+                  !header.name && styles.sinceAlone,
+                  { fontFamily: theme.fonts.sans, color: theme.color.text.tertiary },
+                ]}
+              >
+                {header.since}
+              </Text>
+            ) : null}
+          </Pressable>
+        ) : null}
 
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Foretrukket varighet, ${minutesPhrase(durationMinutes)}`}
-        onPress={() => setPickerOpen(true)}
-        style={[styles.row, { borderBottomColor: theme.color.border.default }]}
-      >
-        <Text style={[theme.text.label, { color: theme.color.text.primary }]}>Foretrukket varighet</Text>
-        <View style={styles.rowRight}>
-          <Text style={[theme.text.bodySmall, { color: theme.color.text.secondary }]}>
-            <Text style={styles.monoFigure}>{duration.value}</Text>
-            {` ${duration.unit}`}
-          </Text>
-          <Icon name="chevronRight" size={16} color={theme.color.text.tertiary} />
-        </View>
-      </Pressable>
-
-      <View
-        style={[
-          styles.row,
-          {
-            borderBottomColor: theme.color.border.default,
-            paddingVertical: theme.space['3'],
-          },
-        ]}
-      >
-        <View style={styles.reminderCopy}>
-          <Text style={[theme.text.label, { color: theme.color.text.primary }]}>Daglig påminnelse</Text>
-          {reminderOn ? (
+        <View style={styles.groups}>
+          <SettingsGroup>
             <Pressable
+              ref={durationRef}
               accessibilityRole="button"
-              accessibilityLabel={clock.label}
-              hitSlop={12}
+              accessibilityLabel={`Foretrukket varighet, ${minutesPhrase(durationMinutes)}`}
               onPress={() => {
-                // No time picker yet. hitSlop keeps a 44pt target until one exists.
+                closeTime();
+                setPickerOpen(true);
               }}
-              style={[styles.reminderTime, { marginTop: theme.space['1'], gap: theme.space['2'] }]}
+              style={styles.row}
             >
-              <Text style={[styles.monoFigure, { color: theme.color.text.secondary }]}>{clock.label}</Text>
-              <Icon name="chevronRight" size={16} color={theme.color.text.tertiary} />
+              <Text style={label}>Foretrukket varighet</Text>
+              <View style={styles.trailing}>
+                <Text style={value}>
+                  <Text style={styles.figure}>{duration.value}</Text>
+                  {` ${duration.unit}`}
+                </Text>
+                <DegChevron />
+              </View>
             </Pressable>
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityLabel="Vis nedtelling"
+              accessibilityState={{ checked: showCountdown }}
+              onPress={() => {
+                closeTime();
+                void Haptics.selectionAsync();
+                setShowCountdown(!showCountdown).catch(() => setError('noe gikk galt. prøv igjen.'));
+              }}
+              style={styles.row}
+            >
+              <Text style={label}>Vis nedtelling</Text>
+              <Toggle embedded value={showCountdown} />
+            </Pressable>
+          </SettingsGroup>
+
+          <SettingsGroup
+            footer={
+              allowed ? null : (
+                <View>
+                  <Text style={[theme.text.caption, { color: theme.color.text.tertiary }]}>
+                    Varsler er slått av for appen.
+                  </Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Åpne Innstillinger"
+                    hitSlop={{ top: 13, bottom: 13, left: 4, right: 4 }}
+                    onPress={() => Linking.openSettings()}
+                    style={styles.linkHit}
+                  >
+                    <Text style={[theme.text.eyebrow, { color: theme.color.text.link }]}>Åpne Innstillinger</Text>
+                  </Pressable>
+                </View>
+              )
+            }
+          >
+            <Pressable
+              accessibilityRole="switch"
+              accessibilityLabel="Daglig påminnelse"
+              accessibilityState={{ checked: reminderOn }}
+              onPress={() => {
+                closeTime();
+                void Haptics.selectionAsync();
+                setDailyReminder(!reminderOn)
+                  .then((result) => {
+                    if (result === 'off') void backup.clearRestoreNotificationLine();
+                    if (result === 'on') setAllowed(true);
+                    if (result === 'denied') setAllowed(false);
+                  })
+                  .catch(() => setError('noe gikk galt. prøv igjen.'));
+              }}
+              style={styles.row}
+            >
+              <Text style={label}>Daglig påminnelse</Text>
+              <Toggle embedded value={reminderOn} />
+            </Pressable>
+            {reminderOn ? (
+              <View>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Tidspunkt, ${clock.label}`}
+                  accessibilityState={{ expanded: timeOpen }}
+                  onPress={() => setTimeOpen((open) => !open)}
+                  style={styles.row}
+                >
+                  <Text style={label}>Tidspunkt</Text>
+                  <View
+                    style={[
+                      styles.capsule,
+                      { backgroundColor: theme.color.control.capsule },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        theme.text.body,
+                        styles.capsuleText,
+                        { color: timeOpen ? theme.color.accent.default : theme.color.text.primary },
+                      ]}
+                    >
+                      {clock.label}
+                    </Text>
+                  </View>
+                </Pressable>
+                <TimeWheel
+                  open={timeOpen}
+                  hour={clock.hour}
+                  minute={clock.minute}
+                  onChange={(hour, minute) => {
+                    if (hour === clock.hour && minute === clock.minute) return;
+                    setReminderClock(hour, minute).catch(() => setError('noe gikk galt. prøv igjen.'));
+                  }}
+                />
+              </View>
+            ) : null}
+          </SettingsGroup>
+
+          <SettingsGroup>
+            <Pressable
+              ref={appearanceRef}
+              accessibilityRole="button"
+              accessibilityLabel={`Utseende, ${appearanceLabel(preference)}`}
+              onPress={() => {
+                closeTime();
+                setAppearanceOpen(true);
+              }}
+              style={styles.row}
+            >
+              <Text style={label}>Utseende</Text>
+              <View style={styles.trailing}>
+                <Text style={value}>{appearanceLabel(preference)}</Text>
+                <DegChevron />
+              </View>
+            </Pressable>
+          </SettingsGroup>
+
+          {backupValue !== 'hidden' ? (
+            <SettingsGroup
+              footer={
+                honesty ? (
+                  <Text style={[theme.text.caption, { color: theme.color.text.tertiary }]}>{HONESTY_LINE}</Text>
+                ) : null
+              }
+            >
+              <Pressable
+                ref={backupRef}
+                accessibilityRole="button"
+                accessibilityLabel={fakedoor ? INTEREST_HEADER_LABEL : `Sikkerhetskopi, ${backupLabel}`}
+                onPress={() => {
+                  sikkerhetskopiTrykk({
+                    knapp: 'sikkerhetskopi_aapne',
+                    kilde: 'deg',
+                    skjerm: 'Deg',
+                    hendelse: 'åpner',
+                    navn: 'Sikkerhetskopi',
+                  });
+                  closeTime();
+                  setBackupOpen(true);
+                }}
+                style={styles.row}
+              >
+                <Text style={label}>Sikkerhetskopi</Text>
+                <View style={styles.trailing}>
+                  {fakedoor ? <ComingTag variant="row" /> : <Text style={value}>{backupLabel}</Text>}
+                  <DegChevron />
+                </View>
+              </Pressable>
+            </SettingsGroup>
           ) : null}
         </View>
-        <Toggle
-          value={reminderOn}
-          accessibilityLabel="Daglig påminnelse"
-          onChange={(next) => {
-            setDailyReminder(next)
-              .then((result) => {
-                if (!next) void backup.clearRestoreNotificationLine();
-                if (result === 'on') setAllowed(true);
-                if (result === 'denied') setAllowed(false);
-              })
-              .catch(() => setError('noe gikk galt. prøv igjen.'));
-          }}
-        />
-      </View>
-      {restoreDenied ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={NOTIFICATIONS_OFF_LINE}
-          onPress={() => Linking.openSettings()}
-          style={{ marginTop: theme.space['3'], marginBottom: theme.space['2'], minHeight: 44, justifyContent: 'center' }}
-        >
-          <Text style={[theme.text.caption, { color: theme.color.text.secondary }]}>{NOTIFICATIONS_OFF_LINE}</Text>
-        </Pressable>
-      ) : user.notifications === true && !allowed ? (
-        <View style={{ marginTop: theme.space['3'], marginBottom: theme.space['2'] }}>
-          <Text style={[theme.text.caption, { color: theme.color.text.secondary }]}>
-            Varsler er slått av for bored. Du kan slå dem på i Innstillinger.
+
+        {error ? (
+          <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginTop: theme.space['4'] }]}>
+            {error}
           </Text>
-          <Button
-            title="Åpne Innstillinger"
-            variant="secondary"
-            size="compact"
-            onPress={() => Linking.openSettings()}
-            style={{ alignSelf: 'flex-start', marginTop: theme.space['3'] }}
-          />
-        </View>
-      ) : null}
+        ) : null}
 
-      <View style={[styles.row, { borderBottomColor: theme.color.border.default }]}>
-        <Text style={[theme.text.label, { color: theme.color.text.primary }]}>Vis nedtelling</Text>
-        <Toggle
-          value={showCountdown}
-          accessibilityLabel="Vis nedtelling"
-          onChange={(next) => {
-            setShowCountdown(next).catch(() => setError('noe gikk galt. prøv igjen.'));
-          }}
-        />
-      </View>
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Utseende, ${appearanceLabel(preference)}`}
-        onPress={() => setAppearanceOpen(true)}
-        style={[styles.row, { borderBottomColor: theme.color.border.default }]}
-      >
-        <Text style={[theme.text.label, { color: theme.color.text.primary }]}>Utseende</Text>
-        <View style={styles.rowRight}>
-          <Text style={[theme.text.bodySmall, { color: theme.color.text.secondary }]}>{appearanceLabel(preference)}</Text>
-          <Icon name="chevronRight" size={16} color={theme.color.text.tertiary} />
-        </View>
-      </Pressable>
-
-      {backupValue !== 'hidden' ? (
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Sikkerhetskopi, ${backupLabel}`}
-          onPress={() => router.push('/profile/backup')}
-          style={[styles.row, { borderBottomColor: theme.color.border.default }]}
+          accessibilityLabel="Nullstill"
+          onPress={() => {
+            knappetrykk({ type: 'Knapp', navn: 'Nullstill', hendelse: 'åpner', skjerm: 'Deg' });
+            closeTime();
+            confirmReset();
+          }}
+          style={styles.reset}
         >
-          <Text style={[theme.text.label, { color: theme.color.text.primary }]}>Sikkerhetskopi</Text>
-          <View style={styles.rowRight}>
-            <Text style={[theme.text.bodySmall, { color: theme.color.text.secondary }]}>{backupLabel}</Text>
-            <Icon name="chevronRight" size={16} color={theme.color.text.tertiary} />
-          </View>
+          <Text style={[theme.text.body, styles.rowLabel, { color: theme.color.text.destructive }]}>Nullstill</Text>
         </Pressable>
-      ) : null}
-      {honesty ? (
-        <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginTop: theme.space['2'] }]}>
-          {HONESTY_LINE}
-        </Text>
-      ) : null}
 
-      {error ? (
-        <Text style={[theme.text.caption, { color: theme.color.text.secondary, marginTop: theme.space['4'] }]}>{error}</Text>
-      ) : null}
-
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Nullstill"
-        onPress={confirmReset}
-        style={[styles.reset, { marginTop: theme.space['10'] }]}
-      >
-        <Text style={[theme.text.label, { color: theme.color.text.destructive }]}>Nullstill</Text>
-      </Pressable>
+        <View accessibilityLabel={`Versjon ${version}`} style={styles.version}>
+          <Text style={[theme.text.caption, styles.versionText, { color: theme.color.text.meta }]}>{version}</Text>
+        </View>
+      </Screen>
+      <BottomFade color={canvas} />
 
       <DurationSheet
         visible={pickerOpen}
@@ -280,60 +389,92 @@ export default function Profile() {
           setPickerOpen(false);
         }}
         onClose={() => setPickerOpen(false)}
+        returnFocusRef={durationRef}
       />
-      {backup.mode === 'preview' ? (
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Versjon ${version}`}
-          onPress={() => {
-            versionTaps.current += 1;
-            if (versionTaps.current >= 5) {
-              versionTaps.current = 0;
-              setPreviewMenu(true);
-            }
-          }}
-          style={{ marginTop: theme.space['10'], minHeight: 44, justifyContent: 'center' }}
-        >
-          <Text style={[theme.text.caption, { color: theme.color.text.tertiary }]}>{version}</Text>
-        </Pressable>
-      ) : null}
-
       <AppearanceSheet
         visible={appearanceOpen}
         onClose={() => setAppearanceOpen(false)}
         onError={() => setError('noe gikk galt. prøv igjen.')}
+        returnFocusRef={appearanceRef}
       />
-      <PreviewStateSheet
-        visible={previewMenu}
-        onClose={() => setPreviewMenu(false)}
-        onPick={(screen: PreviewForce | null) => {
-          void backup.forcePreview(screen).then(() => {
-            setPreviewMenu(false);
-            if (screen) router.push('/profile/backup');
-          });
-        }}
+      <BackupInterestScreen
+        visible={backupOpen}
+        kilde="deg"
+        onClose={() => setBackupOpen(false)}
+        returnFocusRef={backupRef}
       />
-    </Screen>
+    </View>
+  );
+}
+
+function DegChevron() {
+  return (
+    <View style={styles.chevron}>
+      <RowChevron />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 140, paddingTop: screenHeaderInset },
+  fill: { flex: 1 },
+  content: { paddingTop: deg.titleTop, paddingBottom: 160 },
+  title: {
+    fontSize: deg.titleSize,
+    lineHeight: deg.titleLine,
+  },
+  since: {
+    marginTop: deg.sinceGap,
+    marginBottom: deg.sinceToGroup,
+    fontSize: deg.sinceSize,
+    lineHeight: deg.sinceLineHeight,
+  },
+  /** The 8 pt gap is only the space under a name. A skipped name does not invent one. */
+  sinceAlone: { marginTop: 0 },
+  groups: { gap: deg.groupGap },
   row: {
-    minHeight: 44,
+    height: deg.rowMinHeight,
+    paddingHorizontal: deg.rowInset,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderBottomWidth: 1,
+    columnGap: 12,
   },
-  rowRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  reminderCopy: { flex: 1, paddingRight: 12 },
-  reminderTime: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start' },
-  monoFigure: {
-    fontFamily: fonts.mono,
-    fontSize: 14,
-    lineHeight: 20,
-    fontVariant: ['tabular-nums'],
+  rowLabel: {
+    fontSize: deg.rowSize,
+    lineHeight: deg.rowLine,
+    flexGrow: 1,
+    flexShrink: 1,
+    transform: [{ translateY: deg.rowTextShift }],
   },
-  reset: { minHeight: 44, justifyContent: 'center' },
+  rowValue: {
+    fontSize: deg.rowSize,
+    lineHeight: deg.rowLine,
+    transform: [{ translateY: deg.rowTextShift }],
+  },
+  figure: { fontVariant: tabularNums },
+  trailing: { flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '100%' },
+  chevron: { transform: [{ translateY: deg.rowTextShift }] },
+  capsule: {
+    minHeight: deg.capsuleHeight,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  capsuleText: {
+    fontSize: deg.rowSize,
+    lineHeight: deg.rowLine,
+    fontVariant: tabularNums,
+    transform: [{ translateY: deg.rowTextShift }],
+  },
+  // Touch target grows with hitSlop. A 32 pt min height would push the next card 14 pt too far.
+  linkHit: { alignSelf: 'flex-start', justifyContent: 'center' },
+  reset: {
+    marginTop: deg.resetGap,
+    minHeight: deg.resetMinHeight,
+    paddingHorizontal: deg.rowInset,
+    justifyContent: 'center',
+  },
+  version: { marginTop: deg.versionGap, alignItems: 'center', justifyContent: 'center' },
+  versionText: { textAlign: 'center' },
 });

@@ -42,6 +42,15 @@ function load(): ReturnType<typeof loadAppConfig> {
 }
 
 describe('app config', () => {
+  it('shows bored. under the icon and keeps the store linkage', () => {
+    assert.equal(appJson.expo.name, 'bored.');
+    assert.equal(appJson.expo.slug, 'bored');
+    assert.equal(appJson.expo.scheme, 'bored');
+    assert.equal((appJson.expo.ios as { bundleIdentifier: string }).bundleIdentifier, 'no.bored.app');
+    assert.equal((appJson.expo.android as { package: string }).package, 'no.bored.app');
+    assert.equal((appJson.expo.extra as { eas: { projectId: string } }).eas.projectId, PROJECT_ID);
+  });
+
   it('keeps the eas project, owner, and router from app.json', () => {
     withEnv(
       {
@@ -52,7 +61,7 @@ describe('app config', () => {
       () => {
         const result = load();
         assert.equal(result.owner, 'thekingdule');
-        assert.equal(result.extra?.backupMode, 'preview');
+        assert.equal(result.extra?.backupMode, 'fakedoor');
         assert.equal(result.extra?.eas?.projectId, PROJECT_ID);
         assert.equal(result.extra?.router?.asyncRoutes?.web, false);
         assert.equal(result.extra?.easBuildProfile, undefined);
@@ -69,7 +78,7 @@ describe('app config', () => {
       },
       () => {
         const result = load();
-        assert.equal(result.extra?.backupMode, 'preview');
+        assert.equal(result.extra?.backupMode, 'fakedoor');
         assert.equal(result.extra?.easBuildProfile, 'testflight');
         assert.equal(result.extra?.eas?.projectId, PROJECT_ID);
         assert.equal(result.owner, 'thekingdule');
@@ -77,15 +86,26 @@ describe('app config', () => {
     );
   });
 
-  it('rejects preview backup for the production profile and allows off', () => {
+  it('rejects preview backup for the production profile and allows off and fakedoor', () => {
     withEnv(
       {
-        BACKUP_MODE: undefined,
+        BACKUP_MODE: 'preview',
         EAS_BUILD_PROFILE: 'production',
         EXPO_PUBLIC_EAS_BUILD_PROFILE: undefined,
       },
       () => {
         assert.throws(() => load(), /preview/);
+      },
+    );
+    withEnv(
+      {
+        BACKUP_MODE: 'fakedoor',
+        EAS_BUILD_PROFILE: 'production',
+        EXPO_PUBLIC_EAS_BUILD_PROFILE: undefined,
+      },
+      () => {
+        const result = load();
+        assert.equal(result.extra?.backupMode, 'fakedoor');
       },
     );
     withEnv(
