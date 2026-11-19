@@ -20,12 +20,21 @@ Ikke meditasjon. Ingen pusteteknikker. Ingen stemme som forteller deg hva du ska
 
 Kanskje blir du urolig. Kanskje dukker det opp tanker. Det er vanlig. Du trenger ikke gjøre noe med det.
 
-<p align="center">
-  <img src="docs/screenshots/02-hjem.jpg" width="200" alt="Hjem: Trykk start. Legg fra deg telefonen." />
-  <img src="docs/screenshots/03-okt.jpg" width="200" alt="Økt: Ingen lyd. Ingen øvelser. Bare tid." />
-  <img src="docs/screenshots/05-logg.jpg" width="200" alt="Logg: Alle økter teller. Også de korte." />
-  <img src="docs/screenshots/06-refleksjon.jpg" width="200" alt="Refleksjon: Skriv ned det som dukket opp. Eller ikke." />
-</p>
+Appen er bare på norsk, og ligger foreløpig bare i App Store i Norge.
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/01-ti-minutter.jpg" width="180" alt="Ti minutter med ingenting." /></td>
+    <td align="center"><img src="docs/screenshots/02-hjem.jpg" width="180" alt="Trykk start. Legg fra deg telefonen." /></td>
+    <td align="center"><img src="docs/screenshots/03-okt.jpg" width="180" alt="Ingen lyd. Ingen øvelser. Bare tid." /></td>
+    <td align="center"><img src="docs/screenshots/04-ingenting-skjer.jpg" width="180" alt="Ingenting skjer. Det er poenget." /></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/05-logg.jpg" width="180" alt="Alle økter teller. Også de korte." /></td>
+    <td align="center"><img src="docs/screenshots/06-refleksjon.jpg" width="180" alt="Skriv ned det som dukket opp. Eller ikke." /></td>
+    <td align="center"><img src="docs/screenshots/07-klumpen.jpg" width="180" alt="Bare deg og ingenting." /></td>
+  </tr>
+</table>
 
 ## English
 
@@ -37,6 +46,8 @@ This is not meditation. No breathing exercises. No voice telling you what to fee
 
 You might feel restless. Thoughts might show up. That is normal. You do not have to do anything with them.
 
+The app is in Norwegian only, and is currently available only on the App Store in Norway.
+
 [Download on the App Store](https://apps.apple.com/no/app/bored/id6829862550)
 
 ## Teknologi
@@ -47,7 +58,7 @@ You might feel restless. Thoughts might show up. That is normal. You do not have
 - EAS Build and Submit for the iOS release
 - 277 tests in 55 files, run with `npm test` (Node's built-in test runner), plus `npm run typecheck`
 
-iPhone, iOS 16.4 or later. The app is on the App Store in Norway.
+iPhone, iOS 16.4 or later.
 
 ## Slik ble appen laget
 
